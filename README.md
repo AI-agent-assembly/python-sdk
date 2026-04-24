@@ -14,7 +14,17 @@ The Agent Assembly Python SDK provides a governance-native runtime for AI agents
 
 ## Quickly Start
 
-🚧 The details of quickly start as simple demonstration for users
+```python
+from agent_assembly import init_assembly
+
+# Initialize the agent assembly
+assembly = init_assembly(
+    gateway_url="https://gateway.agent-assembly.dev",
+    agent_id="my-agent-001"
+)
+
+# Your agent is now ready with governance enabled
+```
 
 ## Documentation
 
