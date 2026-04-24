@@ -35,15 +35,6 @@ on:
           - auto
           - force
           - skip
-      docker:
-        description: 'Docker image validation'
-        required: false
-        default: 'auto'
-        type: choice
-        options:
-          - auto
-          - force
-          - skip
       docs:
         description: 'Documentation validation'
         required: false
@@ -71,7 +62,6 @@ jobs:
     with:
       level: ${{ inputs.level }}
       python: ${{ inputs.python }}
-      docker: ${{ inputs.docker }}
       docs: ${{ inputs.docs }}
 
   # Summary job to report results
@@ -87,7 +77,6 @@ jobs:
           echo ""
           echo "Validation Status: ${{ needs.validation.result }}"
           echo "Python Build: ${{ needs.validation.outputs.python_validated }}"
-          echo "Docker Build: ${{ needs.validation.outputs.docker_validated }}"
           echo "Docs Build: ${{ needs.validation.outputs.docs_validated }}"
           echo "Security Scan: ${{ needs.validation.outputs.security_validated }}"
           echo "Test Version: ${{ needs.validation.outputs.test_version }}"
@@ -100,7 +89,6 @@ jobs:
             echo "- Release Intent: ${{ needs.validation.outputs.do_release }}"
             echo "- Level: ${{ needs.validation.outputs.level }}"
             echo "- Python: ${{ needs.validation.outputs.python }}"
-            echo "- Docker: ${{ needs.validation.outputs.docker }}"
             echo "- Docs: ${{ needs.validation.outputs.docs }}"
             echo "- Test Version: ${{ needs.validation.outputs.test_version }}"
             echo ""
@@ -111,9 +99,6 @@ jobs:
             echo "Failed validations need to be addressed before release:"
             if [[ "${{ needs.validation.outputs.python_validated }}" != "true" ]]; then
               echo "- Python package build/test failed"
-            fi
-            if [[ "${{ needs.validation.outputs.docker_validated }}" != "true" ]]; then
-              echo "- Docker image build/test failed"
             fi
             if [[ "${{ needs.validation.outputs.docs_validated }}" != "true" ]]; then
               echo "- Documentation build/test failed"
