@@ -10,7 +10,7 @@ authors = [{ name = "Agent Assembly Team", email = "team@agent-assembly.dev" }]
 requires-python = ">=3.12,<4.0"
 readme = "README.md"
 license = { file = "LICENSE" }
-keywords = []
+keywords = ["ai-agent", "governance", "mcp", "assembly", "runtime", "policy"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
