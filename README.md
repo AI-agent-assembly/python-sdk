@@ -2,7 +2,7 @@
 
 ## Overview
 
-🚧 Clear brief of your lib
+The Agent Assembly Python SDK provides a governance-native runtime for AI agents. This SDK enables developers to integrate AI agent lifecycle management, policy enforcement, and audit logging into their applications. It follows a WebAssembly-like pattern with a Rust core runtime and Python client interface.
 
 
 ## Python versions support
