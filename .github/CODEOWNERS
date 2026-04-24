@@ -4,50 +4,58 @@
 
 #######################################
 # Repository Default Owner
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-*                                     @agent-assembly/core-team
+*                                     @Chisanan232
 
 # Software license annotation
-/LICENSE                              @agent-assembly/core-team
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
+/LICENSE                              @Chisanan232
 
 #######################################
 # Source Code
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/agent_assembly/                      @agent-assembly/core-team
-*.py                                  @agent-assembly/core-team
+/agent_assembly/                      @Chisanan232
+*.py                                  @Chisanan232
 
 #######################################
 # Tests
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/test/                                @agent-assembly/core-team
+/test/                                @Chisanan232
 
 #######################################
 # Documentation
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/docs/                                @agent-assembly/core-team
-*.md                                  @agent-assembly/core-team
-*.mdx                                 @agent-assembly/core-team
-*.ts                                  @agent-assembly/core-team
+/docs/                                @Chisanan232
+*.md                                  @Chisanan232
+*.mdx                                 @Chisanan232
+*.ts                                  @Chisanan232
 
 #######################################
 # CI/CD Configuration
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/.github/                             @agent-assembly/core-team
-/.github/workflows/                   @agent-assembly/core-team
+/.github/                             @Chisanan232
+/.github/workflows/                   @Chisanan232
 
 #######################################
 # Build Configuration
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/pyproject.toml                       @agent-assembly/core-team
-/scripts/                             @agent-assembly/core-team
+/pyproject.toml                       @Chisanan232
+/scripts/                             @Chisanan232
 
 #######################################
 # Code Quality and Testing
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/.pre-commit-config.yaml              @agent-assembly/core-team
-/pytest.ini                           @agent-assembly/core-team
-/.coveragerc                          @agent-assembly/core-team
-/mypy.ini                             @agent-assembly/core-team
-/.pylintrc                            @agent-assembly/core-team
-/sonar-project.properties             @agent-assembly/core-team
-/codecov.yml                          @agent-assembly/core-team
+/.pre-commit-config.yaml              @Chisanan232
+/pytest.ini                           @Chisanan232
+/.coveragerc                          @Chisanan232
+/mypy.ini                             @Chisanan232
+/.pylintrc                            @Chisanan232
+/sonar-project.properties             @Chisanan232
+/codecov.yml                          @Chisanan232
