@@ -26,8 +26,8 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/Chisanan232/Template-Python-UV-Project"
-Repository = "https://github.com/Chisanan232/Template-Python-UV-Project"
+Homepage = "https://github.com/agent-assembly/python-sdk"
+Repository = "https://github.com/agent-assembly/python-sdk"
 
 [dependency-groups]
 dev = [
