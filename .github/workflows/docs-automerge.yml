@@ -27,7 +27,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             code:
-              - '<your_package_name>/**'
+              - 'agent_assembly/**'
               - 'examples/**'
               - 'scripts/**'
               - 'test/**'
