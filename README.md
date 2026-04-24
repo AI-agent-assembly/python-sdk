@@ -7,9 +7,9 @@ The Agent Assembly Python SDK provides a governance-native runtime for AI agents
 
 ## Python versions support
 
-🚧 The required Python versions of this library
+This library requires Python 3.12+
 
-[![Supported Versions](https://img.shields.io/pypi/pyversions/<you lib name>.svg?logo=python&logoColor=FBE072)](https://pypi.org/project/<you lib name>)
+[![Supported Versions](https://img.shields.io/pypi/pyversions/agent-assembly.svg?logo=python&logoColor=FBE072)](https://pypi.org/project/agent-assembly)
 
 
 ## Quickly Start
