@@ -40,7 +40,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_uv_run_test.yaml@master
     with:
       test_type: e2e-test
-      test_folder: './test/e2e_test'
+      test_folder: './test/e2e'
       install_dependency_with_group: 'dev'
       max-parallel: 1
       python-versions: '["3.13"]'
@@ -53,7 +53,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_uv_run_test.yaml@master
     with:
       test_type: contract-test
-      test_folder: './test/contract_test'
+      test_folder: './test/contract'
       install_dependency_with_group: 'dev'
       python-versions: '["3.13"]'
       operating-systems: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'
@@ -63,7 +63,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_uv_run_test.yaml@master
     with:
       test_type: ci-script-test
-      test_folder: './test/ci_script_test'
+      test_folder: './test/ci_script'
       install_dependency_with_group: 'dev'
       python-versions: '["3.13"]'
       operating-systems: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'

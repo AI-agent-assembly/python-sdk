@@ -15,7 +15,7 @@ on:
       - ".github/workflows/rw_build_and_test.yaml"
       - ".github/workflows/rw_run_all_test_and_record.yaml"
 #     For test code
-      - "test/e2e_test/**/*.py"
+      - "test/e2e/**/*.py"
 #     For configurations for test or CI
       - ".coveragerc"
       - "codecov.yml"

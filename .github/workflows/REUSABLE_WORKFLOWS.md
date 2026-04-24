@@ -276,8 +276,8 @@ your-project/
 ├── test/
 │   ├── unit/
 │   ├── integration/
-│   ├── e2e_test/
-│   └── contract_test/
+│   ├── e2e/
+│   └── contract/
 ├── scripts/
 │   └── run_all_tests.sh
 ├── pyproject.toml
