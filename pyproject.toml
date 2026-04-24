@@ -56,11 +56,11 @@ default-groups = [
 ]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/"]
-packages = ["src"]
-#artifacts = ["slack_mcp/py.typed"]
+include = ["agent_assembly/"]
+packages = ["agent_assembly"]
+#artifacts = ["agent_assembly/py.typed"]
 
 [tool.hatch.build.targets.wheel]
-include = ["src/"]
-packages = ["src"]
-#artifacts = ["slack_mcp/py.typed"]
+include = ["agent_assembly/"]
+packages = ["agent_assembly"]
+#artifacts = ["agent_assembly/py.typed"]
