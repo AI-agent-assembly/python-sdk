@@ -80,7 +80,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
     with:
       test_type: unit-test
-      source_folder: src
+      source_folder: agent_assembly
 
   integration-test_codecov:
 #    name: For unit test, organize and generate the testing report and upload it to Codecov
@@ -92,7 +92,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
     with:
       test_type: integration-test
-      source_folder: src
+      source_folder: agent_assembly
 
   e2e-test_codecov:
 #    name: For end-to-end test, organize and generate the testing report and upload it to Codecov
@@ -104,7 +104,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
     with:
       test_type: e2e-test
-      source_folder: src
+      source_folder: agent_assembly
 
   # Contract test not implemented yet
   # contract-test_codecov:
@@ -133,7 +133,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
     with:
       test_type: all-test
-      source_folder: src
+      source_folder: agent_assembly
 
   all_test_include_e2e_test_codecov:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -149,4 +149,4 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
     with:
       test_type: all-test
-      source_folder: src
+      source_folder: agent_assembly
