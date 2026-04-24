@@ -1,8 +1,7 @@
 """
-Integration test stub for the Agent Assembly SDK.
+Unit tests for the Agent Assembly SDK.
 
-This file contains integration tests for the SDK.
-These tests require a running gateway instance.
+These tests verify the basic SDK functionality without requiring external dependencies.
 """
 
 import pytest
@@ -11,20 +10,18 @@ from agent_assembly import init_assembly
 from agent_assembly.exceptions import ConfigurationError
 
 
-@pytest.mark.integration
 def test_init_assembly_with_valid_config():
     """Test that assembly initialization works with valid configuration."""
-    # This test requires a running gateway
     assembly = init_assembly(
         gateway_url="http://localhost:8080",
         agent_id="test-agent-001",
     )
     assert assembly is not None
     assert assembly.agent_id == "test-agent-001"
+    assert assembly.gateway_url == "http://localhost:8080"
     assembly.close()
 
 
-@pytest.mark.integration
 def test_init_assembly_with_invalid_config():
     """Test that assembly initialization fails with invalid configuration."""
     with pytest.raises(ConfigurationError):
@@ -40,7 +37,6 @@ def test_init_assembly_with_invalid_config():
         )
 
 
-@pytest.mark.integration
 def test_gateway_client_context_manager():
     """Test that the gateway client works as a context manager."""
     assembly = init_assembly(
@@ -53,3 +49,14 @@ def test_gateway_client_context_manager():
     
     # Client should be closed after exiting context
     assert assembly._client is None
+
+
+def test_gateway_client_with_api_key():
+    """Test that the gateway client can be initialized with an API key."""
+    assembly = init_assembly(
+        gateway_url="http://localhost:8080",
+        agent_id="test-agent-001",
+        api_key="test-api-key",
+    )
+    assert assembly.api_key == "test-api-key"
+    assembly.close()
