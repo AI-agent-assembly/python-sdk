@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "test-python-uv-project-template"
+name = "agent-assembly"
 version = "0.0.3"
 description = "🐍 Just a template of Python project be managed by UV."
 authors = [{ name = "Chisanan232", email = "chi10211201@cycu.org.tw" }]
