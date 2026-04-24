@@ -49,7 +49,7 @@ repos:
     rev: v1.16.0
     hooks:
       - id: mypy
-        package: src,test
+        package: agent_assembly,test
   #      exclude: ^test/unit_test.{1,64}.py
         args:
   #        - --strict
