@@ -46,6 +46,7 @@ jobs:
       upload-to-codecov: true
       codecov_flags: unit  # Required if 'upload-to-codecov' is true
       codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   integration-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -65,6 +66,7 @@ jobs:
       upload-to-codecov: true
       codecov_flags: integration  # Required if 'upload-to-codecov' is true
       codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   e2e-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -85,6 +87,7 @@ jobs:
       upload-to-codecov: true
       codecov_flags: e2e  # Required if 'upload-to-codecov' is true
       codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   contract-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -104,6 +107,7 @@ jobs:
       upload-to-codecov: true
       codecov_flags: contract  # Required if 'upload-to-codecov' is true
       codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   all-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -123,6 +127,7 @@ jobs:
       upload-to-codecov: true
       codecov_flags: all  # Required if 'upload-to-codecov' is true
       codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   sonarcloud_finish:
 #    name: SonarCloud Scan
