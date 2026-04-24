@@ -1,4 +1,4 @@
-# Your lib name
+# Agent Assembly Python SDK
 
 ## Overview
 
