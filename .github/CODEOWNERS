@@ -1,53 +1,53 @@
-# CODEOWNERS file for the <your project name> project
+# CODEOWNERS file for the Agent Assembly Python SDK project
 # Format: file-pattern @owner
 # Order is important; the last matching pattern takes precedence.
 
 #######################################
 # Repository Default Owner
 #######################################
-*                                     <your GitHub name>
+*                                     @agent-assembly/core-team
 
 # Software license annotation
-/LICENSE                              <your GitHub name>
+/LICENSE                              @agent-assembly/core-team
 
 #######################################
 # Source Code
 #######################################
-/src/。                               <your GitHub name>
-*.py                                  <your GitHub name>
+/agent_assembly/                      @agent-assembly/core-team
+*.py                                  @agent-assembly/core-team
 
 #######################################
 # Tests
 #######################################
-/test/                                <your GitHub name>
+/test/                                @agent-assembly/core-team
 
 #######################################
 # Documentation
 #######################################
-/docs/                                <your GitHub name>
-*.md                                  <your GitHub name>
-*.mdx                                 <your GitHub name>
-*.ts                                  <your GitHub name>
+/docs/                                @agent-assembly/core-team
+*.md                                  @agent-assembly/core-team
+*.mdx                                 @agent-assembly/core-team
+*.ts                                  @agent-assembly/core-team
 
 #######################################
 # CI/CD Configuration
 #######################################
-/.github/                             <your GitHub name>
-/.github/workflows/                   <your GitHub name>
+/.github/                             @agent-assembly/core-team
+/.github/workflows/                   @agent-assembly/core-team
 
 #######################################
 # Build Configuration
 #######################################
-/pyproject.toml                       <your GitHub name>
-/scripts/                             <your GitHub name>
+/pyproject.toml                       @agent-assembly/core-team
+/scripts/                             @agent-assembly/core-team
 
 #######################################
 # Code Quality and Testing
 #######################################
-/.pre-commit-config.yaml              <your GitHub name>
-/pytest.ini                           <your GitHub name>
-/.coveragerc                          <your GitHub name>
-/mypy.ini                             <your GitHub name>
-/.pylintrc                            <your GitHub name>
-/sonar-project.properties             <your GitHub name>
-/codecov.yml                          <your GitHub name>
+/.pre-commit-config.yaml              @agent-assembly/core-team
+/pytest.ini                           @agent-assembly/core-team
+/.coveragerc                          @agent-assembly/core-team
+/mypy.ini                             @agent-assembly/core-team
+/.pylintrc                            @agent-assembly/core-team
+/sonar-project.properties             @agent-assembly/core-team
+/codecov.yml                          @agent-assembly/core-team
