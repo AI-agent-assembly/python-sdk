@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "agent-assembly"
 version = "0.0.0"
-description = "🐍 Just a template of Python project be managed by UV."
+description = "Python SDK for AI Agent Assembly - A governance-native runtime for AI agents"
 authors = [{ name = "Chisanan232", email = "chi10211201@cycu.org.tw" }]
 requires-python = ">=3.12,<4.0"
 readme = "README.md"
