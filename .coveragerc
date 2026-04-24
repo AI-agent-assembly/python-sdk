@@ -1,11 +1,11 @@
 [run]
 parallel = True
 relative_files = True
-include=./src
+include=./agent_assembly
 
 omit =
 #    */__init__.py
-    ./src/__main__.py
+    ./agent_assembly/__main__.py
 
 
 [report]
