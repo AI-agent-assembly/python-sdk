@@ -19,7 +19,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_uv_run_test.yaml@master
     with:
       test_type: unit-test
-      test_folder: './test/unit_test'
+      test_folder: './test/unit'
       install_dependency_with_group: 'dev'
       python-versions: '["3.13"]'
       operating-systems: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'
@@ -29,7 +29,7 @@ jobs:
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_uv_run_test.yaml@master
     with:
       test_type: integration-test
-      test_folder: './test/integration_test'
+      test_folder: './test/integration'
       install_dependency_with_group: 'dev'
       python-versions: '["3.13"]'
       operating-systems: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'

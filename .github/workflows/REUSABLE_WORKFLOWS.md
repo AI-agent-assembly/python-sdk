@@ -274,8 +274,8 @@ Your project should follow this structure for optimal compatibility:
 your-project/
 ├── agent_assembly/     # Your Python package
 ├── test/
-│   ├── unit_test/
-│   ├── integration_test/
+│   ├── unit/
+│   ├── integration/
 │   ├── e2e_test/
 │   └── contract_test/
 ├── scripts/
