@@ -1,115 +1,96 @@
 # Agent Assembly Python SDK
 
-## Overview
+Python SDK for AI Agent Assembly, providing a simple client for connecting agents to a governance gateway.
 
-The Agent Assembly Python SDK provides a governance-native runtime for AI agents. This SDK enables developers to integrate AI agent lifecycle management, policy enforcement, and audit logging into their applications. It follows a WebAssembly-like pattern with a Rust core runtime and Python client interface.
+## Requirements
+
+- Python `>=3.12,<4.0`
+
+## Installation
+
+From source:
+
+```bash
+pip install git+https://github.com/AI-agent-assembly/python-sdk.git
+```
+
+For local development:
+
+```bash
+uv sync
+```
+
+## Quick Start
+
+```python
+import asyncio
+
+from agent_assembly import init_assembly
 
 
-## Python versions support
+async def main() -> None:
+    client = init_assembly(
+        gateway_url="http://localhost:8080",
+        agent_id="my-agent-001",
+        api_key="optional-api-key",
+    )
 
-This library requires Python 3.12+
+    try:
+        registration = await client.register_agent()
+        decision = await client.check_policy_compliance("tool.call")
+        print(registration)
+        print(decision)
+    finally:
+        client.close()
 
-[![Supported Versions](https://img.shields.io/pypi/pyversions/agent-assembly.svg?logo=python&logoColor=FBE072)](https://pypi.org/project/agent-assembly)
 
+asyncio.run(main())
+```
 
-## Quickly Start
+## Public API
+
+- `init_assembly(gateway_url, agent_id, api_key=None) -> GatewayClient`
+- `GatewayClient.register_agent() -> dict`
+- `GatewayClient.check_policy_compliance(action: str) -> dict`
+- Exceptions: `AssemblyError`, `AgentError`, `PolicyError`, `GatewayError`, `ConfigurationError`
+- Data models: `AgentConfig`, `AgentState`, `PolicyEvaluation`
+
+## Error Handling
 
 ```python
 from agent_assembly import init_assembly
+from agent_assembly.exceptions import ConfigurationError
 
-# Initialize the agent assembly
-assembly = init_assembly(
-    gateway_url="https://gateway.agent-assembly.dev",
-    agent_id="my-agent-001"
-)
+try:
+    client = init_assembly(gateway_url="", agent_id="my-agent-001")
+except ConfigurationError as exc:
+    print(f"Invalid configuration: {exc}")
+```
 
-# Your agent is now ready with governance enabled
+## Development
+
+Run tests:
+
+```bash
+uv run pytest
+```
+
+Run integration tests:
+
+```bash
+uv run pytest -m integration
+```
+
+Lint and type-check:
+
+```bash
+uv run ruff check .
+uv run mypy agent_assembly
 ```
 
 ## Documentation
 
-🚧 The details of documentation ...
-
-## Reusable GitHub Actions Workflows & Actions
-
-This template provides a comprehensive set of **reusable GitHub Actions workflows and actions** that can be called from other repositories to standardize CI/CD operations. Projects using this template can leverage these centralized components for consistent automation.
-
-### 🚀 Key Features
-
-- **Centralized Management**: All workflows and actions are maintained in this template repository
-- **Standardized Operations**: Consistent CI/CD processes across all projects
-- **Easy Integration**: Simple calls using external repository references
-- **Comprehensive Coverage**: Testing, building, releasing, Docker operations, documentation, and setup utilities
-
-### 📋 Available Workflows
-
-| Workflow                                             | Purpose                      | Key Features                           |
-|------------------------------------------------------|------------------------------|----------------------------------------|
-| `rw_build_and_test.yaml`                             | Run comprehensive test suite | Unit, integration, e2e, contract tests |
-| `rw_run_all_test_and_record.yaml`                    | Complete CI with reporting   | CodeCov upload, SonarCloud analysis    |
-| `rw_python_package.yaml`                             | Python package operations    | Build, test, publish to PyPI           |
-| `rw_docker_operations.yaml`                          | Docker operations            | Build, test, push, security scanning   |
-| `rw_parse_release_intent.yaml`                       | Release configuration parser | Determines release components          |
-| `rw_build_git-tag_and_create_github-release_v2.yaml` | Git tagging and releases     | Automated version management           |
-| `rw_docs_operations.yaml`                            | Documentation operations     | Build, version, deploy docs            |
-
-### 📦 Available Actions
-
-| Action | Purpose | Key Features |
-|--------|---------|--------------|
-| `setup-python-uv` | Python & UV setup with dependencies | Multi-version support, intelligent caching, flexible dependency groups |
-
-### 🔧 Quick Start
-
-To use these reusable workflows in your project, simply call them using external repository references:
-
-```yaml
-# .github/workflows/ci.yaml in your project
-name: CI
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  test:
-    uses: Chisanan232/Template-Python-UV-Project/.github/workflows/rw_run_all_test_and_record.yaml@master
-    secrets:
-      codecov_token: ${{ secrets.CODECOV_TOKEN }}
-      sonar_token: ${{ secrets.SONAR_TOKEN }}
-```
-
-### 📚 Complete Documentation
-
-- **[Reusable Workflows Guide](.github/workflows/REUSABLE_WORKFLOWS.md)**: Complete documentation with all inputs, outputs, and usage examples
-- **[Example Workflows](.github/workflows/examples/)**: Ready-to-use example workflows for common scenarios
-- **Template Placeholders**: All workflows use `<your_*>` placeholders for easy customization
-
-### 💡 Benefits for Projects Using This Template
-
-1. **Reduced Boilerplate**: No need to write complex CI/CD workflows from scratch
-2. **Best Practices**: Workflows follow established patterns and security practices  
-3. **Automatic Updates**: Bug fixes and improvements are centrally maintained
-4. **Consistency**: Same workflow behavior across all projects using the template
-5. **Easy Maintenance**: Update workflows in one place, benefits all projects
-
-
-## Coding style and following rules
-
-**_<your lib name>_** follows coding styles **_black_** and **_PyLint_** to control code quality.
-
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/pylint-dev/pylint)
-
-
-## Downloading state
-
-🚧 The download state for your library
-
-[![Downloads](https://pepy.tech/badge/<your lib name>)](https://pepy.tech/project/<your lib name>)
-[![Downloads](https://pepy.tech/badge/<your lib name>/month)](https://pepy.tech/project/<your lib name>)
-
+- Project docs source: `docs/`
 
 ## License
 

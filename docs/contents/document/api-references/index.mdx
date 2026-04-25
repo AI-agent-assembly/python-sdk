@@ -6,4 +6,59 @@ sidebar_position: 3
 
 # API References
 
-This section provides detailed documentation for all the APIs available in this project.
+## Top-level exports
+
+```python
+from agent_assembly import (
+    init_assembly,
+    AssemblyError,
+    AgentError,
+    PolicyError,
+    GatewayError,
+    ConfigurationError,
+)
+```
+
+## Initialization
+
+### `init_assembly(gateway_url: str, agent_id: str, api_key: str | None = None) -> GatewayClient`
+
+Creates a configured `GatewayClient` instance.
+
+## Gateway client
+
+### `await GatewayClient.register_agent() -> dict`
+
+Sends a registration request to:
+
+- `POST /agents/{agent_id}/register`
+
+### `await GatewayClient.check_policy_compliance(action: str) -> dict`
+
+Sends a policy check request to:
+
+- `POST /agents/{agent_id}/policy/check`
+
+Request body:
+
+```json
+{ "action": "tool.call" }
+```
+
+## Data models
+
+```python
+from agent_assembly.models import AgentConfig, AgentState, PolicyEvaluation
+```
+
+## Exceptions
+
+```python
+from agent_assembly.exceptions import (
+    AssemblyError,
+    AgentError,
+    PolicyError,
+    GatewayError,
+    ConfigurationError,
+)
+```

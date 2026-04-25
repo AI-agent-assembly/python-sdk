@@ -1,6 +1,6 @@
-# 📚 UV-Template Documentation
+# 📚 Agent Assembly Python SDK Documentation
 
-Welcome to the documentation site for UV-Template! This site is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Welcome to the documentation site for the Agent Assembly Python SDK. This site is built using [Docusaurus](https://docusaurus.io/).
 
 ## 🗂️ Documentation Structure
 
@@ -8,7 +8,6 @@ The documentation is organized into the following sections:
 
 - **📖 Docs** - Main user documentation and guides
 - **👨‍💻 Development** - Technical documentation for developers
-- **✍️ Blog** - Project updates and technical articles
 
 ## 🚀 Getting Started
 
@@ -57,7 +56,6 @@ pnpm serve --no-open
 1. Add new Markdown files to:
    - `contents/document/` for user documentation
    - `contents/development/` for developer documentation
-   - `contents/blog/` for blog posts
 
 2. Update the appropriate sidebar configuration:
    - `contents/document/sidebars.ts` for docs
