@@ -29,15 +29,6 @@ on:
           - auto
           - force
           - skip
-      docker:
-        description: 'Docker image release'
-        required: false
-        default: 'auto'
-        type: choice
-        options:
-          - auto
-          - force
-          - skip
       docs:
         description: 'Documentation versioning'
         required: false
@@ -65,11 +56,8 @@ jobs:
     with:
       level: ${{ inputs.level }}
       python: ${{ inputs.python }}
-      docker: ${{ inputs.docker }}
       docs: ${{ inputs.docs }}
     secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       TEST_PYPI_API_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
@@ -88,7 +76,6 @@ jobs:
           echo "Version Released: ${{ needs.release.outputs.version }}"
           echo "Release Performed: ${{ needs.release.outputs.release_performed }}"
           echo "Python Released: ${{ needs.release.outputs.python_released }}"
-          echo "Docker Released: ${{ needs.release.outputs.docker_released }}"
           echo "Docs Released: ${{ needs.release.outputs.docs_released }}"
           echo ""
           
@@ -98,11 +85,6 @@ jobs:
             echo "📦 Released Artifacts:"
             if [[ "${{ needs.release.outputs.python_released }}" == "true" ]]; then
               echo "- Python Package: https://pypi.org/project/${{ github.repository_owner }}/${{ needs.release.outputs.version }}/"
-            fi
-            if [[ "${{ needs.release.outputs.docker_released }}" == "true" ]]; then
-              echo "- Docker Images:"
-              echo "  - DockerHub: docker.io/${{ github.repository }}:${{ needs.release.outputs.version }}"
-              echo "  - GHCR: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.version }}"
             fi
             if [[ "${{ needs.release.outputs.docs_released }}" == "true" ]]; then
               echo "- Documentation: Versioned documentation deployed"

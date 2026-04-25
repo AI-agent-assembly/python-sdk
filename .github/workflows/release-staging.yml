@@ -31,8 +31,6 @@ jobs:
     with:
       level: ${{ inputs.level }}
     secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       TEST_PYPI_API_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
@@ -60,18 +58,13 @@ jobs:
             echo "- Base Version: ${{ needs.staging.outputs.version }}"
             echo "- RC Version: ${{ needs.staging.outputs.rc_version }}"
             echo "- TestPyPI: https://test.pypi.org/project/${{ github.repository_owner }}/${{ needs.staging.outputs.version }}/"
-            echo "- GHCR RC Image: ghcr.io/${{ github.repository }}:${{ needs.staging.outputs.rc_version }}"
-            echo "- DockerHub RC Image: docker.io/${{ github.repository }}:${{ needs.staging.outputs.rc_version }}"
             echo "- Docs Preview: docs-preview branch"
             echo ""
             echo "🧪 Testing Instructions:"
             echo "1. Install from TestPyPI:"
             echo "   pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ ${{ github.repository_owner }}==${{ needs.staging.outputs.version }}"
             echo ""
-            echo "2. Test RC Docker image:"
-            echo "   docker run -p 8000:8000 ghcr.io/${{ github.repository }}:${{ needs.staging.outputs.rc_version }}"
-            echo ""
-            echo "3. Review documentation preview in docs-preview branch"
+            echo "2. Review documentation preview in docs-preview branch"
             echo ""
           else
             echo "❌ Staging process failed. Check the workflow logs above."

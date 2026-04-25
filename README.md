@@ -1,20 +1,30 @@
-# Your lib name
+# Agent Assembly Python SDK
 
 ## Overview
 
-🚧 Clear brief of your lib
+The Agent Assembly Python SDK provides a governance-native runtime for AI agents. This SDK enables developers to integrate AI agent lifecycle management, policy enforcement, and audit logging into their applications. It follows a WebAssembly-like pattern with a Rust core runtime and Python client interface.
 
 
 ## Python versions support
 
-🚧 The required Python versions of this library
+This library requires Python 3.12+
 
-[![Supported Versions](https://img.shields.io/pypi/pyversions/<you lib name>.svg?logo=python&logoColor=FBE072)](https://pypi.org/project/<you lib name>)
+[![Supported Versions](https://img.shields.io/pypi/pyversions/agent-assembly.svg?logo=python&logoColor=FBE072)](https://pypi.org/project/agent-assembly)
 
 
 ## Quickly Start
 
-🚧 The details of quickly start as simple demonstration for users
+```python
+from agent_assembly import init_assembly
+
+# Initialize the agent assembly
+assembly = init_assembly(
+    gateway_url="https://gateway.agent-assembly.dev",
+    agent_id="my-agent-001"
+)
+
+# Your agent is now ready with governance enabled
+```
 
 ## Documentation
 

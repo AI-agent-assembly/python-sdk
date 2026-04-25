@@ -27,18 +27,16 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             code:
-              - '<your_package_name>/**'
+              - 'agent_assembly/**'
               - 'examples/**'
               - 'scripts/**'
               - 'test/**'
               - '.github/**'
               - '.coveragerc'
-              - '.dockerignore'
               - '.env*'
               - '.gitignore'
               - '.pre-commit-config.yaml'
               - '.pylintrc'
-              - 'Dockerfile'
               - 'mypy.ini'
               - 'pyproject.toml'
               - 'pytest.ini'

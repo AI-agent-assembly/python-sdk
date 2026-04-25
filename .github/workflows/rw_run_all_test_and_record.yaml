@@ -44,8 +44,9 @@ jobs:
     with:
       test_type: unit-test
       upload-to-codecov: true
-      codecov_flags: unit-test  # Required if 'upload-to-codecov' is true
-      codecov_name: <your_package_name>  # Required if 'upload-to-codecov' is true
+      codecov_flags: unit  # Required if 'upload-to-codecov' is true
+      codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   integration-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -63,8 +64,9 @@ jobs:
     with:
       test_type: integration-test
       upload-to-codecov: true
-      codecov_flags: integration-test  # Required if 'upload-to-codecov' is true
-      codecov_name: <your_package_name>  # Required if 'upload-to-codecov' is true
+      codecov_flags: integration  # Required if 'upload-to-codecov' is true
+      codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   e2e-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -83,8 +85,9 @@ jobs:
     with:
       test_type: e2e-test
       upload-to-codecov: true
-      codecov_flags: e2e-test  # Required if 'upload-to-codecov' is true
-      codecov_name: <your_package_name>  # Required if 'upload-to-codecov' is true
+      codecov_flags: e2e  # Required if 'upload-to-codecov' is true
+      codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   contract-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -102,8 +105,9 @@ jobs:
     with:
       test_type: contract-test
       upload-to-codecov: true
-      codecov_flags: contract-test  # Required if 'upload-to-codecov' is true
-      codecov_name: <your_package_name>  # Required if 'upload-to-codecov' is true
+      codecov_flags: contract  # Required if 'upload-to-codecov' is true
+      codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   all-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
@@ -121,8 +125,9 @@ jobs:
     with:
       test_type: all-test
       upload-to-codecov: true
-      codecov_flags: all-test  # Required if 'upload-to-codecov' is true
-      codecov_name: <your_package_name>  # Required if 'upload-to-codecov' is true
+      codecov_flags: all  # Required if 'upload-to-codecov' is true
+      codecov_name: agent-assembly  # Required if 'upload-to-codecov' is true
+      codecov_slug: AI-agent-assembly/python-sdk
 
   sonarcloud_finish:
 #    name: SonarCloud Scan
@@ -134,8 +139,31 @@ jobs:
         )
       }}
     needs: build-and-test
-    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_sonarqube_scan.yaml@master
-    secrets:
-      sonar_token: ${{ secrets.sonar_token }}
-    with:
-      download_path: ${{ inputs.download_path }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Required by SonarCloud to correctly compute PR/new-code deltas.
+          fetch-depth: 0
+
+      - name: Download all-test coverage XML report
+        uses: actions/download-artifact@v8
+        with:
+          name: all-test_coverage_xml_report
+          path: ./
+
+      - name: Verify coverage XML report exists
+        run: |
+          if [ ! -f "./coverage_all-test.xml" ]; then
+            echo "Expected coverage report ./coverage_all-test.xml not found."
+            echo "Current files:"
+            ls -la
+            exit 1
+          fi
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v7.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.sonar_token }}
+          SONAR_HOST_URL: https://sonarcloud.io

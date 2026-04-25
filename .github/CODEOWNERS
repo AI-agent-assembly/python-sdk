@@ -1,53 +1,61 @@
-# CODEOWNERS file for the <your project name> project
+# CODEOWNERS file for the Agent Assembly Python SDK project
 # Format: file-pattern @owner
 # Order is important; the last matching pattern takes precedence.
 
 #######################################
 # Repository Default Owner
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-*                                     <your GitHub name>
+*                                     @Chisanan232
 
 # Software license annotation
-/LICENSE                              <your GitHub name>
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
+/LICENSE                              @Chisanan232
 
 #######################################
 # Source Code
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/src/。                               <your GitHub name>
-*.py                                  <your GitHub name>
+/agent_assembly/                      @Chisanan232
+*.py                                  @Chisanan232
 
 #######################################
 # Tests
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/test/                                <your GitHub name>
+/test/                                @Chisanan232
 
 #######################################
 # Documentation
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/docs/                                <your GitHub name>
-*.md                                  <your GitHub name>
-*.mdx                                 <your GitHub name>
-*.ts                                  <your GitHub name>
+/docs/                                @Chisanan232
+*.md                                  @Chisanan232
+*.mdx                                 @Chisanan232
+*.ts                                  @Chisanan232
 
 #######################################
 # CI/CD Configuration
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/.github/                             <your GitHub name>
-/.github/workflows/                   <your GitHub name>
+/.github/                             @Chisanan232
+/.github/workflows/                   @Chisanan232
 
 #######################################
 # Build Configuration
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/pyproject.toml                       <your GitHub name>
-/scripts/                             <your GitHub name>
+/pyproject.toml                       @Chisanan232
+/scripts/                             @Chisanan232
 
 #######################################
 # Code Quality and Testing
+# TODO: Create @agent-assembly/core-team team and replace @Chisanan232
 #######################################
-/.pre-commit-config.yaml              <your GitHub name>
-/pytest.ini                           <your GitHub name>
-/.coveragerc                          <your GitHub name>
-/mypy.ini                             <your GitHub name>
-/.pylintrc                            <your GitHub name>
-/sonar-project.properties             <your GitHub name>
-/codecov.yml                          <your GitHub name>
+/.pre-commit-config.yaml              @Chisanan232
+/pytest.ini                           @Chisanan232
+/.coveragerc                          @Chisanan232
+/mypy.ini                             @Chisanan232
+/.pylintrc                            @Chisanan232
+/sonar-project.properties             @Chisanan232
+/codecov.yml                          @Chisanan232
