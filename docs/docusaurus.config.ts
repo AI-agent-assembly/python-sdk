@@ -5,16 +5,16 @@ import remarkGfm from 'remark-gfm';
 import remarkMdxCodeMeta from 'remark-mdx-code-meta';
 
 const config: Config = {
-  title: 'Python-uv-project-template',
-  tagline: '🐍 Just a template of Python project be managed by UV.',
+  title: 'Agent Assembly Python SDK',
+  tagline: 'Python SDK for AI Agent Assembly governance gateway integration.',
   favicon: 'img/python_logo_icon.png',
 
   // Set the production url of your site here
-  url: 'https://chisanan232.github.io',
+  url: 'https://ai-agent-assembly.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
-  baseUrl: '/Template-Python-UV-Project/',
-  projectName: 'chisanan232.github.io',
-  organizationName: 'Chisanan232',
+  baseUrl: '/python-sdk/',
+  projectName: 'python-sdk',
+  organizationName: 'AI-agent-assembly',
   trailingSlash: false,
 
   onBrokenLinks: 'warn',
@@ -66,7 +66,7 @@ const config: Config = {
         showLastUpdateTime: true,
         showLastUpdateAuthor: true,
         editUrl:
-          'https://github.com/Chisanan232/Template-Python-UV-Project/tree/master/docs/',
+          'https://github.com/AI-agent-assembly/python-sdk/tree/master/docs/',
         versions: {
           current: {
             label: 'Next',
@@ -90,7 +90,7 @@ const config: Config = {
         showLastUpdateTime: true,
         showLastUpdateAuthor: true,
         editUrl:
-          'https://github.com/Chisanan232/Template-Python-UV-Project/tree/master/docs/',
+          'https://github.com/AI-agent-assembly/python-sdk/tree/master/docs/',
         versions: {
           current: {
             label: 'Next',
@@ -109,7 +109,7 @@ const config: Config = {
         // Options for docusaurus-search-local
         hashed: true,
         language: ['en'],
-        docsRouteBasePath: ['/uv-template'],
+        docsRouteBasePath: ['/docs', '/dev'],
         docsDir: ['./contents/document', './contents/development'],
         highlightSearchTermsOnTargetPage: true,
         explicitSearchResultPath: true,
@@ -129,7 +129,7 @@ const config: Config = {
     // Replace with your project's social card
     image: 'img/python_logo_icon.png',
     navbar: {
-      title: 'UV-Template',
+      title: 'Python SDK',
       logo: {
         alt: 'My Site Logo',
         src: 'img/python_logo_icon.png',
@@ -165,7 +165,7 @@ const config: Config = {
           dropdownItemsAfter: [],
         },
         {
-          href: 'https://github.com/Chisanan232/Template-Python-UV-Project',
+          href: 'https://github.com/AI-agent-assembly/python-sdk',
           label: 'GitHub',
           position: 'right',
         },
@@ -192,11 +192,11 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Issues',
-              href: 'https://github.com/Chisanan232/Template-Python-UV-Project/issues',
+              href: 'https://github.com/AI-agent-assembly/python-sdk/issues',
             },
             {
               label: 'GitHub Discussions',
-              href: 'https://github.com/Chisanan232/Template-Python-UV-Project/discussions',
+              href: 'https://github.com/AI-agent-assembly/python-sdk/discussions',
             },
           ],
         },
@@ -205,12 +205,12 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Repository',
-              href: 'https://github.com/Chisanan232/Template-Python-UV-Project',
+              href: 'https://github.com/AI-agent-assembly/python-sdk',
             },
           ],
         },
       ],
-      copyright: `Copyright ${new Date().getFullYear()} - PRESENT, Python-uv-project-template is owned by <a href="https://github.com/Chisanan232">@Chisanan232</a>.<br />Built with <a href="https://docusaurus.io/">Docusaurus</a>.`,
+      copyright: `Copyright ${new Date().getFullYear()} AI-agent-assembly.<br />Built with <a href="https://docusaurus.io/">Docusaurus</a>.`,
     },
     prism: {
       theme: prismThemes.github,
@@ -226,7 +226,7 @@ const config: Config = {
       tagName: 'link',
       attributes: {
         rel: 'canonical',
-        href: 'https://chisanan232.github.io/Template-Python-UV-Project/docs/introduction',
+        href: 'https://ai-agent-assembly.github.io/python-sdk/docs/introduction',
       },
     },
   ],

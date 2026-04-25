@@ -1,6 +1,6 @@
-# 📚 UV-Template Documentation
+# 📚 Agent Assembly Python SDK Documentation
 
-Welcome to the documentation site for UV-Template! This site is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Welcome to the documentation site for the Agent Assembly Python SDK. This site is built using [Docusaurus](https://docusaurus.io/).
 
 ## 🗂️ Documentation Structure
 
