@@ -139,8 +139,31 @@ jobs:
         )
       }}
     needs: build-and-test
-    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_sonarqube_scan.yaml@master
-    secrets:
-      sonar_token: ${{ secrets.sonar_token }}
-    with:
-      download_path: ${{ inputs.download_path }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Required by SonarCloud to correctly compute PR/new-code deltas.
+          fetch-depth: 0
+
+      - name: Download all-test coverage XML report
+        uses: actions/download-artifact@v8
+        with:
+          name: all-test_coverage_xml_report
+          path: ./
+
+      - name: Verify coverage XML report exists
+        run: |
+          if [ ! -f "./coverage_all-test.xml" ]; then
+            echo "Expected coverage report ./coverage_all-test.xml not found."
+            echo "Current files:"
+            ls -la
+            exit 1
+          fi
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v7.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.sonar_token }}
+          SONAR_HOST_URL: https://sonarcloud.io
