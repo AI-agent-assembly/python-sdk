@@ -104,17 +104,6 @@ const config: Config = {
       },
     ],
     [
-      '@docusaurus/plugin-content-blog',
-      {
-        id: 'blog',
-        path: 'contents/blog',
-        routeBasePath: 'blog',
-        showReadingTime: true,
-        editUrl:
-          'https://github.com/Chisanan232/Template-Python-UV-Project/tree/master/docs/',
-      },
-    ],
-    [
       require.resolve('@easyops-cn/docusaurus-search-local'),
       {
         // Options for docusaurus-search-local
@@ -122,12 +111,11 @@ const config: Config = {
         language: ['en'],
         docsRouteBasePath: ['/uv-template'],
         docsDir: ['./contents/document', './contents/development'],
-        blogDir: ['./contents/blog'],
         highlightSearchTermsOnTargetPage: true,
         explicitSearchResultPath: true,
         docsPluginIdForPreferredVersion: 'docs',
         indexDocs: true,
-        indexBlog: true,
+        indexBlog: false,
         indexPages: true,
       },
     ],
@@ -160,11 +148,6 @@ const config: Config = {
           position: 'left',
           label: 'Dev',
           docsPluginId: 'dev',
-        },
-        {
-          to: '/blog',
-          label: 'Blog',
-          position: 'left',
         },
         {
           type: 'custom-unifiedVersions',
@@ -201,10 +184,6 @@ const config: Config = {
             {
               label: 'Dev',
               to: '/dev/next',
-            },
-            {
-              label: 'Blog',
-              to: '/blog',
             },
           ],
         },
