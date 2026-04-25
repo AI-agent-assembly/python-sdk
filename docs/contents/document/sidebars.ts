@@ -91,32 +91,6 @@ const sidebars: SidebarsConfig = {
       ],
     },
     {
-      type: 'category',
-      label: '👋 Welcome to contribute',
-      items: [
-        {
-          type: 'doc',
-          id: 'contribute/contribute',
-          label: '🤝 Contribute',
-        },
-        {
-          type: 'doc',
-          id: 'contribute/report-bug',
-          label: '🐛 Report Bug',
-        },
-        {
-          type: 'doc',
-          id: 'contribute/request-changes',
-          label: '💡 Request Changes',
-        },
-        {
-          type: 'doc',
-          id: 'contribute/discuss',
-          label: '💬 Discuss',
-        },
-      ],
-    },
-    {
       type: 'doc',
       id: 'changelog',
       label: '📝 Changelog',
