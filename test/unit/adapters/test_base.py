@@ -47,3 +47,21 @@ class MissingFrameworkAdapter(FrameworkAdapter):
 
 def test_is_available_returns_false_when_framework_is_missing() -> None:
     assert MissingFrameworkAdapter().is_available() is False
+
+
+class VersionedFrameworkAdapter(FrameworkAdapter):
+    def get_framework_name(self) -> str:
+        return "pytest"
+
+    def get_supported_versions(self) -> list[str]:
+        return []
+
+    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_get_active_version_returns_module_version() -> None:
+    assert VersionedFrameworkAdapter().get_active_version() is not None
