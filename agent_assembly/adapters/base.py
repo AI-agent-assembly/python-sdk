@@ -28,6 +28,8 @@ class FrameworkAdapter(ABC):
 
     @abstractmethod
     def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        """Attach framework hooks to a governance interceptor instance."""
+
         ...
 
     @abstractmethod
