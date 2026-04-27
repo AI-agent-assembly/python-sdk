@@ -240,3 +240,23 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
             **kwargs,
         )
         return None
+
+    async def aon_llm_end(
+        self,
+        response: Any,
+        *,
+        run_id: UUID,
+        **kwargs: Any,
+    ) -> None:
+        method = getattr(self._interceptor, "on_llm_end", None)
+        if not callable(method):
+            return None
+
+        result = method(
+            response=response,
+            run_id=run_id,
+            **kwargs,
+        )
+        if inspect.isawaitable(result):
+            await result
+        return None
