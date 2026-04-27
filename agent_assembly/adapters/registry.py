@@ -38,6 +38,7 @@ class AdapterRegistry:
         self._lock = Lock()
         self._registered: dict[str, FrameworkAdapter] = {}
         self._active: dict[str, FrameworkAdapter] = {}
+        self._errors: dict[str, str] = {}
         for framework_name in ("langchain", "langgraph", "crewai", "pydantic_ai"):
             self._registered[framework_name] = _BuiltinPlaceholderAdapter(framework_name)
 
@@ -45,6 +46,7 @@ class AdapterRegistry:
         adapter_name = adapter.get_framework_name()
         with self._lock:
             self._registered[adapter_name] = adapter
+            self._errors.pop(adapter_name, None)
             if adapter_name in self._active and self._active[adapter_name] is not adapter:
                 self._active.pop(adapter_name, None)
 
@@ -52,6 +54,7 @@ class AdapterRegistry:
         with self._lock:
             active_adapter = self._active.pop(name, None)
             self._registered.pop(name, None)
+            self._errors.pop(name, None)
 
         if active_adapter is not None:
             active_adapter.unregister_hooks()
@@ -59,6 +62,7 @@ class AdapterRegistry:
     def list_active(self) -> list[AdapterInfo]:
         with self._lock:
             active_items = list(self._active.items())
+            error_names = set(self._errors.keys())
 
         result: list[AdapterInfo] = []
         for name, adapter in active_items:
@@ -75,6 +79,17 @@ class AdapterRegistry:
                 )
             )
 
+        active_names = {name for name, _ in active_items}
+        for name in sorted(error_names - active_names):
+            result.append(
+                AdapterInfo(
+                    name=name,
+                    version="",
+                    status="error",
+                    hooks_registered=0,
+                )
+            )
+
         return sorted(result, key=lambda info: info.name)
 
     def _discover_entry_point_adapters(self) -> list[str]:
@@ -83,14 +98,30 @@ class AdapterRegistry:
         adapter_entry_points = entry_points.select(group="agent_assembly.adapters")
 
         for entry_point in adapter_entry_points:
-            loaded = entry_point.load()
+            try:
+                loaded = entry_point.load()
+            except Exception as error:  # pragma: no cover - guarded by tests via monkeypatch
+                with self._lock:
+                    self._errors[entry_point.name] = str(error)
+                continue
+
             if not isinstance(loaded, type):
+                with self._lock:
+                    self._errors[entry_point.name] = "Entry point did not load a class."
                 continue
 
             if not issubclass(loaded, FrameworkAdapter):
+                with self._lock:
+                    self._errors[entry_point.name] = "Entry point class is not a FrameworkAdapter."
                 continue
 
-            adapter = loaded()
+            try:
+                adapter = loaded()
+            except Exception as error:  # pragma: no cover - guarded by tests via monkeypatch
+                with self._lock:
+                    self._errors[entry_point.name] = str(error)
+                continue
+
             self.register(adapter)
             discovered.append(adapter.get_framework_name())
 
@@ -111,9 +142,16 @@ class AdapterRegistry:
                 if self._active.get(name) is adapter:
                     continue
 
-            adapter.register(object())
+            try:
+                adapter.register(object())
+            except Exception as error:
+                with self._lock:
+                    self._errors[name] = str(error)
+                continue
+
             with self._lock:
                 self._active[name] = adapter
+                self._errors.pop(name, None)
             activated.append(name)
 
         return activated
