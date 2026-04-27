@@ -60,5 +60,15 @@ from agent_assembly.exceptions import (
     PolicyError,
     GatewayError,
     ConfigurationError,
+    ToolExecutionBlockedError,
 )
 ```
+
+## LangChain runtime interception
+
+`init_assembly(...)` auto-injects a LangChain callback handler when the SDK runtime starts.
+
+- Tool start checks support governance decisions: `allow`, `deny`, and `pending`.
+- `deny` (or unresolved `pending`) raises `ToolExecutionBlockedError`.
+- LLM start interception is scan-only and does not mutate prompt content.
+- LangGraph `StateGraph.compile()` is patched to add pre/post invocation governance hooks.
