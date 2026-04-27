@@ -1,1 +1,15 @@
 """LangChain adapter package."""
+
+from agent_assembly.adapters.langchain.callback_handler import AssemblyCallbackHandler
+from agent_assembly.adapters.langchain.langgraph_patch import patch_stategraph_compile
+from agent_assembly.adapters.langchain.runtime import (
+    auto_inject_callback_handler,
+    get_active_callback_handler,
+)
+
+__all__ = [
+    "AssemblyCallbackHandler",
+    "patch_stategraph_compile",
+    "auto_inject_callback_handler",
+    "get_active_callback_handler",
+]
