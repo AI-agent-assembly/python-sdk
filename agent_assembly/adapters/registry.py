@@ -95,3 +95,21 @@ class AdapterRegistry:
             discovered.append(adapter.get_framework_name())
 
         return discovered
+
+    def auto_detect(self) -> list[str]:
+        self._discover_entry_point_adapters()
+
+        with self._lock:
+            registered_items = list(self._registered.items())
+
+        activated: list[str] = []
+        for name, adapter in registered_items:
+            if not adapter.is_available():
+                continue
+
+            adapter.register(object())
+            with self._lock:
+                self._active[name] = adapter
+            activated.append(name)
+
+        return activated
