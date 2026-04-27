@@ -49,6 +49,8 @@ class FrameworkAdapter(ABC):
         return True
 
     def get_active_version(self) -> str | None:
+        """Return framework __version__ when present, otherwise None."""
+
         try:
             module = importlib.import_module(self.get_framework_name())
         except ImportError:
