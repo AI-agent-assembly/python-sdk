@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "AssemblyError",
+    "AgentError",
+    "PolicyError",
+    "GatewayError",
+    "ConfigurationError",
+    "AdapterValidationError",
+]
+
 
 class AssemblyError(Exception):
     """Base exception for Agent Assembly SDK errors."""
@@ -25,4 +34,9 @@ class GatewayError(AssemblyError):
 
 class ConfigurationError(AssemblyError):
     """Exception raised for configuration errors."""
+    pass
+
+
+class AdapterValidationError(AssemblyError):
+    """Exception raised when an adapter contract is invalid."""
     pass
