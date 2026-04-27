@@ -2,22 +2,31 @@
 
 from __future__ import annotations
 
+import importlib
 import inspect
-from typing import Any, Literal, Mapping
+from typing import Any, Literal, Mapping, cast
 from uuid import UUID
 
 from agent_assembly.exceptions import ToolExecutionBlockedError
 
+
+class _FallbackBaseCallbackHandler:
+    """Fallback base type when langchain-core is not installed."""
+
+    pass
+
+
+_CallbackHandlerBase: type[object] = _FallbackBaseCallbackHandler
 try:  # pragma: no cover - import availability depends on installed extras.
-    from langchain_core.callbacks import BaseCallbackHandler
+    callbacks_module = importlib.import_module("langchain_core.callbacks")
+    maybe_base = getattr(callbacks_module, "BaseCallbackHandler", _FallbackBaseCallbackHandler)
+    if isinstance(maybe_base, type):
+        _CallbackHandlerBase = cast(type[object], maybe_base)
 except ImportError:  # pragma: no cover - fallback keeps runtime import-safe.
-    class BaseCallbackHandler:  # type: ignore[no-redef]
-        """Fallback base type when langchain-core is not installed."""
-
-        pass
+    pass
 
 
-class AssemblyCallbackHandler(BaseCallbackHandler):
+class AssemblyCallbackHandler(_CallbackHandlerBase):
     """Callback handler that delegates runtime events to governance interception."""
 
     def __init__(self, interceptor: Any) -> None:
