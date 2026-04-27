@@ -108,7 +108,15 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
         run_id: UUID,
         **kwargs: Any,
     ) -> None:
-        del output, run_id, kwargs
+        method = getattr(self._interceptor, "on_tool_end", None)
+        if not callable(method):
+            return None
+
+        method(
+            output=output,
+            run_id=run_id,
+            **kwargs,
+        )
         return None
 
     def on_llm_start(
