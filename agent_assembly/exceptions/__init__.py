@@ -26,3 +26,8 @@ class GatewayError(AssemblyError):
 class ConfigurationError(AssemblyError):
     """Exception raised for configuration errors."""
     pass
+
+
+class AdapterValidationError(AssemblyError):
+    """Exception raised when an adapter contract is invalid."""
+    pass
