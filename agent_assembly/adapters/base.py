@@ -22,6 +22,8 @@ class FrameworkAdapter(ABC):
 
     @abstractmethod
     def get_supported_versions(self) -> list[str]:
+        """Return supported semantic version ranges for the framework."""
+
         ...
 
     @abstractmethod
