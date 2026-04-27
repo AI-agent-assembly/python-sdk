@@ -20,3 +20,7 @@ class FrameworkAdapter(ABC):
     @abstractmethod
     def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
         ...
+
+    @abstractmethod
+    def unregister_hooks(self) -> None:
+        ...
