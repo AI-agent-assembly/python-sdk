@@ -201,6 +201,28 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
         )
         return None
 
+    async def aon_llm_start(
+        self,
+        serialized: dict[str, Any],
+        prompts: list[str],
+        *,
+        run_id: UUID,
+        **kwargs: Any,
+    ) -> None:
+        method = getattr(self._interceptor, "on_llm_start_scan", None)
+        if not callable(method):
+            return None
+
+        result = method(
+            serialized=serialized,
+            prompts=prompts,
+            run_id=run_id,
+            **kwargs,
+        )
+        if inspect.isawaitable(result):
+            await result
+        return None
+
     def on_llm_end(
         self,
         response: Any,
