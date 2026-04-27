@@ -12,6 +12,8 @@ class GovernanceInterceptor(Protocol):
 
 
 class FrameworkAdapter(ABC):
+    """Abstract contract implemented by every framework adapter."""
+
     @abstractmethod
     def get_framework_name(self) -> str:
         ...
