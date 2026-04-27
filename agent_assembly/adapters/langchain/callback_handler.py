@@ -127,7 +127,16 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
         run_id: UUID,
         **kwargs: Any,
     ) -> None:
-        del serialized, prompts, run_id, kwargs
+        method = getattr(self._interceptor, "on_llm_start_scan", None)
+        if not callable(method):
+            return None
+
+        method(
+            serialized=serialized,
+            prompts=prompts,
+            run_id=run_id,
+            **kwargs,
+        )
         return None
 
     def on_llm_end(
