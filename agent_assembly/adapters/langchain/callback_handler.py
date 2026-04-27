@@ -260,3 +260,17 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
         if inspect.isawaitable(result):
             await result
         return None
+
+    def on_graph_node_start(self, node_name: str, state: Any) -> None:
+        method = getattr(self._interceptor, "on_graph_node_start", None)
+        if not callable(method):
+            return None
+        method(node_name=node_name, state=state)
+        return None
+
+    def on_graph_node_end(self, node_name: str, state: Any, result: Any) -> None:
+        method = getattr(self._interceptor, "on_graph_node_end", None)
+        if not callable(method):
+            return None
+        method(node_name=node_name, state=state, result=result)
+        return None
