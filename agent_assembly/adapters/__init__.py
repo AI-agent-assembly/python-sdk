@@ -1,3 +1,3 @@
-from agent_assembly.adapters.base import GovernanceInterceptor
+from agent_assembly.adapters.base import FrameworkAdapter, GovernanceInterceptor
 
-__all__ = ["GovernanceInterceptor"]
+__all__ = ["GovernanceInterceptor", "FrameworkAdapter"]
