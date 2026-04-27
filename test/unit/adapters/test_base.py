@@ -29,3 +29,21 @@ class AvailableFrameworkAdapter(FrameworkAdapter):
 
 def test_is_available_returns_true_when_framework_exists() -> None:
     assert AvailableFrameworkAdapter().is_available() is True
+
+
+class MissingFrameworkAdapter(FrameworkAdapter):
+    def get_framework_name(self) -> str:
+        return "_agent_assembly_missing_framework_"
+
+    def get_supported_versions(self) -> list[str]:
+        return []
+
+    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_is_available_returns_false_when_framework_is_missing() -> None:
+    assert MissingFrameworkAdapter().is_available() is False
