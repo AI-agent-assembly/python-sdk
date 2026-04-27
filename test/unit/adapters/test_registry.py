@@ -103,3 +103,25 @@ def test_entry_point_discovery_loads_third_party_adapters(
 
     assert discovered == ["third_party_framework"]
     assert "third_party_framework" in registry._registered
+
+
+def test_auto_detect_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry = AdapterRegistry()
+    adapter = DummyAdapter("idempotent_framework")
+    registry._registered = {adapter.get_framework_name(): adapter}
+
+    monkeypatch.setattr(
+        "agent_assembly.adapters.registry.metadata.entry_points",
+        lambda: EmptyEntryPoints(),
+    )
+    monkeypatch.setattr(
+        "agent_assembly.adapters.base.importlib.import_module",
+        lambda module_name: SimpleNamespace(__version__="9.9.9"),
+    )
+
+    first_activation = registry.auto_detect()
+    second_activation = registry.auto_detect()
+
+    assert first_activation == ["idempotent_framework"]
+    assert second_activation == []
+    assert adapter.register_calls == 1
