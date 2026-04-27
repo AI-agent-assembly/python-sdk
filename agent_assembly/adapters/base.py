@@ -12,3 +12,7 @@ class FrameworkAdapter(ABC):
     @abstractmethod
     def get_framework_name(self) -> str:
         ...
+
+    @abstractmethod
+    def get_supported_versions(self) -> list[str]:
+        ...
