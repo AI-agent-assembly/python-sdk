@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any, Literal, Mapping
 from uuid import UUID
 
+from agent_assembly.exceptions import ToolExecutionBlockedError
+
 try:  # pragma: no cover - import availability depends on installed extras.
     from langchain_core.callbacks import BaseCallbackHandler
 except ImportError:  # pragma: no cover - fallback keeps runtime import-safe.
@@ -52,7 +54,20 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
         run_id: UUID,
         **kwargs: Any,
     ) -> None:
-        del serialized, input_str, run_id, kwargs
+        method = getattr(self._interceptor, "check_tool_start", None)
+        if not callable(method):
+            return None
+
+        decision = method(
+            serialized=serialized,
+            input_str=input_str,
+            run_id=run_id,
+            **kwargs,
+        )
+        status, reason = self._normalize_decision(decision)
+        if status == "deny":
+            raise ToolExecutionBlockedError(reason or "Tool execution blocked by governance.")
+
         return None
 
     def on_tool_end(
