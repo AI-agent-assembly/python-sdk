@@ -39,6 +39,7 @@ class AdapterRegistry:
         self._registered: dict[str, FrameworkAdapter] = {}
         self._active: dict[str, FrameworkAdapter] = {}
         self._errors: dict[str, str] = {}
+        self._discovered_entry_points: set[str] = set()
         for framework_name in ("langchain", "langgraph", "crewai", "pydantic_ai"):
             self._registered[framework_name] = _BuiltinPlaceholderAdapter(framework_name)
 
@@ -98,6 +99,10 @@ class AdapterRegistry:
         adapter_entry_points = entry_points.select(group="agent_assembly.adapters")
 
         for entry_point in adapter_entry_points:
+            with self._lock:
+                if entry_point.name in self._discovered_entry_points:
+                    continue
+
             try:
                 loaded = entry_point.load()
             except Exception as error:  # pragma: no cover - guarded by tests via monkeypatch
@@ -123,6 +128,8 @@ class AdapterRegistry:
                 continue
 
             self.register(adapter)
+            with self._lock:
+                self._discovered_entry_points.add(entry_point.name)
             discovered.append(adapter.get_framework_name())
 
         return discovered
