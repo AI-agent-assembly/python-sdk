@@ -54,3 +54,24 @@ class AdapterRegistry:
 
         if active_adapter is not None:
             active_adapter.unregister_hooks()
+
+    def list_active(self) -> list[AdapterInfo]:
+        with self._lock:
+            active_items = list(self._active.items())
+
+        result: list[AdapterInfo] = []
+        for name, adapter in active_items:
+            hooks_registered = getattr(adapter, "_hooks_registered_count", 0)
+            if not isinstance(hooks_registered, int):
+                hooks_registered = 0
+
+            result.append(
+                AdapterInfo(
+                    name=name,
+                    version=adapter.get_active_version() or "",
+                    status="active",
+                    hooks_registered=hooks_registered,
+                )
+            )
+
+        return sorted(result, key=lambda info: info.name)
