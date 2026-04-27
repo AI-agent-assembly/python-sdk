@@ -67,8 +67,39 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
         status, reason = self._normalize_decision(decision)
         if status == "deny":
             raise ToolExecutionBlockedError(reason or "Tool execution blocked by governance.")
+        if status == "pending":
+            approval = self._resolve_pending_approval(
+                serialized=serialized,
+                input_str=input_str,
+                run_id=run_id,
+                **kwargs,
+            )
+            approval_status, approval_reason = self._normalize_decision(approval)
+            if approval_status != "allow":
+                raise ToolExecutionBlockedError(
+                    approval_reason or reason or "Tool execution was not approved by governance."
+                )
 
         return None
+
+    def _resolve_pending_approval(
+        self,
+        *,
+        serialized: dict[str, Any],
+        input_str: str,
+        run_id: UUID,
+        **kwargs: Any,
+    ) -> object:
+        wait_method = getattr(self._interceptor, "wait_for_tool_approval", None)
+        if not callable(wait_method):
+            return "deny"
+
+        return wait_method(
+            serialized=serialized,
+            input_str=input_str,
+            run_id=run_id,
+            **kwargs,
+        )
 
     def on_tool_end(
         self,
