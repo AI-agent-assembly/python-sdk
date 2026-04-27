@@ -125,3 +125,31 @@ def test_auto_detect_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
     assert first_activation == ["idempotent_framework"]
     assert second_activation == []
     assert adapter.register_calls == 1
+
+
+def test_list_active_reflects_real_time_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = AdapterRegistry()
+    adapter = DummyAdapter("stateful_framework")
+    registry._registered = {adapter.get_framework_name(): adapter}
+
+    monkeypatch.setattr(
+        "agent_assembly.adapters.registry.metadata.entry_points",
+        lambda: EmptyEntryPoints(),
+    )
+    monkeypatch.setattr(
+        "agent_assembly.adapters.base.importlib.import_module",
+        lambda module_name: SimpleNamespace(__version__="2.0.0"),
+    )
+
+    registry.auto_detect()
+    active_after_detect = registry.list_active()
+
+    assert len(active_after_detect) == 1
+    assert active_after_detect[0].name == "stateful_framework"
+    assert active_after_detect[0].status == "active"
+
+    registry.unregister("stateful_framework")
+
+    assert registry.list_active() == []
