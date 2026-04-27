@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import metadata
 from threading import Lock
 from typing import Literal
 
@@ -75,3 +76,22 @@ class AdapterRegistry:
             )
 
         return sorted(result, key=lambda info: info.name)
+
+    def _discover_entry_point_adapters(self) -> list[str]:
+        discovered: list[str] = []
+        entry_points = metadata.entry_points()
+        adapter_entry_points = entry_points.select(group="agent_assembly.adapters")
+
+        for entry_point in adapter_entry_points:
+            loaded = entry_point.load()
+            if not isinstance(loaded, type):
+                continue
+
+            if not issubclass(loaded, FrameworkAdapter):
+                continue
+
+            adapter = loaded()
+            self.register(adapter)
+            discovered.append(adapter.get_framework_name())
+
+        return discovered
