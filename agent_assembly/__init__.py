@@ -9,6 +9,7 @@ from agent_assembly.exceptions import (
     ConfigurationError,
     GatewayError,
     PolicyError,
+    ToolExecutionBlockedError,
 )
 
 __version__ = "0.0.0"
@@ -24,4 +25,5 @@ __all__ = [
     "GatewayError",
     "ConfigurationError",
     "AdapterValidationError",
+    "ToolExecutionBlockedError",
 ]
