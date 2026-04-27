@@ -33,3 +33,15 @@ class FrameworkAdapter(ABC):
             return False
 
         return True
+
+    def get_active_version(self) -> str | None:
+        try:
+            module = importlib.import_module(self.get_framework_name())
+        except ImportError:
+            return None
+
+        version = getattr(module, "__version__", None)
+        if isinstance(version, str):
+            return version
+
+        return None
