@@ -6,6 +6,8 @@ from typing import Protocol
 
 
 class GovernanceInterceptor(Protocol):
+    """Protocol implemented by governance interceptors used by adapters."""
+
     pass
 
 
