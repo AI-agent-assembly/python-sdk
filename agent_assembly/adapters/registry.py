@@ -46,3 +46,11 @@ class AdapterRegistry:
             self._registered[adapter_name] = adapter
             if adapter_name in self._active and self._active[adapter_name] is not adapter:
                 self._active.pop(adapter_name, None)
+
+    def unregister(self, name: str) -> None:
+        with self._lock:
+            active_adapter = self._active.pop(name, None)
+            self._registered.pop(name, None)
+
+        if active_adapter is not None:
+            active_adapter.unregister_hooks()
