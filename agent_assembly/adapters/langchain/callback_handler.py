@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Any, Literal, Mapping
 from uuid import UUID
 
@@ -100,6 +101,47 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
             run_id=run_id,
             **kwargs,
         )
+
+    async def aon_tool_start(
+        self,
+        serialized: dict[str, Any],
+        input_str: str,
+        *,
+        run_id: UUID,
+        **kwargs: Any,
+    ) -> None:
+        method = getattr(self._interceptor, "check_tool_start", None)
+        if not callable(method):
+            return None
+
+        decision = method(
+            serialized=serialized,
+            input_str=input_str,
+            run_id=run_id,
+            **kwargs,
+        )
+        if inspect.isawaitable(decision):
+            decision = await decision
+
+        status, reason = self._normalize_decision(decision)
+        if status == "deny":
+            raise ToolExecutionBlockedError(reason or "Tool execution blocked by governance.")
+        if status == "pending":
+            approval = self._resolve_pending_approval(
+                serialized=serialized,
+                input_str=input_str,
+                run_id=run_id,
+                **kwargs,
+            )
+            if inspect.isawaitable(approval):
+                approval = await approval
+            approval_status, approval_reason = self._normalize_decision(approval)
+            if approval_status != "allow":
+                raise ToolExecutionBlockedError(
+                    approval_reason or reason or "Tool execution was not approved by governance."
+                )
+
+        return None
 
     def on_tool_end(
         self,
