@@ -17,11 +17,12 @@ class AdapterInfo:
 
 
 class _BuiltinPlaceholderAdapter(FrameworkAdapter):
-    def __init__(self, framework_name: str) -> None:
+    def __init__(self, framework_name: str, import_name: str | None = None) -> None:
         self._framework_name = framework_name
+        self._import_name = import_name or framework_name
 
     def get_framework_name(self) -> str:
-        return self._framework_name
+        return self._import_name
 
     def get_supported_versions(self) -> list[str]:
         return [">=0.0.0"]
@@ -54,8 +55,17 @@ class AdapterRegistry:
         self._active: dict[str, FrameworkAdapter] = {}
         self._errors: dict[str, str] = {}
         self._discovered_entry_points: set[str] = set()
-        for framework_name in ("langchain", "langgraph", "crewai", "pydantic_ai"):
-            self._registered[framework_name] = _BuiltinPlaceholderAdapter(framework_name)
+        builtin_frameworks = [
+            ("langchain", "langchain"),
+            ("langgraph", "langgraph"),
+            ("crewai", "crewai"),
+            ("pydantic-ai", "pydantic_ai"),
+        ]
+        for registry_name, import_name in builtin_frameworks:
+            self._registered[registry_name] = _BuiltinPlaceholderAdapter(
+                framework_name=registry_name,
+                import_name=import_name,
+            )
 
     def register(self, adapter: FrameworkAdapter) -> None:
         adapter_name = adapter.get_framework_name()
