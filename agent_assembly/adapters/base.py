@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import importlib
 from typing import Protocol
 
 
@@ -24,3 +25,11 @@ class FrameworkAdapter(ABC):
     @abstractmethod
     def unregister_hooks(self) -> None:
         ...
+
+    def is_available(self) -> bool:
+        try:
+            importlib.import_module(self.get_framework_name())
+        except ImportError:
+            return False
+
+        return True
