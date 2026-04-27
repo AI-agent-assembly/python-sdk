@@ -26,7 +26,7 @@ except ImportError:  # pragma: no cover - fallback keeps runtime import-safe.
     pass
 
 
-class AssemblyCallbackHandler(_CallbackHandlerBase):
+class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,misc]
     """Callback handler that delegates runtime events to governance interception."""
 
     def __init__(self, interceptor: Any) -> None:
