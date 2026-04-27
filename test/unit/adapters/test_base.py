@@ -1,4 +1,5 @@
 import pytest
+from types import SimpleNamespace
 
 from agent_assembly.adapters import FrameworkAdapter, GovernanceInterceptor
 from agent_assembly.exceptions import AdapterValidationError
@@ -126,3 +127,46 @@ def test_register_calls_register_hooks_when_contract_is_valid() -> None:
     adapter = ValidRegistrationAdapter()
     adapter.register(object())
     assert adapter.hooks_registered is True
+
+
+class LangChainFrameworkAdapter(FrameworkAdapter):
+    def get_framework_name(self) -> str:
+        return "langchain"
+
+    def get_supported_versions(self) -> list[str]:
+        return [">=0.1.0,<0.4.0"]
+
+    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_is_available_returns_true_for_langchain(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    def fake_import_module(module_name: str) -> object:
+        calls.append(module_name)
+        if module_name == "langchain":
+            return SimpleNamespace(__version__="0.3.0")
+        raise ImportError
+
+    monkeypatch.setattr("agent_assembly.adapters.base.importlib.import_module", fake_import_module)
+
+    adapter = LangChainFrameworkAdapter()
+    assert adapter.is_available() is True
+    assert calls == ["langchain"]
+
+
+def test_get_active_version_returns_langchain_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_import_module(module_name: str) -> object:
+        if module_name == "langchain":
+            return SimpleNamespace(__version__="0.3.0")
+        raise ImportError
+
+    monkeypatch.setattr("agent_assembly.adapters.base.importlib.import_module", fake_import_module)
+
+    assert LangChainFrameworkAdapter().get_active_version() == "0.3.0"
