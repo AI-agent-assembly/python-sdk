@@ -15,6 +15,23 @@ class AdapterInfo:
     hooks_registered: int
 
 
+class _BuiltinPlaceholderAdapter(FrameworkAdapter):
+    def __init__(self, framework_name: str) -> None:
+        self._framework_name = framework_name
+
+    def get_framework_name(self) -> str:
+        return self._framework_name
+
+    def get_supported_versions(self) -> list[str]:
+        return [">=0.0.0"]
+
+    def register_hooks(self, interceptor: object) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
 class AdapterRegistry:
     def __init__(self) -> None:
         self._lock = Lock()
