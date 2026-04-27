@@ -146,5 +146,13 @@ class AssemblyCallbackHandler(BaseCallbackHandler):
         run_id: UUID,
         **kwargs: Any,
     ) -> None:
-        del response, run_id, kwargs
+        method = getattr(self._interceptor, "on_llm_end", None)
+        if not callable(method):
+            return None
+
+        method(
+            response=response,
+            run_id=run_id,
+            **kwargs,
+        )
         return None
