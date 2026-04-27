@@ -107,6 +107,10 @@ class AdapterRegistry:
             if not adapter.is_available():
                 continue
 
+            with self._lock:
+                if self._active.get(name) is adapter:
+                    continue
+
             adapter.register(object())
             with self._lock:
                 self._active[name] = adapter
