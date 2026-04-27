@@ -37,3 +37,5 @@ class AdapterRegistry:
         self._lock = Lock()
         self._registered: dict[str, FrameworkAdapter] = {}
         self._active: dict[str, FrameworkAdapter] = {}
+        for framework_name in ("langchain", "langgraph", "crewai", "pydantic_ai"):
+            self._registered[framework_name] = _BuiltinPlaceholderAdapter(framework_name)
