@@ -65,3 +65,21 @@ class VersionedFrameworkAdapter(FrameworkAdapter):
 
 def test_get_active_version_returns_module_version() -> None:
     assert VersionedFrameworkAdapter().get_active_version() is not None
+
+
+class NonVersionedFrameworkAdapter(FrameworkAdapter):
+    def get_framework_name(self) -> str:
+        return "math"
+
+    def get_supported_versions(self) -> list[str]:
+        return []
+
+    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_get_active_version_returns_none_without_version() -> None:
+    assert NonVersionedFrameworkAdapter().get_active_version() is None
