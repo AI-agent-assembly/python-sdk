@@ -16,6 +16,8 @@ class FrameworkAdapter(ABC):
 
     @abstractmethod
     def get_framework_name(self) -> str:
+        """Return the canonical importable framework package name."""
+
         ...
 
     @abstractmethod
