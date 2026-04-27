@@ -16,3 +16,7 @@ class FrameworkAdapter(ABC):
     @abstractmethod
     def get_supported_versions(self) -> list[str]:
         ...
+
+    @abstractmethod
+    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        ...
