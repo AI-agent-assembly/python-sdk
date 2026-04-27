@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Protocol
 
 
@@ -9,4 +9,6 @@ class GovernanceInterceptor(Protocol):
 
 
 class FrameworkAdapter(ABC):
-    pass
+    @abstractmethod
+    def get_framework_name(self) -> str:
+        ...
