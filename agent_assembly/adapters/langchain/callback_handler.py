@@ -38,15 +38,22 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):
     ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
         if isinstance(decision, str):
             normalized = decision.strip().lower()
-            if normalized in {"allow", "deny", "pending"}:
-                return normalized, None
+            if normalized == "allow":
+                return "allow", None
+            if normalized == "deny":
+                return "deny", None
+            if normalized == "pending":
+                return "pending", None
             return "allow", None
 
         if isinstance(decision, Mapping):
             raw_status = str(decision.get("status", "allow")).strip().lower()
-            status: Literal["allow", "deny", "pending"]
-            if raw_status in {"allow", "deny", "pending"}:
-                status = raw_status
+            if raw_status == "allow":
+                status: Literal["allow", "deny", "pending"] = "allow"
+            elif raw_status == "deny":
+                status = "deny"
+            elif raw_status == "pending":
+                status = "pending"
             else:
                 status = "allow"
 
