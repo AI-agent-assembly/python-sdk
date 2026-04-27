@@ -1,6 +1,7 @@
 import pytest
 
 from agent_assembly.adapters import FrameworkAdapter, GovernanceInterceptor
+from agent_assembly.exceptions import AdapterValidationError
 
 
 class IncompleteAdapter(FrameworkAdapter):
@@ -83,3 +84,45 @@ class NonVersionedFrameworkAdapter(FrameworkAdapter):
 
 def test_get_active_version_returns_none_without_version() -> None:
     assert NonVersionedFrameworkAdapter().get_active_version() is None
+
+
+class InvalidRegistrationAdapter(FrameworkAdapter):
+    def get_framework_name(self) -> str:
+        return "   "
+
+    def get_supported_versions(self) -> list[str]:
+        return []
+
+    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_register_raises_validation_error_for_invalid_contract() -> None:
+    with pytest.raises(AdapterValidationError):
+        InvalidRegistrationAdapter().register(object())
+
+
+class ValidRegistrationAdapter(FrameworkAdapter):
+    def __init__(self) -> None:
+        self.hooks_registered = False
+
+    def get_framework_name(self) -> str:
+        return "pytest"
+
+    def get_supported_versions(self) -> list[str]:
+        return [">=8.0.0,<9.0.0"]
+
+    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        self.hooks_registered = True
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_register_calls_register_hooks_when_contract_is_valid() -> None:
+    adapter = ValidRegistrationAdapter()
+    adapter.register(object())
+    assert adapter.hooks_registered is True

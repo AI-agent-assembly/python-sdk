@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 import importlib
 from typing import Protocol
 
+from agent_assembly.exceptions import AdapterValidationError
+
 
 class GovernanceInterceptor(Protocol):
     """Protocol implemented by governance interceptors used by adapters."""
@@ -37,6 +39,29 @@ class FrameworkAdapter(ABC):
         """Detach all framework hooks in an idempotent way."""
 
         ...
+
+    def validate_registration(self) -> None:
+        framework_name = self.get_framework_name()
+        if not framework_name.strip():
+            raise AdapterValidationError(
+                "Adapter contract invalid: framework name must be non-empty."
+            )
+
+        supported_versions = self.get_supported_versions()
+        if not supported_versions:
+            raise AdapterValidationError(
+                "Adapter contract invalid: supported versions must not be empty."
+            )
+
+        for version_range in supported_versions:
+            if not version_range.strip():
+                raise AdapterValidationError(
+                    "Adapter contract invalid: version ranges must be non-empty strings."
+                )
+
+    def register(self, interceptor: GovernanceInterceptor) -> None:
+        self.validate_registration()
+        self.register_hooks(interceptor)
 
     def is_available(self) -> bool:
         """Return True when the framework package can be imported."""
