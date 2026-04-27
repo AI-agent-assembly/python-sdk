@@ -48,6 +48,20 @@ def test_on_tool_start_raises_when_governance_denies() -> None:
         )
 
 
+def test_on_tool_start_allows_when_governance_allows() -> None:
+    interceptor = SyncInterceptor()
+    handler = AssemblyCallbackHandler(interceptor)
+
+    handler.on_tool_start(
+        serialized={"name": "web_search"},
+        input_str="query",
+        run_id=uuid4(),
+        decision={"status": "allow"},
+    )
+
+    assert interceptor.pending_wait_calls == 0
+
+
 def test_on_tool_start_waits_for_pending_approval() -> None:
     interceptor = SyncInterceptor()
     handler = AssemblyCallbackHandler(interceptor)
