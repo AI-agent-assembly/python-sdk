@@ -39,6 +39,8 @@ class FrameworkAdapter(ABC):
         ...
 
     def is_available(self) -> bool:
+        """Return True when the framework package can be imported."""
+
         try:
             importlib.import_module(self.get_framework_name())
         except ImportError:
