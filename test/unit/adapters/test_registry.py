@@ -71,6 +71,24 @@ class CountingEntryPointAdapter(FrameworkAdapter):
         return None
 
 
+class InterceptorCallingAdapter(FrameworkAdapter):
+    def __init__(self) -> None:
+        self.hook_registered = False
+
+    def get_framework_name(self) -> str:
+        return "interceptor_calling_framework"
+
+    def get_supported_versions(self) -> list[str]:
+        return [">=1.0.0"]
+
+    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+        interceptor.record_event("adapter-registered")
+        self.hook_registered = True
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
 def test_auto_detect_activates_only_importable_frameworks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -220,3 +238,28 @@ def test_auto_detect_is_idempotent_for_entry_point_adapters(
     assert first == ["entrypoint_counting_framework"]
     assert second == []
     assert CountingEntryPointAdapter.register_calls == 1
+
+
+def test_auto_detect_uses_resilient_noop_interceptor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = AdapterRegistry()
+    adapter = InterceptorCallingAdapter()
+    registry._registered = {adapter.get_framework_name(): adapter}
+
+    monkeypatch.setattr(
+        "agent_assembly.adapters.registry.metadata.entry_points",
+        lambda: EmptyEntryPoints(),
+    )
+
+    def fake_import_module(module_name: str) -> object:
+        if module_name == "interceptor_calling_framework":
+            return SimpleNamespace(__version__="1.0.0")
+        raise ImportError
+
+    monkeypatch.setattr("agent_assembly.adapters.base.importlib.import_module", fake_import_module)
+
+    activated = registry.auto_detect()
+
+    assert activated == ["interceptor_calling_framework"]
+    assert adapter.hook_registered is True

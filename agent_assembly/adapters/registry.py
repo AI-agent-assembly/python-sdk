@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from importlib import metadata
 from threading import Lock
-from typing import Literal
+from typing import Callable, Literal
 
 from agent_assembly.adapters.base import FrameworkAdapter
 
@@ -31,6 +31,20 @@ class _BuiltinPlaceholderAdapter(FrameworkAdapter):
 
     def unregister_hooks(self) -> None:
         return None
+
+
+def _noop_interceptor_method(*args: object, **kwargs: object) -> None:
+    del args, kwargs
+    return None
+
+
+class _NoopGovernanceInterceptor:
+    def __getattr__(self, name: str) -> Callable[..., None]:
+        del name
+        return _noop_interceptor_method
+
+
+_NOOP_GOVERNANCE_INTERCEPTOR = _NoopGovernanceInterceptor()
 
 
 class AdapterRegistry:
@@ -150,7 +164,7 @@ class AdapterRegistry:
                     continue
 
             try:
-                adapter.register(object())
+                adapter.register(_NOOP_GOVERNANCE_INTERCEPTOR)
             except Exception as error:
                 with self._lock:
                     self._errors[name] = str(error)
