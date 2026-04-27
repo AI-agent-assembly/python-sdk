@@ -30,3 +30,10 @@ def auto_inject_callback_handler(interceptor: Any) -> AssemblyCallbackHandler:
 def get_active_callback_handler() -> AssemblyCallbackHandler | None:
     """Return the current callback handler instance when one is registered."""
     return _ACTIVE_CALLBACK_HANDLER
+
+
+def _reset_runtime_state_for_tests() -> None:
+    global _ACTIVE_CALLBACK_HANDLER
+
+    with _RUNTIME_LOCK:
+        _ACTIVE_CALLBACK_HANDLER = None
