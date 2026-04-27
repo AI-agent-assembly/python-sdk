@@ -34,6 +34,8 @@ class FrameworkAdapter(ABC):
 
     @abstractmethod
     def unregister_hooks(self) -> None:
+        """Detach all framework hooks in an idempotent way."""
+
         ...
 
     def is_available(self) -> bool:
