@@ -9,6 +9,7 @@ __all__ = [
     "GatewayError",
     "ConfigurationError",
     "AdapterValidationError",
+    "ToolExecutionBlockedError",
 ]
 
 
@@ -39,4 +40,9 @@ class ConfigurationError(AssemblyError):
 
 class AdapterValidationError(AssemblyError):
     """Exception raised when an adapter contract is invalid."""
+    pass
+
+
+class ToolExecutionBlockedError(AssemblyError):
+    """Exception raised when a tool run is blocked by governance."""
     pass
