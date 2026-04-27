@@ -22,6 +22,18 @@ def _invoke_pre_node_hook(callback_handler: Any, state: Any) -> None:
     return None
 
 
+def _invoke_post_node_hook(callback_handler: Any, state: Any, result: Any) -> None:
+    method = getattr(callback_handler, "on_graph_node_end", None)
+    if not callable(method):
+        return None
+
+    callback_result = method(node_name="graph.invoke", state=state, result=result)
+    if inspect.isawaitable(callback_result):
+        return None
+
+    return None
+
+
 def patch_stategraph_compile(callback_handler: Any) -> bool:
     """Patch `StateGraph.compile()` to attach runtime governance hooks."""
     try:
@@ -44,7 +56,9 @@ def patch_stategraph_compile(callback_handler: Any) -> bool:
         if callable(invoke):
             def wrapped_invoke(state: Any, *invoke_args: Any, **invoke_kwargs: Any) -> Any:
                 _invoke_pre_node_hook(callback_handler, state)
-                return invoke(state, *invoke_args, **invoke_kwargs)
+                result = invoke(state, *invoke_args, **invoke_kwargs)
+                _invoke_post_node_hook(callback_handler, state, result)
+                return result
 
             setattr(compiled_graph, "invoke", wrapped_invoke)
         return compiled_graph
