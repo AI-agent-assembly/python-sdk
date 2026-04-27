@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import pytest
@@ -153,3 +154,22 @@ def test_list_active_reflects_real_time_state(
     registry.unregister("stateful_framework")
 
     assert registry.list_active() == []
+
+
+def test_register_unregister_is_thread_safe() -> None:
+    registry = AdapterRegistry()
+
+    def mutate_registry(thread_id: int) -> None:
+        for round_id in range(40):
+            adapter = DummyAdapter(f"concurrent_{thread_id}_{round_id}")
+            registry.register(adapter)
+            registry.unregister(adapter.get_framework_name())
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(mutate_registry, thread_id) for thread_id in range(8)]
+        for future in futures:
+            future.result()
+
+    with registry._lock:
+        assert isinstance(registry._registered, dict)
+        assert isinstance(registry._active, dict)
