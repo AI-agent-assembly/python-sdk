@@ -52,3 +52,10 @@ def _load_crewai_task_class() -> type[Any] | None:
 
 def _set_thread_local_agent_id(agent_id: str | None) -> None:
     _AGENT_CONTEXT.agent_id = agent_id
+
+
+def _get_thread_local_agent_id() -> str | None:
+    agent_id = getattr(_AGENT_CONTEXT, "agent_id", None)
+    if isinstance(agent_id, str) and agent_id:
+        return agent_id
+    return None
