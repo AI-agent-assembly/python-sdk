@@ -30,6 +30,11 @@ class LangGraphPatch:
         return True
 
 
+def patch_stategraph_compile(callback_handler: Any) -> bool:
+    """Backward-compatible helper used by existing runtime wiring."""
+    return LangGraphPatch(callback_handler=callback_handler).apply()
+
+
 def _extract_state(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     if args:
         return args[0]
