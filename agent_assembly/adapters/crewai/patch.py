@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
 from typing import Any
 
 _TOOLS_PATCHED_FLAG = "_agent_assembly_crewai_tools_patched"
@@ -21,3 +22,27 @@ class CrewAIPatch:
         """Apply patch wiring and return whether CrewAI is available."""
         del self
         return False
+
+
+def _load_crewai_basetool_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("crewai.tools")
+    except ImportError:
+        return None
+
+    base_tool_cls = getattr(module, "BaseTool", None)
+    if isinstance(base_tool_cls, type):
+        return base_tool_cls
+    return None
+
+
+def _load_crewai_task_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("crewai")
+    except ImportError:
+        return None
+
+    task_cls = getattr(module, "Task", None)
+    if isinstance(task_cls, type):
+        return task_cls
+    return None
