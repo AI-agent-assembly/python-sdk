@@ -61,6 +61,27 @@ def _summarize_state_keys(state: object) -> list[str]:
     return [str(key) for key in state.keys()]
 
 
+def _compute_state_delta(previous_state: object, next_state: object) -> dict[str, object]:
+    if not isinstance(previous_state, dict) or not isinstance(next_state, dict):
+        return {"changed_keys": [], "new_values": {}, "removed_keys": []}
+
+    changed_keys: list[str] = []
+    new_values: dict[str, object] = {}
+    for key, value in next_state.items():
+        if key not in previous_state or previous_state[key] != value:
+            key_str = str(key)
+            changed_keys.append(key_str)
+            new_values[key_str] = value
+
+    removed_keys = [str(key) for key in previous_state.keys() if key not in next_state]
+
+    return {
+        "changed_keys": changed_keys,
+        "new_values": new_values,
+        "removed_keys": removed_keys,
+    }
+
+
 def _make_sync_node_wrapper(node_name: str, original_func: Any, callback_handler: Any) -> Any:
     def wrapped_node(*node_args: Any, **node_kwargs: Any) -> Any:
         del node_name, callback_handler
