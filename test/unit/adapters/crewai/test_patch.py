@@ -125,3 +125,26 @@ def test_pending_tool_waits_and_allows_when_approved(
 
     assert result == {"args": (), "kwargs": {"param": "value"}}
     assert len(wait_calls) == 1
+
+
+def test_pending_timeout_returns_denied_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
+
+    class PendingTimeoutInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "requires manual approval"}
+
+        def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "deny", "reason": "approval timeout"}
+
+    patcher = crewai_patch.CrewAIPatch(PendingTimeoutInterceptor())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    result = tool.run(param="value")
+
+    assert isinstance(result, str)
+    assert result.startswith("[APPROVAL REJECTED]")
+    assert "approval timeout" in result
