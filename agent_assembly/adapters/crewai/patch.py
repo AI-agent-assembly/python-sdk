@@ -224,6 +224,18 @@ def _record_task_start(callback_handler: Any, task: Any) -> None:
     return None
 
 
+def _record_task_complete(callback_handler: Any, result: object) -> None:
+    method = getattr(callback_handler, "record", None)
+    if callable(method):
+        method(action="task_complete", output_preview=str(result)[:500])
+        return None
+
+    fallback = getattr(callback_handler, "on_task_complete", None)
+    if callable(fallback):
+        fallback(result=result)
+    return None
+
+
 def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -> None:
     if getattr(task_cls, _TASK_PATCHED_FLAG, False):
         return None
@@ -232,7 +244,9 @@ def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -
 
     def patched_execute_sync(self: Any, *args: Any, **kwargs: Any) -> Any:
         _record_task_start(callback_handler, self)
-        return original_execute_sync(self, *args, **kwargs)
+        result = original_execute_sync(self, *args, **kwargs)
+        _record_task_complete(callback_handler, result)
+        return result
 
     setattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC, original_execute_sync)
     setattr(task_cls, "execute_sync", patched_execute_sync)
