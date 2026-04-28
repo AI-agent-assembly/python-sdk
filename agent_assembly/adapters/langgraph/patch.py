@@ -26,6 +26,26 @@ class LangGraphPatch:
         return True
 
 
+def _discover_compiled_graph_node_maps(compiled_graph: Any) -> list[Any]:
+    candidate_maps = [
+        getattr(compiled_graph, "nodes", None),
+        getattr(compiled_graph, "_nodes", None),
+    ]
+
+    pregel = getattr(compiled_graph, "pregel", None)
+    if pregel is None:
+        pregel = getattr(compiled_graph, "_pregel", None)
+    if pregel is not None:
+        candidate_maps.extend(
+            [
+                getattr(pregel, "nodes", None),
+                getattr(pregel, "_nodes", None),
+            ]
+        )
+
+    return [node_map for node_map in candidate_maps if node_map is not None]
+
+
 def _load_stategraph_class() -> type[Any] | None:
     try:
         module = importlib.import_module("langgraph.graph.state")
