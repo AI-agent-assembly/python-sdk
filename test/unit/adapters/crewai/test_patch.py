@@ -148,3 +148,29 @@ def test_pending_timeout_returns_denied_string(monkeypatch: pytest.MonkeyPatch) 
     assert isinstance(result, str)
     assert result.startswith("[APPROVAL REJECTED]")
     assert "approval timeout" in result
+
+
+def test_task_start_and_complete_events_are_recorded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, FakeTask = _install_fake_crewai_modules(monkeypatch)
+    recorded: list[dict[str, object]] = []
+
+    class TaskRecordInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "allow"}
+
+        def record(self, **kwargs: object) -> None:
+            recorded.append(dict(kwargs))
+
+    patcher = crewai_patch.CrewAIPatch(TaskRecordInterceptor())
+    assert patcher.apply() is True
+
+    task = FakeTask()
+    result = task.execute_sync(input_text="hello")
+
+    assert result == {"args": (), "kwargs": {"input_text": "hello"}}
+    assert len(recorded) == 2
+    assert recorded[0]["action"] == "task_start"
+    assert recorded[1]["action"] == "task_complete"
