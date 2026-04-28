@@ -1,5 +1,7 @@
 """Backward-compatible shim for LangGraph patch utilities."""
 
+import importlib
+
 from agent_assembly.adapters.langgraph import patch as _impl
 
 LangGraphPatch = _impl.LangGraphPatch
@@ -29,4 +31,3 @@ _wrap_graph_invoke_fallback = _impl._wrap_graph_invoke_fallback
 _record_node_enter = _impl._record_node_enter
 _record_node_exit = _impl._record_node_exit
 _load_stategraph_class = _impl._load_stategraph_class
-importlib = _impl.importlib
