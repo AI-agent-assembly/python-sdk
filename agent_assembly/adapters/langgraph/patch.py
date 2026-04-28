@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
 from typing import Any
 
 
@@ -14,4 +15,20 @@ class LangGraphPatch:
 
     def apply(self) -> bool:
         """Apply patching once and return whether patch wiring is active."""
-        return False
+        state_graph_cls = _load_stategraph_class()
+        if state_graph_cls is None:
+            return False
+        return True
+
+
+def _load_stategraph_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("langgraph.graph.state")
+    except ImportError:
+        return None
+
+    state_graph_cls = getattr(module, "StateGraph", None)
+    if isinstance(state_graph_cls, type):
+        return state_graph_cls
+
+    return None
