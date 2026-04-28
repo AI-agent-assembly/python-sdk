@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import wraps
 import importlib
 from threading import local
 from typing import Any, Literal, Mapping
@@ -171,6 +172,7 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
 
     original_run = base_tool_cls.run
 
+    @wraps(original_run)
     def patched_run(self: Any, *args: Any, **kwargs: Any) -> Any:
         tool_name = getattr(self, "name", self.__class__.__name__)
         tool_args = dict(kwargs)
@@ -242,6 +244,7 @@ def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -
 
     original_execute_sync = task_cls.execute_sync
 
+    @wraps(original_execute_sync)
     def patched_execute_sync(self: Any, *args: Any, **kwargs: Any) -> Any:
         _record_task_start(callback_handler, self)
         result = original_execute_sync(self, *args, **kwargs)
