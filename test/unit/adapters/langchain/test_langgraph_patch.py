@@ -206,6 +206,70 @@ def test_patch_stategraph_compile_fallback_wraps_sync_invoke(
     ]
 
 
+def test_patch_stategraph_compile_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeStateGraph:
+        def compile(self) -> object:
+            return object()
+
+    monkeypatch.setattr(
+        "agent_assembly.adapters.langchain.langgraph_patch.importlib.import_module",
+        lambda name: SimpleNamespace(StateGraph=FakeStateGraph),
+    )
+
+    assert langgraph_patch.patch_stategraph_compile(GraphEventRecorder()) is True
+    patched_compile = FakeStateGraph.compile
+    assert langgraph_patch.patch_stategraph_compile(GraphEventRecorder()) is True
+    assert FakeStateGraph.compile is patched_compile
+
+
+def test_wrap_node_callable_records_metadata_and_preserves_config_passthrough() -> None:
+    captured_events: list[tuple[str, dict[str, object]]] = []
+    captured_configs: list[object] = []
+
+    class Recorder:
+        def on_graph_node_start(self, **kwargs: object) -> None:
+            captured_events.append(("start", dict(kwargs)))
+
+        def on_graph_node_end(self, **kwargs: object) -> None:
+            captured_events.append(("end", dict(kwargs)))
+
+    def node(state: dict[str, object], config: object) -> dict[str, object]:
+        captured_configs.append(config)
+        return {**state, "node_done": True}
+
+    wrapped = langgraph_patch._wrap_node_callable("node_x", node, Recorder())
+    config = {"configurable": {"agent_id": "agent-007"}}
+    result = wrapped({"step": "run"}, config)
+
+    assert result == {"step": "run", "node_done": True}
+    assert captured_configs == [config]
+    assert captured_events[0] == (
+        "start",
+        {
+            "node_name": "node_x",
+            "agent_id": "agent-007",
+            "state": {"step": "run"},
+            "state_keys": ["step"],
+            "config": config,
+        },
+    )
+    assert captured_events[1] == (
+        "end",
+        {
+            "node_name": "node_x",
+            "agent_id": "agent-007",
+            "state": {"step": "run"},
+            "result": {"step": "run", "node_done": True},
+            "state_delta": {
+                "changed_keys": ["node_done"],
+                "new_values": {"node_done": True},
+                "removed_keys": [],
+            },
+            "config": config,
+        },
+    )
+
+
 @pytest.mark.asyncio
 async def test_patch_stategraph_compile_fallback_wraps_async_invoke(
     monkeypatch: pytest.MonkeyPatch,
