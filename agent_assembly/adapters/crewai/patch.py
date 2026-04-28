@@ -67,3 +67,8 @@ def _format_blocked_message(reason: str | None) -> str:
         f"[BLOCKED by governance policy] {reason_text}. "
         "Please choose a different approach to accomplish this task."
     )
+
+
+def _format_approval_rejected_message(reason: str | None) -> str:
+    reason_text = reason or "No reason provided."
+    return f"[APPROVAL REJECTED] Action was reviewed and denied: {reason_text}"
