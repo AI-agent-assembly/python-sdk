@@ -119,3 +119,23 @@ def _invoke_sync_tool_check(
         )
 
     return {"status": "allow"}
+
+
+def _wait_for_sync_tool_approval(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    timeout_seconds: int,
+    tool_args: dict[str, Any],
+    agent_id: str | None,
+) -> object:
+    method = getattr(callback_handler, "wait_for_tool_approval", None)
+    if callable(method):
+        return method(
+            tool_name=tool_name,
+            timeout_seconds=timeout_seconds,
+            args=tool_args,
+            agent_id=agent_id,
+        )
+
+    return {"status": "deny", "reason": "Approval handler is unavailable."}
