@@ -72,3 +72,12 @@ from agent_assembly.exceptions import (
 - `deny` (or unresolved `pending`) raises `ToolExecutionBlockedError`.
 - LLM start interception is scan-only and does not mutate prompt content.
 - LangGraph `StateGraph.compile()` is patched to add pre/post invocation governance hooks.
+
+## CrewAI runtime interception
+
+`init_assembly(...)` also applies CrewAI runtime patches when CrewAI is installed.
+
+- `BaseTool.run()` is patched with synchronous governance checks.
+- Blocked tool calls return policy message strings (instead of raising exceptions).
+- `pending` approval decisions block synchronously and return denial strings if not approved.
+- `Task.execute_sync()` emits task start/complete audit events.
