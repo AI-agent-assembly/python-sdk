@@ -277,16 +277,46 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
             await result
         return None
 
-    def on_graph_node_start(self, node_name: str, state: Any) -> None:
+    def on_graph_node_start(
+        self,
+        node_name: str,
+        state: Any,
+        *,
+        agent_id: str | None = None,
+        state_keys: list[str] | None = None,
+        config: Any = None,
+    ) -> None:
         method = getattr(self._interceptor, "on_graph_node_start", None)
         if not callable(method):
             return None
-        method(node_name=node_name, state=state)
+        method(
+            node_name=node_name,
+            agent_id=agent_id,
+            state=state,
+            state_keys=state_keys,
+            config=config,
+        )
         return None
 
-    def on_graph_node_end(self, node_name: str, state: Any, result: Any) -> None:
+    def on_graph_node_end(
+        self,
+        node_name: str,
+        state: Any,
+        result: Any,
+        *,
+        agent_id: str | None = None,
+        state_delta: dict[str, Any] | None = None,
+        config: Any = None,
+    ) -> None:
         method = getattr(self._interceptor, "on_graph_node_end", None)
         if not callable(method):
             return None
-        method(node_name=node_name, state=state, result=result)
+        method(
+            node_name=node_name,
+            agent_id=agent_id,
+            state=state,
+            result=result,
+            state_delta=state_delta,
+            config=config,
+        )
         return None
