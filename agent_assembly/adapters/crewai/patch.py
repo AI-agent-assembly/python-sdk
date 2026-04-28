@@ -22,8 +22,12 @@ class CrewAIPatch:
 
     def apply(self) -> bool:
         """Apply patch wiring and return whether CrewAI is available."""
-        del self
-        return False
+        base_tool_cls = _load_crewai_basetool_class()
+        if base_tool_cls is None:
+            return False
+
+        _apply_basetool_run_patch(base_tool_cls, self.callback_handler)
+        return True
 
 
 def _load_crewai_basetool_class() -> type[Any] | None:
@@ -139,3 +143,41 @@ def _wait_for_sync_tool_approval(
         )
 
     return {"status": "deny", "reason": "Approval handler is unavailable."}
+
+
+def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -> None:
+    if getattr(base_tool_cls, _TOOLS_PATCHED_FLAG, False):
+        return None
+
+    original_run = base_tool_cls.run
+
+    def patched_run(self: Any, *args: Any, **kwargs: Any) -> Any:
+        tool_name = getattr(self, "name", self.__class__.__name__)
+        tool_args = dict(kwargs)
+        agent_id = _get_thread_local_agent_id()
+        decision = _invoke_sync_tool_check(
+            callback_handler,
+            tool_name=str(tool_name),
+            tool_args=tool_args,
+            agent_id=agent_id,
+        )
+        status, reason = _normalize_decision(decision)
+        if status == "pending":
+            final_decision = _wait_for_sync_tool_approval(
+                callback_handler,
+                tool_name=str(tool_name),
+                timeout_seconds=300,
+                tool_args=tool_args,
+                agent_id=agent_id,
+            )
+            status, reason = _normalize_decision(final_decision)
+
+        if status == "deny":
+            del reason
+            return ""
+
+        return original_run(self, *args, **kwargs)
+
+    setattr(base_tool_cls, _ORIGINAL_TOOL_RUN, original_run)
+    setattr(base_tool_cls, "run", patched_run)
+    setattr(base_tool_cls, _TOOLS_PATCHED_FLAG, True)
