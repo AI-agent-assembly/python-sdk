@@ -40,6 +40,14 @@ def _make_sync_node_wrapper(node_name: str, original_func: Any, callback_handler
     return wrapped_node
 
 
+def _make_async_node_wrapper(node_name: str, original_func: Any, callback_handler: Any) -> Any:
+    async def wrapped_node(*node_args: Any, **node_kwargs: Any) -> Any:
+        del node_name, callback_handler
+        return await original_func(*node_args, **node_kwargs)
+
+    return wrapped_node
+
+
 def _discover_compiled_graph_node_maps(compiled_graph: Any) -> list[Any]:
     candidate_maps = [
         getattr(compiled_graph, "nodes", None),
