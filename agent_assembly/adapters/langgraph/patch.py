@@ -142,6 +142,49 @@ def _make_assembly_node_wrapper(node_name: str, original_func: Any, callback_han
     return wrapped
 
 
+def _wrap_node_map(node_map: Any, callback_handler: Any) -> bool:
+    items_method = getattr(node_map, "items", None)
+    if not callable(items_method):
+        return False
+
+    wrapped_any = False
+    for node_name, node_executor in list(items_method()):
+        if callable(node_executor):
+            wrapped_executor = _make_assembly_node_wrapper(
+                str(node_name), node_executor, callback_handler
+            )
+            if wrapped_executor is node_executor:
+                continue
+            try:
+                node_map[node_name] = wrapped_executor
+            except Exception:
+                continue
+            wrapped_any = True
+            continue
+
+        invoke = getattr(node_executor, "invoke", None)
+        if callable(invoke):
+            wrapped_invoke = _make_assembly_node_wrapper(str(node_name), invoke, callback_handler)
+            setattr(node_executor, "invoke", wrapped_invoke)
+            wrapped_any = True
+
+        ainvoke = getattr(node_executor, "ainvoke", None)
+        if callable(ainvoke):
+            wrapped_ainvoke = _make_assembly_node_wrapper(str(node_name), ainvoke, callback_handler)
+            setattr(node_executor, "ainvoke", wrapped_ainvoke)
+            wrapped_any = True
+
+    return wrapped_any
+
+
+def _wrap_compiled_graph_nodes(compiled_graph: Any, callback_handler: Any) -> bool:
+    wrapped_any = False
+    for node_map in _discover_compiled_graph_node_maps(compiled_graph):
+        if _wrap_node_map(node_map, callback_handler):
+            wrapped_any = True
+    return wrapped_any
+
+
 def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, config: object) -> None:
     method = getattr(callback_handler, "on_graph_node_start", None)
     if not callable(method):
