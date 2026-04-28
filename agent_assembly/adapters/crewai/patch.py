@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import importlib
+from threading import local
 from typing import Any
 
 _TOOLS_PATCHED_FLAG = "_agent_assembly_crewai_tools_patched"
 _TASK_PATCHED_FLAG = "_agent_assembly_crewai_task_patched"
 _ORIGINAL_TOOL_RUN = "_agent_assembly_original_crewai_tool_run"
 _ORIGINAL_TASK_EXECUTE_SYNC = "_agent_assembly_original_crewai_task_execute_sync"
+_AGENT_CONTEXT = local()
 
 
 @dataclass(slots=True)
@@ -46,3 +48,7 @@ def _load_crewai_task_class() -> type[Any] | None:
     if isinstance(task_cls, type):
         return task_cls
     return None
+
+
+def _set_thread_local_agent_id(agent_id: str | None) -> None:
+    _AGENT_CONTEXT.agent_id = agent_id
