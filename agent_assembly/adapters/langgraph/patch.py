@@ -249,13 +249,17 @@ def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, 
     if not callable(method):
         return None
 
-    method(
-        node_name=node_name,
-        agent_id=_extract_agent_id(config),
-        state=state,
-        state_keys=_summarize_state_keys(state),
-        config=config,
-    )
+    hook_kwargs = {
+        "node_name": node_name,
+        "agent_id": _extract_agent_id(config),
+        "state": state,
+        "state_keys": _summarize_state_keys(state),
+        "config": config,
+    }
+    try:
+        method(**hook_kwargs)
+    except TypeError:
+        method(node_name=node_name, state=state)
     return None
 
 
@@ -271,14 +275,18 @@ def _record_node_exit(
     if not callable(method):
         return None
 
-    method(
-        node_name=node_name,
-        agent_id=_extract_agent_id(config),
-        state=previous_state,
-        result=next_state,
-        state_delta=_compute_state_delta(previous_state, next_state),
-        config=config,
-    )
+    hook_kwargs = {
+        "node_name": node_name,
+        "agent_id": _extract_agent_id(config),
+        "state": previous_state,
+        "result": next_state,
+        "state_delta": _compute_state_delta(previous_state, next_state),
+        "config": config,
+    }
+    try:
+        method(**hook_kwargs)
+    except TypeError:
+        method(node_name=node_name, state=previous_state, result=next_state)
     return None
 
 
