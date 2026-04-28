@@ -35,6 +35,39 @@ def patch_stategraph_compile(callback_handler: Any) -> bool:
     return LangGraphPatch(callback_handler=callback_handler).apply()
 
 
+def _invoke_pre_node_hook(callback_handler: Any, node_name: str, state: object) -> None:
+    """Backward-compatible pre-node hook helper."""
+    _record_node_enter(
+        callback_handler,
+        node_name=node_name,
+        state=state,
+        config=None,
+    )
+    return None
+
+
+def _invoke_post_node_hook(
+    callback_handler: Any,
+    node_name: str,
+    state: object,
+    result: object,
+) -> None:
+    """Backward-compatible post-node hook helper."""
+    _record_node_exit(
+        callback_handler,
+        node_name=node_name,
+        previous_state=state,
+        next_state=result,
+        config=None,
+    )
+    return None
+
+
+def _wrap_node_callable(node_name: str, node_func: Any, callback_handler: Any) -> Any:
+    """Backward-compatible node wrapper helper."""
+    return _make_assembly_node_wrapper(node_name, node_func, callback_handler)
+
+
 def _extract_state(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     if args:
         return args[0]
