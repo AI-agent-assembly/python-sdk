@@ -6,7 +6,7 @@ from threading import Lock
 from typing import Any
 
 from agent_assembly.adapters.langchain.callback_handler import AssemblyCallbackHandler
-from agent_assembly.adapters.langchain.langgraph_patch import patch_stategraph_compile
+from agent_assembly.adapters.langgraph import LangGraphPatch
 
 _ACTIVE_CALLBACK_HANDLER: AssemblyCallbackHandler | None = None
 _RUNTIME_LOCK = Lock()
@@ -18,12 +18,12 @@ def auto_inject_callback_handler(interceptor: Any) -> AssemblyCallbackHandler:
 
     with _RUNTIME_LOCK:
         if _ACTIVE_CALLBACK_HANDLER is not None:
-            patch_stategraph_compile(_ACTIVE_CALLBACK_HANDLER)
+            LangGraphPatch(_ACTIVE_CALLBACK_HANDLER).apply()
             return _ACTIVE_CALLBACK_HANDLER
 
         handler = AssemblyCallbackHandler(interceptor)
         _ACTIVE_CALLBACK_HANDLER = handler
-        patch_stategraph_compile(handler)
+        LangGraphPatch(handler).apply()
         return handler
 
 

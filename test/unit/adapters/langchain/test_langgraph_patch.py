@@ -57,6 +57,33 @@ def test_invoke_hooks_handle_missing_methods_and_awaitables() -> None:
     ]
 
 
+def test_invoke_hooks_only_fallback_on_signature_mismatch() -> None:
+    class SignatureMismatchRecorder:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, object]] = []
+
+        def on_graph_node_start(self, *, node_name: str, state: object) -> None:
+            self.events.append(("start", state))
+
+        def on_graph_node_end(self, *, node_name: str, state: object, result: object) -> None:
+            self.events.append(("end", result))
+
+    recorder = SignatureMismatchRecorder()
+    langgraph_patch._invoke_pre_node_hook(recorder, "n3", {"state": 3})
+    langgraph_patch._invoke_post_node_hook(recorder, "n3", {"state": 3}, {"result": 3})
+    assert recorder.events == [("start", {"state": 3}), ("end", {"result": 3})]
+
+
+def test_invoke_hooks_reraise_internal_typeerror() -> None:
+    class InternalTypeErrorRecorder:
+        def on_graph_node_start(self, **kwargs: object) -> None:
+            del kwargs
+            raise TypeError("internal callback failure")
+
+    with pytest.raises(TypeError, match="internal callback failure"):
+        langgraph_patch._invoke_pre_node_hook(InternalTypeErrorRecorder(), "n4", {"state": 4})
+
+
 @pytest.mark.asyncio
 async def test_wrap_node_callable_handles_already_wrapped_and_async_results() -> None:
     recorder = GraphEventRecorder()
@@ -204,6 +231,70 @@ def test_patch_stategraph_compile_fallback_wraps_sync_invoke(
         ("start", "graph.invoke", {"n": 1}),
         ("end", "graph.invoke", {"invoke": {"n": 1}}),
     ]
+
+
+def test_patch_stategraph_compile_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeStateGraph:
+        def compile(self) -> object:
+            return object()
+
+    monkeypatch.setattr(
+        "agent_assembly.adapters.langchain.langgraph_patch.importlib.import_module",
+        lambda name: SimpleNamespace(StateGraph=FakeStateGraph),
+    )
+
+    assert langgraph_patch.patch_stategraph_compile(GraphEventRecorder()) is True
+    patched_compile = FakeStateGraph.compile
+    assert langgraph_patch.patch_stategraph_compile(GraphEventRecorder()) is True
+    assert FakeStateGraph.compile is patched_compile
+
+
+def test_wrap_node_callable_records_metadata_and_preserves_config_passthrough() -> None:
+    captured_events: list[tuple[str, dict[str, object]]] = []
+    captured_configs: list[object] = []
+
+    class Recorder:
+        def on_graph_node_start(self, **kwargs: object) -> None:
+            captured_events.append(("start", dict(kwargs)))
+
+        def on_graph_node_end(self, **kwargs: object) -> None:
+            captured_events.append(("end", dict(kwargs)))
+
+    def node(state: dict[str, object], config: object) -> dict[str, object]:
+        captured_configs.append(config)
+        return {**state, "node_done": True}
+
+    wrapped = langgraph_patch._wrap_node_callable("node_x", node, Recorder())
+    config = {"configurable": {"agent_id": "agent-007"}}
+    result = wrapped({"step": "run"}, config)
+
+    assert result == {"step": "run", "node_done": True}
+    assert captured_configs == [config]
+    assert captured_events[0] == (
+        "start",
+        {
+            "node_name": "node_x",
+            "agent_id": "agent-007",
+            "state": {"step": "run"},
+            "state_keys": ["step"],
+            "config": config,
+        },
+    )
+    assert captured_events[1] == (
+        "end",
+        {
+            "node_name": "node_x",
+            "agent_id": "agent-007",
+            "state": {"step": "run"},
+            "result": {"step": "run", "node_done": True},
+            "state_delta": {
+                "changed_keys": ["node_done"],
+                "new_values": {"node_done": True},
+                "removed_keys": [],
+            },
+            "config": config,
+        },
+    )
 
 
 @pytest.mark.asyncio

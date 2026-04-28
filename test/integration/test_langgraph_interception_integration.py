@@ -90,3 +90,73 @@ def test_langgraph_compile_patch_wraps_multi_node_graph_and_blocks_denied_tool(
         "end:node_a",
         "start:node_b",
     ]
+
+
+@pytest.mark.integration
+def test_langgraph_compile_patch_allows_downstream_node_after_blocked_tool_handled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    interceptor = GraphInterceptor()
+    handler = AssemblyCallbackHandler(interceptor)
+
+    class FakeCompiledGraph:
+        def __init__(self) -> None:
+            self.nodes = {
+                "node_a": self._node_a,
+                "node_b": self._node_b,
+                "node_c": self._node_c,
+            }
+
+        def _node_a(self, state: dict[str, object]) -> dict[str, object]:
+            return {**state, "node_a": "ok"}
+
+        def _node_b(self, state: dict[str, object]) -> dict[str, object]:
+            try:
+                handler.on_tool_start(
+                    serialized={"name": "blocked_tool"},
+                    input_str="{}",
+                    run_id=uuid4(),
+                )
+            except ToolExecutionBlockedError:
+                return {**state, "node_b": "blocked"}
+            return {**state, "node_b": "unexpected-allow"}
+
+        def _node_c(self, state: dict[str, object]) -> dict[str, object]:
+            return {**state, "node_c": "ok"}
+
+        def invoke(self, state: dict[str, object]) -> dict[str, object]:
+            current_state = state
+            for node_name in ("node_a", "node_b", "node_c"):
+                current_state = self.nodes[node_name](current_state)
+            return current_state
+
+    class FakeStateGraph:
+        def compile(self) -> FakeCompiledGraph:
+            return FakeCompiledGraph()
+
+    fake_module = SimpleNamespace(StateGraph=FakeStateGraph)
+    monkeypatch.setattr(
+        "agent_assembly.adapters.langchain.langgraph_patch.importlib.import_module",
+        lambda module_name: fake_module
+        if module_name == "langgraph.graph.state"
+        else (_ for _ in ()).throw(ImportError(module_name)),
+    )
+
+    assert patch_stategraph_compile(handler) is True
+    compiled = FakeStateGraph().compile()
+    result = compiled.invoke({"step": "run"})
+
+    assert result == {
+        "step": "run",
+        "node_a": "ok",
+        "node_b": "blocked",
+        "node_c": "ok",
+    }
+    assert interceptor.events == [
+        "start:node_a",
+        "end:node_a",
+        "start:node_b",
+        "end:node_b",
+        "start:node_c",
+        "end:node_c",
+    ]
