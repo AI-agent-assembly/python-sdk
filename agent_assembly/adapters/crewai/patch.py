@@ -59,3 +59,11 @@ def _get_thread_local_agent_id() -> str | None:
     if isinstance(agent_id, str) and agent_id:
         return agent_id
     return None
+
+
+def _format_blocked_message(reason: str | None) -> str:
+    reason_text = reason or "No reason provided."
+    return (
+        f"[BLOCKED by governance policy] {reason_text}. "
+        "Please choose a different approach to accomplish this task."
+    )
