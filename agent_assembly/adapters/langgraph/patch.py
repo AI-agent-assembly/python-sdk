@@ -32,6 +32,29 @@ def _extract_state(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     return kwargs.get("state")
 
 
+def _extract_agent_id(config: object) -> str | None:
+    if not isinstance(config, dict):
+        return None
+
+    direct_agent_id = config.get("agent_id")
+    if isinstance(direct_agent_id, str) and direct_agent_id:
+        return direct_agent_id
+
+    configurable = config.get("configurable")
+    if isinstance(configurable, dict):
+        nested_agent_id = configurable.get("agent_id")
+        if isinstance(nested_agent_id, str) and nested_agent_id:
+            return nested_agent_id
+
+    metadata = config.get("metadata")
+    if isinstance(metadata, dict):
+        metadata_agent_id = metadata.get("agent_id")
+        if isinstance(metadata_agent_id, str) and metadata_agent_id:
+            return metadata_agent_id
+
+    return None
+
+
 def _make_sync_node_wrapper(node_name: str, original_func: Any, callback_handler: Any) -> Any:
     def wrapped_node(*node_args: Any, **node_kwargs: Any) -> Any:
         del node_name, callback_handler
