@@ -77,3 +77,26 @@ def test_blocked_tool_returns_policy_string(monkeypatch: pytest.MonkeyPatch) -> 
     assert isinstance(result, str)
     assert "[BLOCKED by governance policy]" in result
     assert "blocked for safety" in result
+
+
+def test_allowed_tool_runs_and_records_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
+    observed: list[object] = []
+
+    class AllowInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "allow"}
+
+        def on_tool_end(self, *, output: object, **kwargs: object) -> None:
+            del kwargs
+            observed.append(output)
+
+    patcher = crewai_patch.CrewAIPatch(AllowInterceptor())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    result = tool.run(param="value")
+
+    assert result == {"args": (), "kwargs": {"param": "value"}}
+    assert observed == [result]
