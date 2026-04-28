@@ -6,6 +6,9 @@ from dataclasses import dataclass
 import importlib
 from typing import Any
 
+_PATCHED_FLAG = "_agent_assembly_compile_patched"
+_ORIGINAL_COMPILE = "_agent_assembly_original_compile"
+
 
 @dataclass(slots=True)
 class LangGraphPatch:
@@ -18,6 +21,8 @@ class LangGraphPatch:
         state_graph_cls = _load_stategraph_class()
         if state_graph_cls is None:
             return False
+        if getattr(state_graph_cls, _PATCHED_FLAG, False):
+            return True
         return True
 
 
