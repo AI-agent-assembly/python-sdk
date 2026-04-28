@@ -26,6 +26,7 @@ class LangGraphPatch:
             return False
         if getattr(state_graph_cls, _PATCHED_FLAG, False):
             return True
+        _apply_stategraph_compile_patch(state_graph_cls, self.callback_handler)
         return True
 
 
@@ -183,6 +184,59 @@ def _wrap_compiled_graph_nodes(compiled_graph: Any, callback_handler: Any) -> bo
         if _wrap_node_map(node_map, callback_handler):
             wrapped_any = True
     return wrapped_any
+
+
+def _apply_stategraph_compile_patch(state_graph_cls: type[Any], callback_handler: Any) -> None:
+    original_compile = state_graph_cls.compile
+
+    def patched_compile(self: Any, *args: Any, **kwargs: Any) -> Any:
+        compiled_graph = original_compile(self, *args, **kwargs)
+        nodes_wrapped = _wrap_compiled_graph_nodes(compiled_graph, callback_handler)
+        if not nodes_wrapped:
+            _wrap_graph_invoke_fallback(compiled_graph, callback_handler)
+        return compiled_graph
+
+    setattr(state_graph_cls, _ORIGINAL_COMPILE, original_compile)
+    setattr(state_graph_cls, "compile", patched_compile)
+    setattr(state_graph_cls, _PATCHED_FLAG, True)
+
+
+def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> None:
+    invoke = getattr(compiled_graph, "invoke", None)
+    if not callable(invoke) or getattr(invoke, _INVOKE_WRAPPED_FLAG, False):
+        return None
+
+    if inspect.iscoroutinefunction(invoke):
+        async def wrapped_invoke(*invoke_args: Any, **invoke_kwargs: Any) -> Any:
+            state = _extract_state(invoke_args, invoke_kwargs)
+            config = _extract_config(invoke_args, invoke_kwargs)
+            _record_node_enter(callback_handler, node_name="graph.invoke", state=state, config=config)
+            result = await invoke(*invoke_args, **invoke_kwargs)
+            _record_node_exit(
+                callback_handler,
+                node_name="graph.invoke",
+                previous_state=state,
+                next_state=result,
+                config=config,
+            )
+            return result
+    else:
+        def wrapped_invoke(*invoke_args: Any, **invoke_kwargs: Any) -> Any:
+            state = _extract_state(invoke_args, invoke_kwargs)
+            config = _extract_config(invoke_args, invoke_kwargs)
+            _record_node_enter(callback_handler, node_name="graph.invoke", state=state, config=config)
+            result = invoke(*invoke_args, **invoke_kwargs)
+            _record_node_exit(
+                callback_handler,
+                node_name="graph.invoke",
+                previous_state=state,
+                next_state=result,
+                config=config,
+            )
+            return result
+
+    setattr(wrapped_invoke, _INVOKE_WRAPPED_FLAG, True)
+    setattr(compiled_graph, "invoke", wrapped_invoke)
 
 
 def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, config: object) -> None:
