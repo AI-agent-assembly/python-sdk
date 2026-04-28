@@ -95,7 +95,15 @@ def _make_sync_node_wrapper(node_name: str, original_func: Any, callback_handler
         state = _extract_state(node_args, node_kwargs)
         config = _extract_config(node_args, node_kwargs)
         _record_node_enter(callback_handler, node_name=node_name, state=state, config=config)
-        return original_func(*node_args, **node_kwargs)
+        result = original_func(*node_args, **node_kwargs)
+        _record_node_exit(
+            callback_handler,
+            node_name=node_name,
+            previous_state=state,
+            next_state=result,
+            config=config,
+        )
+        return result
 
     return wrapped_node
 
@@ -105,7 +113,15 @@ def _make_async_node_wrapper(node_name: str, original_func: Any, callback_handle
         state = _extract_state(node_args, node_kwargs)
         config = _extract_config(node_args, node_kwargs)
         _record_node_enter(callback_handler, node_name=node_name, state=state, config=config)
-        return await original_func(*node_args, **node_kwargs)
+        result = await original_func(*node_args, **node_kwargs)
+        _record_node_exit(
+            callback_handler,
+            node_name=node_name,
+            previous_state=state,
+            next_state=result,
+            config=config,
+        )
+        return result
 
     return wrapped_node
 
@@ -120,6 +136,29 @@ def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, 
         agent_id=_extract_agent_id(config),
         state=state,
         state_keys=_summarize_state_keys(state),
+        config=config,
+    )
+    return None
+
+
+def _record_node_exit(
+    callback_handler: Any,
+    *,
+    node_name: str,
+    previous_state: object,
+    next_state: object,
+    config: object,
+) -> None:
+    method = getattr(callback_handler, "on_graph_node_end", None)
+    if not callable(method):
+        return None
+
+    method(
+        node_name=node_name,
+        agent_id=_extract_agent_id(config),
+        state=previous_state,
+        result=next_state,
+        state_delta=_compute_state_delta(previous_state, next_state),
         config=config,
     )
     return None
