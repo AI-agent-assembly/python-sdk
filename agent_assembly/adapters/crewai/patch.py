@@ -99,3 +99,23 @@ def _normalize_decision(
         return status, reason
 
     return "allow", None
+
+
+def _invoke_sync_tool_check(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    tool_args: dict[str, Any],
+    agent_id: str | None,
+) -> object:
+    method = getattr(callback_handler, "check_tool_start", None)
+    if callable(method):
+        return method(
+            serialized={"name": tool_name},
+            input_str=str(tool_args),
+            tool_name=tool_name,
+            args=tool_args,
+            agent_id=agent_id,
+        )
+
+    return {"status": "allow"}
