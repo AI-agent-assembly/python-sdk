@@ -100,3 +100,28 @@ def test_allowed_tool_runs_and_records_result(monkeypatch: pytest.MonkeyPatch) -
 
     assert result == {"args": (), "kwargs": {"param": "value"}}
     assert observed == [result]
+
+
+def test_pending_tool_waits_and_allows_when_approved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
+    wait_calls: list[dict[str, object]] = []
+
+    class PendingThenApproveInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "needs approval"}
+
+        def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+            wait_calls.append(dict(kwargs))
+            return {"status": "allow"}
+
+    patcher = crewai_patch.CrewAIPatch(PendingThenApproveInterceptor())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    result = tool.run(param="value")
+
+    assert result == {"args": (), "kwargs": {"param": "value"}}
+    assert len(wait_calls) == 1
