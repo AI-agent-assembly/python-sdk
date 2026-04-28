@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib
 from threading import local
-from typing import Any
+from typing import Any, Literal, Mapping
 
 _TOOLS_PATCHED_FLAG = "_agent_assembly_crewai_tools_patched"
 _TASK_PATCHED_FLAG = "_agent_assembly_crewai_task_patched"
@@ -72,3 +72,30 @@ def _format_blocked_message(reason: str | None) -> str:
 def _format_approval_rejected_message(reason: str | None) -> str:
     reason_text = reason or "No reason provided."
     return f"[APPROVAL REJECTED] Action was reviewed and denied: {reason_text}"
+
+
+def _normalize_decision(
+    decision: object,
+) -> tuple[Literal["allow", "deny", "pending"], str | None]:
+    if isinstance(decision, str):
+        normalized = decision.strip().lower()
+        if normalized == "deny":
+            return "deny", None
+        if normalized == "pending":
+            return "pending", None
+        return "allow", None
+
+    if isinstance(decision, Mapping):
+        raw_status = str(decision.get("status", "allow")).strip().lower()
+        if raw_status == "deny":
+            status: Literal["allow", "deny", "pending"] = "deny"
+        elif raw_status == "pending":
+            status = "pending"
+        else:
+            status = "allow"
+
+        reason_value = decision.get("reason")
+        reason = str(reason_value) if reason_value is not None else None
+        return status, reason
+
+    return "allow", None
