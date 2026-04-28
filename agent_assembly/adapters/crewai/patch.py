@@ -27,6 +27,9 @@ class CrewAIPatch:
             return False
 
         _apply_basetool_run_patch(base_tool_cls, self.callback_handler)
+        task_cls = _load_crewai_task_class()
+        if task_cls is not None:
+            _apply_task_execute_sync_patch(task_cls, self.callback_handler)
         return True
 
 
@@ -203,3 +206,34 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
     setattr(base_tool_cls, _ORIGINAL_TOOL_RUN, original_run)
     setattr(base_tool_cls, "run", patched_run)
     setattr(base_tool_cls, _TOOLS_PATCHED_FLAG, True)
+
+
+def _record_task_start(callback_handler: Any, task: Any) -> None:
+    method = getattr(callback_handler, "record", None)
+    if callable(method):
+        method(
+            action="task_start",
+            task_description=str(getattr(task, "description", ""))[:200],
+            expected_output=getattr(task, "expected_output", None),
+        )
+        return None
+
+    fallback = getattr(callback_handler, "on_task_start", None)
+    if callable(fallback):
+        fallback(task=task)
+    return None
+
+
+def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -> None:
+    if getattr(task_cls, _TASK_PATCHED_FLAG, False):
+        return None
+
+    original_execute_sync = task_cls.execute_sync
+
+    def patched_execute_sync(self: Any, *args: Any, **kwargs: Any) -> Any:
+        _record_task_start(callback_handler, self)
+        return original_execute_sync(self, *args, **kwargs)
+
+    setattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC, original_execute_sync)
+    setattr(task_cls, "execute_sync", patched_execute_sync)
+    setattr(task_cls, _TASK_PATCHED_FLAG, True)
