@@ -69,6 +69,33 @@ def _get_thread_local_agent_id() -> str | None:
     return None
 
 
+def _extract_agent_id_from_inputs(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str | None:
+    direct_agent_id = kwargs.get("agent_id")
+    if isinstance(direct_agent_id, str) and direct_agent_id:
+        return direct_agent_id
+
+    config = kwargs.get("config")
+    if isinstance(config, dict):
+        configurable = config.get("configurable")
+        if isinstance(configurable, dict):
+            configurable_agent_id = configurable.get("agent_id")
+            if isinstance(configurable_agent_id, str) and configurable_agent_id:
+                return configurable_agent_id
+
+        metadata = config.get("metadata")
+        if isinstance(metadata, dict):
+            metadata_agent_id = metadata.get("agent_id")
+            if isinstance(metadata_agent_id, str) and metadata_agent_id:
+                return metadata_agent_id
+
+    if args and isinstance(args[0], dict):
+        state_agent_id = args[0].get("agent_id")
+        if isinstance(state_agent_id, str) and state_agent_id:
+            return state_agent_id
+
+    return None
+
+
 def _format_blocked_message(reason: str | None) -> str:
     reason_text = reason or "No reason provided."
     return (
@@ -246,8 +273,14 @@ def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -
 
     @wraps(original_execute_sync)
     def patched_execute_sync(self: Any, *args: Any, **kwargs: Any) -> Any:
+        previous_agent_id = _get_thread_local_agent_id()
+        _set_thread_local_agent_id(_extract_agent_id_from_inputs(args, kwargs))
         _record_task_start(callback_handler, self)
-        result = original_execute_sync(self, *args, **kwargs)
+        try:
+            result = original_execute_sync(self, *args, **kwargs)
+        finally:
+            _set_thread_local_agent_id(previous_agent_id)
+
         _record_task_complete(callback_handler, result)
         return result
 
