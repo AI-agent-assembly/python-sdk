@@ -55,6 +55,12 @@ def _extract_agent_id(config: object) -> str | None:
     return None
 
 
+def _summarize_state_keys(state: object) -> list[str]:
+    if not isinstance(state, dict):
+        return []
+    return [str(key) for key in state.keys()]
+
+
 def _make_sync_node_wrapper(node_name: str, original_func: Any, callback_handler: Any) -> Any:
     def wrapped_node(*node_args: Any, **node_kwargs: Any) -> Any:
         del node_name, callback_handler
