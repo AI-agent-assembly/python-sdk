@@ -14,7 +14,9 @@ class _RecordingInterceptor:
         return {"status": "allow"}
 
 
-def _install_fake_crewai_modules(monkeypatch: pytest.MonkeyPatch) -> None:
+def _install_fake_crewai_modules(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[type[Any], type[Any]]:
     class FakeBaseTool:
         name = "fake_tool"
 
@@ -39,35 +41,11 @@ def _install_fake_crewai_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         raise ImportError(module_name)
 
     monkeypatch.setattr(crewai_patch.importlib, "import_module", fake_import_module)
+    return FakeBaseTool, FakeTask
 
 
 def test_apply_patches_crewai_run_and_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
-    _install_fake_crewai_modules(monkeypatch)
-
-    class FakeBaseTool:
-        name = "fake_tool"
-
-        def run(self, *args: Any, **kwargs: Any) -> dict[str, object]:
-            return {"args": args, "kwargs": kwargs}
-
-    class FakeTask:
-        description = "fake task"
-        expected_output = "fake output"
-
-        def execute_sync(self, *args: Any, **kwargs: Any) -> dict[str, object]:
-            return {"args": args, "kwargs": kwargs}
-
-    fake_crewai_tools = SimpleNamespace(BaseTool=FakeBaseTool)
-    fake_crewai_module = SimpleNamespace(Task=FakeTask)
-
-    def fake_import_module(module_name: str) -> object:
-        if module_name == "crewai.tools":
-            return fake_crewai_tools
-        if module_name == "crewai":
-            return fake_crewai_module
-        raise ImportError(module_name)
-
-    monkeypatch.setattr(crewai_patch.importlib, "import_module", fake_import_module)
+    FakeBaseTool, FakeTask = _install_fake_crewai_modules(monkeypatch)
 
     patcher = crewai_patch.CrewAIPatch(_RecordingInterceptor())
     assert patcher.apply() is True
@@ -80,3 +58,22 @@ def test_apply_patches_crewai_run_and_is_idempotent(monkeypatch: pytest.MonkeyPa
     assert patcher.apply() is True
     assert FakeBaseTool.run is first_run_ref
     assert FakeTask.execute_sync is first_task_ref
+
+
+def test_blocked_tool_returns_policy_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
+
+    class BlockInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "deny", "reason": "blocked for safety"}
+
+    patcher = crewai_patch.CrewAIPatch(BlockInterceptor())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    result = tool.run(param="value")
+
+    assert isinstance(result, str)
+    assert "[BLOCKED by governance policy]" in result
+    assert "blocked for safety" in result
