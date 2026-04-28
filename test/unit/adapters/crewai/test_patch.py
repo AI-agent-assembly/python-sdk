@@ -87,6 +87,53 @@ def test_loader_edge_cases_and_apply_false_without_basetool(
     assert crewai_patch._load_crewai_task_class() is None
 
 
+def test_helper_branch_coverage_for_decision_and_agent_extraction() -> None:
+    assert crewai_patch._normalize_decision("deny") == ("deny", None)
+    assert crewai_patch._normalize_decision("pending") == ("pending", None)
+    assert crewai_patch._normalize_decision("allow") == ("allow", None)
+    assert crewai_patch._normalize_decision(12345) == ("allow", None)
+
+    assert (
+        crewai_patch._extract_agent_id_from_inputs((), {"agent_id": "agent-direct"}) == "agent-direct"
+    )
+    assert (
+        crewai_patch._extract_agent_id_from_inputs(
+            (),
+            {"config": {"configurable": {"agent_id": "agent-configurable"}}},
+        )
+        == "agent-configurable"
+    )
+    assert (
+        crewai_patch._extract_agent_id_from_inputs(
+            (),
+            {"config": {"metadata": {"agent_id": "agent-metadata"}}},
+        )
+        == "agent-metadata"
+    )
+    assert crewai_patch._extract_agent_id_from_inputs(({"agent_id": "agent-state"},), {}) == "agent-state"
+    assert crewai_patch._extract_agent_id_from_inputs((), {}) is None
+
+    class NoHandlers:
+        pass
+
+    fallback_check = crewai_patch._invoke_sync_tool_check(
+        NoHandlers(),
+        tool_name="x",
+        tool_args={},
+        agent_id=None,
+    )
+    assert fallback_check == {"status": "allow"}
+
+    fallback_wait = crewai_patch._wait_for_sync_tool_approval(
+        NoHandlers(),
+        tool_name="x",
+        timeout_seconds=1,
+        tool_args={},
+        agent_id=None,
+    )
+    assert fallback_wait == {"status": "deny", "reason": "Approval handler is unavailable."}
+
+
 def test_blocked_tool_returns_policy_string(monkeypatch: pytest.MonkeyPatch) -> None:
     FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
 
