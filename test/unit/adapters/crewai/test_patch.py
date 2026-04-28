@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from typing import Any
 
@@ -174,3 +175,54 @@ def test_task_start_and_complete_events_are_recorded(
     assert len(recorded) == 2
     assert recorded[0]["action"] == "task_start"
     assert recorded[1]["action"] == "task_complete"
+
+
+def test_thread_local_agent_id_isolated_across_concurrent_tasks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeBaseTool:
+        name = "thread_tool"
+
+        def run(self, *args: Any, **kwargs: Any) -> dict[str, object]:
+            return {"args": args, "kwargs": kwargs}
+
+    class FakeTask:
+        description = "thread task"
+        expected_output = "thread output"
+
+        def execute_sync(self, *args: Any, **kwargs: Any) -> object:
+            tool = kwargs["tool"]
+            return tool.run()
+
+    fake_crewai_tools = SimpleNamespace(BaseTool=FakeBaseTool)
+    fake_crewai_module = SimpleNamespace(Task=FakeTask)
+
+    def fake_import_module(module_name: str) -> object:
+        if module_name == "crewai.tools":
+            return fake_crewai_tools
+        if module_name == "crewai":
+            return fake_crewai_module
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(crewai_patch.importlib, "import_module", fake_import_module)
+
+    observed_agent_ids: list[str | None] = []
+
+    class ConcurrencyInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            observed_agent_ids.append(
+                str(kwargs.get("agent_id")) if kwargs.get("agent_id") is not None else None
+            )
+            return {"status": "allow"}
+
+    patcher = crewai_patch.CrewAIPatch(ConcurrencyInterceptor())
+    assert patcher.apply() is True
+
+    task = FakeTask()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        future_a = pool.submit(task.execute_sync, tool=FakeBaseTool(), agent_id="agent-A")
+        future_b = pool.submit(task.execute_sync, tool=FakeBaseTool(), agent_id="agent-B")
+        assert future_a.result() == {"args": (), "kwargs": {}}
+        assert future_b.result() == {"args": (), "kwargs": {}}
+
+    assert sorted(observed_agent_ids) == ["agent-A", "agent-B"]
