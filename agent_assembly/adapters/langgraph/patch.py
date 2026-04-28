@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import importlib
+import inspect
 from typing import Any
 
 _PATCHED_FLAG = "_agent_assembly_compile_patched"
 _ORIGINAL_COMPILE = "_agent_assembly_original_compile"
+_NODE_WRAPPED_FLAG = "_agent_assembly_node_wrapped"
+_INVOKE_WRAPPED_FLAG = "_agent_assembly_invoke_wrapped"
 
 
 @dataclass(slots=True)
@@ -124,6 +127,19 @@ def _make_async_node_wrapper(node_name: str, original_func: Any, callback_handle
         return result
 
     return wrapped_node
+
+
+def _make_assembly_node_wrapper(node_name: str, original_func: Any, callback_handler: Any) -> Any:
+    if getattr(original_func, _NODE_WRAPPED_FLAG, False):
+        return original_func
+
+    if inspect.iscoroutinefunction(original_func):
+        wrapped = _make_async_node_wrapper(node_name, original_func, callback_handler)
+    else:
+        wrapped = _make_sync_node_wrapper(node_name, original_func, callback_handler)
+
+    setattr(wrapped, _NODE_WRAPPED_FLAG, True)
+    return wrapped
 
 
 def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, config: object) -> None:
