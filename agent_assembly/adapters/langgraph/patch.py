@@ -293,7 +293,9 @@ def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, 
     }
     try:
         method(**hook_kwargs)
-    except TypeError:
+    except TypeError as exc:
+        if not _is_call_signature_type_error(exc):
+            raise
         method(node_name=node_name, state=state)
     return None
 
@@ -320,9 +322,24 @@ def _record_node_exit(
     }
     try:
         method(**hook_kwargs)
-    except TypeError:
+    except TypeError as exc:
+        if not _is_call_signature_type_error(exc):
+            raise
         method(node_name=node_name, state=previous_state, result=next_state)
     return None
+
+
+def _is_call_signature_type_error(error: TypeError) -> bool:
+    message = str(error)
+    signature_markers = (
+        "unexpected keyword argument",
+        "missing 1 required positional argument",
+        "missing required positional argument",
+        "takes ",
+        "positional arguments but",
+        "keyword-only argument",
+    )
+    return any(marker in message for marker in signature_markers)
 
 
 def _discover_compiled_graph_node_maps(compiled_graph: Any) -> list[Any]:

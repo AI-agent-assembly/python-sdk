@@ -57,6 +57,33 @@ def test_invoke_hooks_handle_missing_methods_and_awaitables() -> None:
     ]
 
 
+def test_invoke_hooks_only_fallback_on_signature_mismatch() -> None:
+    class SignatureMismatchRecorder:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, object]] = []
+
+        def on_graph_node_start(self, *, node_name: str, state: object) -> None:
+            self.events.append(("start", state))
+
+        def on_graph_node_end(self, *, node_name: str, state: object, result: object) -> None:
+            self.events.append(("end", result))
+
+    recorder = SignatureMismatchRecorder()
+    langgraph_patch._invoke_pre_node_hook(recorder, "n3", {"state": 3})
+    langgraph_patch._invoke_post_node_hook(recorder, "n3", {"state": 3}, {"result": 3})
+    assert recorder.events == [("start", {"state": 3}), ("end", {"result": 3})]
+
+
+def test_invoke_hooks_reraise_internal_typeerror() -> None:
+    class InternalTypeErrorRecorder:
+        def on_graph_node_start(self, **kwargs: object) -> None:
+            del kwargs
+            raise TypeError("internal callback failure")
+
+    with pytest.raises(TypeError, match="internal callback failure"):
+        langgraph_patch._invoke_pre_node_hook(InternalTypeErrorRecorder(), "n4", {"state": 4})
+
+
 @pytest.mark.asyncio
 async def test_wrap_node_callable_handles_already_wrapped_and_async_results() -> None:
     recorder = GraphEventRecorder()
