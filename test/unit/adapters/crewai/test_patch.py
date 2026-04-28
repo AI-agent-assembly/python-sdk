@@ -134,6 +134,66 @@ def test_helper_branch_coverage_for_decision_and_agent_extraction() -> None:
     assert fallback_wait == {"status": "deny", "reason": "Approval handler is unavailable."}
 
 
+def test_record_result_and_task_fallback_handlers_are_used(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeBaseTool:
+        name = "record_result_tool"
+
+        def run(self, *args: Any, **kwargs: Any) -> dict[str, object]:
+            return {"args": args, "kwargs": kwargs}
+
+    class FakeTask:
+        description = "fallback task"
+        expected_output = "fallback output"
+
+        def execute_sync(self, *args: Any, **kwargs: Any) -> str:
+            del args, kwargs
+            return "task-result"
+
+    fake_crewai_tools = SimpleNamespace(BaseTool=FakeBaseTool)
+    fake_crewai_module = SimpleNamespace(Task=FakeTask)
+
+    def fake_import_module(module_name: str) -> object:
+        if module_name == "crewai.tools":
+            return fake_crewai_tools
+        if module_name == "crewai":
+            return fake_crewai_module
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(crewai_patch.importlib, "import_module", fake_import_module)
+
+    seen_results: list[object] = []
+    lifecycle_events: list[str] = []
+
+    class FallbackInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "allow"}
+
+        def record_result(self, **kwargs: object) -> None:
+            seen_results.append(kwargs["result"])
+
+        def on_task_start(self, **kwargs: object) -> None:
+            del kwargs
+            lifecycle_events.append("start")
+
+        def on_task_complete(self, **kwargs: object) -> None:
+            del kwargs
+            lifecycle_events.append("complete")
+
+    patcher = crewai_patch.CrewAIPatch(FallbackInterceptor())
+    assert patcher.apply() is True
+
+    tool_result = FakeBaseTool().run(alpha=1)
+    task_result = FakeTask().execute_sync()
+
+    assert tool_result == {"args": (), "kwargs": {"alpha": 1}}
+    assert seen_results == [tool_result]
+    assert task_result == "task-result"
+    assert lifecycle_events == ["start", "complete"]
+
+
 def test_blocked_tool_returns_policy_string(monkeypatch: pytest.MonkeyPatch) -> None:
     FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
 
