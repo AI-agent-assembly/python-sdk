@@ -145,6 +145,23 @@ def _wait_for_sync_tool_approval(
     return {"status": "deny", "reason": "Approval handler is unavailable."}
 
 
+def _record_sync_tool_result(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    result: object,
+) -> None:
+    record_method = getattr(callback_handler, "record_result", None)
+    if callable(record_method):
+        record_method(tool_name=tool_name, result=result)
+        return None
+
+    tool_end_method = getattr(callback_handler, "on_tool_end", None)
+    if callable(tool_end_method):
+        tool_end_method(output=result, tool_name=tool_name)
+    return None
+
+
 def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -> None:
     if getattr(base_tool_cls, _TOOLS_PATCHED_FLAG, False):
         return None
@@ -179,7 +196,9 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
                 return _format_approval_rejected_message(reason)
             return _format_blocked_message(reason)
 
-        return original_run(self, *args, **kwargs)
+        result = original_run(self, *args, **kwargs)
+        _record_sync_tool_result(callback_handler, tool_name=str(tool_name), result=result)
+        return result
 
     setattr(base_tool_cls, _ORIGINAL_TOOL_RUN, original_run)
     setattr(base_tool_cls, "run", patched_run)
