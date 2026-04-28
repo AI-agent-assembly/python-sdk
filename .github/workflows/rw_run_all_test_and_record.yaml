@@ -19,10 +19,6 @@ on:
         description: "The API token for uploading testing coverage report to Coveralls."
         required: true
 
-permissions:
-  contents: read
-  pull-requests: read
-
 jobs:
   build-and-test:
 #    name: Run all tests and organize all test reports
