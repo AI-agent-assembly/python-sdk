@@ -245,7 +245,7 @@ def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> N
         return None
 
     if inspect.iscoroutinefunction(invoke):
-        async def wrapped_invoke(*invoke_args: Any, **invoke_kwargs: Any) -> Any:
+        async def wrapped_async_invoke(*invoke_args: Any, **invoke_kwargs: Any) -> Any:
             state = _extract_state(invoke_args, invoke_kwargs)
             config = _extract_config(invoke_args, invoke_kwargs)
             _record_node_enter(callback_handler, node_name="graph.invoke", state=state, config=config)
@@ -258,8 +258,9 @@ def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> N
                 config=config,
             )
             return result
+        wrapped_invoke: Any = wrapped_async_invoke
     else:
-        def wrapped_invoke(*invoke_args: Any, **invoke_kwargs: Any) -> Any:
+        def wrapped_sync_invoke(*invoke_args: Any, **invoke_kwargs: Any) -> Any:
             state = _extract_state(invoke_args, invoke_kwargs)
             config = _extract_config(invoke_args, invoke_kwargs)
             _record_node_enter(callback_handler, node_name="graph.invoke", state=state, config=config)
@@ -272,6 +273,7 @@ def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> N
                 config=config,
             )
             return result
+        wrapped_invoke = wrapped_sync_invoke
 
     setattr(wrapped_invoke, _INVOKE_WRAPPED_FLAG, True)
     setattr(compiled_graph, "invoke", wrapped_invoke)
