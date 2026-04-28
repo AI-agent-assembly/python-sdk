@@ -162,7 +162,9 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
             agent_id=agent_id,
         )
         status, reason = _normalize_decision(decision)
+        is_pending_flow = False
         if status == "pending":
+            is_pending_flow = True
             final_decision = _wait_for_sync_tool_approval(
                 callback_handler,
                 tool_name=str(tool_name),
@@ -173,8 +175,9 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
             status, reason = _normalize_decision(final_decision)
 
         if status == "deny":
-            del reason
-            return ""
+            if is_pending_flow:
+                return _format_approval_rejected_message(reason)
+            return _format_blocked_message(reason)
 
         return original_run(self, *args, **kwargs)
 
