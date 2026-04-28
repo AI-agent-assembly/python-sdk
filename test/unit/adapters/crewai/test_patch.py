@@ -61,6 +61,32 @@ def test_apply_patches_crewai_run_and_is_idempotent(monkeypatch: pytest.MonkeyPa
     assert FakeTask.execute_sync is first_task_ref
 
 
+def test_loader_edge_cases_and_apply_false_without_basetool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_import_error(module_name: str) -> object:
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(crewai_patch.importlib, "import_module", raise_import_error)
+    assert crewai_patch._load_crewai_basetool_class() is None
+    assert crewai_patch._load_crewai_task_class() is None
+    assert crewai_patch.CrewAIPatch(_RecordingInterceptor()).apply() is False
+
+    fake_crewai_tools = SimpleNamespace(BaseTool=object())
+    fake_crewai_module = SimpleNamespace(Task=object())
+
+    def return_non_type(module_name: str) -> object:
+        if module_name == "crewai.tools":
+            return fake_crewai_tools
+        if module_name == "crewai":
+            return fake_crewai_module
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(crewai_patch.importlib, "import_module", return_non_type)
+    assert crewai_patch._load_crewai_basetool_class() is None
+    assert crewai_patch._load_crewai_task_class() is None
+
+
 def test_blocked_tool_returns_policy_string(monkeypatch: pytest.MonkeyPatch) -> None:
     FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
 
