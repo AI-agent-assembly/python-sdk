@@ -59,6 +59,12 @@ impl RuntimeClient {
     fn new(socket_path: String) -> Self {
         Self { socket_path }
     }
+
+    #[staticmethod]
+    fn connect(socket_path: String) -> Self {
+        let _ = &*TOKIO_RUNTIME;
+        Self { socket_path }
+    }
 }
 
 #[pymodule]
