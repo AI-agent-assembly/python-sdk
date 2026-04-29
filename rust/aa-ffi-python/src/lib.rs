@@ -1,6 +1,16 @@
 //! aa-ffi-python crate bootstrap.
 
+use once_cell::sync::Lazy;
 use pyo3::prelude::*;
+use tokio::runtime::Runtime;
+
+static TOKIO_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_name("aa-ffi-python")
+        .build()
+        .expect("failed to build aa-ffi-python tokio runtime")
+});
 
 #[pyclass(module = "agent_assembly._core")]
 #[derive(Clone)]
