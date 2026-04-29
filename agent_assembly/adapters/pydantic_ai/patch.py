@@ -30,6 +30,33 @@ class PydanticAIPatch:
         return True
 
 
+class AssemblyModelWrapper:
+    """Optional model wrapper for LLM input scan-forward interception."""
+
+    def __init__(self, model: Any, callback_handler: Any) -> None:
+        self._model = model
+        self._callback_handler = callback_handler
+
+    async def request(self, *args: Any, **kwargs: Any) -> Any:
+        scan_method = getattr(self._callback_handler, "on_llm_start_scan", None)
+        if callable(scan_method):
+            scan_result = scan_method(
+                serialized={"name": self._model.__class__.__name__},
+                prompts=[str(args[0])] if args else [],
+                run_id=kwargs.get("run_id"),
+            )
+            if inspect.isawaitable(scan_result):
+                await scan_result
+
+        result = self._model.request(*args, **kwargs)
+        if inspect.isawaitable(result):
+            return await result
+        return result
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._model, name)
+
+
 def _load_pydantic_ai_tool_class() -> type[Any] | None:
     try:
         module = importlib.import_module("pydantic_ai.tools")
