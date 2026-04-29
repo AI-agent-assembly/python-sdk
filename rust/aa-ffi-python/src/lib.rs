@@ -1,6 +1,7 @@
 //! aa-ffi-python crate bootstrap.
 
 use once_cell::sync::Lazy;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -95,6 +96,20 @@ impl RuntimeClient {
             sender: Some(sender),
             closed,
         }
+    }
+
+    fn send_event(&self, event: GovernanceEvent) -> PyResult<()> {
+        if self.closed.load(Ordering::SeqCst) {
+            return Err(PyRuntimeError::new_err("runtime client is closed"));
+        }
+        let sender = self
+            .sender
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("runtime event queue is unavailable"))?;
+        sender
+            .send(WorkerMessage::Event(event))
+            .map_err(|_| PyRuntimeError::new_err("failed to enqueue governance event"))?;
+        Ok(())
     }
 }
 
