@@ -61,6 +61,23 @@ def test_apply_patches_crewai_run_and_is_idempotent(monkeypatch: pytest.MonkeyPa
     assert FakeTask.execute_sync is first_task_ref
 
 
+def test_revert_restores_crewai_runtime_hooks(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeBaseTool, FakeTask = _install_fake_crewai_modules(monkeypatch)
+    original_run = FakeBaseTool.run
+    original_execute_sync = FakeTask.execute_sync
+
+    patcher = crewai_patch.CrewAIPatch(_RecordingInterceptor())
+    assert patcher.apply() is True
+    assert FakeBaseTool.run is not original_run
+    assert FakeTask.execute_sync is not original_execute_sync
+
+    patcher.revert()
+    assert FakeBaseTool.run is original_run
+    assert FakeTask.execute_sync is original_execute_sync
+    assert getattr(FakeBaseTool, crewai_patch._TOOLS_PATCHED_FLAG, False) is False
+    assert getattr(FakeTask, crewai_patch._TASK_PATCHED_FLAG, False) is False
+
+
 def test_loader_edge_cases_and_apply_false_without_basetool(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
