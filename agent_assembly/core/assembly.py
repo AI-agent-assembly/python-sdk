@@ -104,6 +104,12 @@ def init_assembly(
     global _ACTIVE_CONTEXT
     with _INIT_LOCK:
         if _ACTIVE_CONTEXT is not None and not _ACTIVE_CONTEXT.is_shutdown:
+            _validate_active_context_compatibility(
+                _ACTIVE_CONTEXT,
+                gateway_url=gateway_url,
+                api_key=api_key,
+                agent_id=resolved_agent_id,
+            )
             return _ACTIVE_CONTEXT
 
         client = GatewayClient(
@@ -162,37 +168,41 @@ def _has_agents_sdk() -> bool:
 
 def _build_patch_plan(client: GatewayClient, process_agent_id: str) -> list[RuntimePatch]:
     patch_plan: list[RuntimePatch] = []
+    langchain_installed = _is_installed("langchain")
+    langgraph_installed = _is_installed("langgraph")
+    callback_target: Any = client
 
-    if _is_installed("langchain"):
+    if langchain_installed or langgraph_installed:
         patch_plan.append(LangChainPatch(client, process_agent_id=process_agent_id))
-
-    if _is_installed("langgraph"):
         callback_handler = get_active_callback_handler()
-        if callback_handler is None:
-            raise ConfigurationError(
-                "LangGraph patch requires LangChain callback handler to be active."
-            )
-        patch_plan.append(LangGraphPatch(callback_handler))
+        if callback_handler is not None:
+            callback_target = callback_handler
 
-    callback_handler = get_active_callback_handler()
-    if _is_installed("crewai") and callback_handler is not None:
-        patch_plan.append(CrewAIPatch(callback_handler))
-    if _is_installed("pydantic_ai") and callback_handler is not None:
-        patch_plan.append(PydanticAIPatch(callback_handler))
-    if _is_installed("openai") and _has_agents_sdk() and callback_handler is not None:
-        patch_plan.append(OpenAIAgentsPatch(callback_handler))
-    if _is_installed("mcp") and callback_handler is not None:
+    if langgraph_installed:
+        patch_plan.append(LangGraphPatch(callback_target))
+
+    if _is_installed("crewai"):
+        patch_plan.append(CrewAIPatch(callback_target))
+    if _is_installed("pydantic_ai"):
+        patch_plan.append(PydanticAIPatch(callback_target))
+    if _is_installed("openai") and _has_agents_sdk():
+        patch_plan.append(OpenAIAgentsPatch(callback_target))
+    if _is_installed("mcp"):
         # Keep MCP patch last as fallback for remaining tool dispatch paths.
-        patch_plan.append(MCPClientPatch(callback_handler))
+        patch_plan.append(MCPClientPatch(callback_target))
 
     return patch_plan
 
 
 def _apply_runtime_patches(client: GatewayClient, process_agent_id: str) -> list[RuntimePatch]:
     applied: list[RuntimePatch] = []
-    for patch in _build_patch_plan(client=client, process_agent_id=process_agent_id):
+    patch_plan = _build_patch_plan(client=client, process_agent_id=process_agent_id)
+    for index, patch in enumerate(patch_plan):
         if patch.apply():
             applied.append(patch)
+            callback_handler = get_active_callback_handler()
+            if callback_handler is not None:
+                _replace_callback_targets(patch_plan[index + 1 :], callback_handler)
     return applied
 
 
@@ -244,3 +254,24 @@ def _clear_active_context(context: AssemblyContext) -> None:
     with _INIT_LOCK:
         if _ACTIVE_CONTEXT is context:
             _ACTIVE_CONTEXT = None
+
+
+def _replace_callback_targets(patches: list[RuntimePatch], callback_handler: Any) -> None:
+    for patch in patches:
+        if hasattr(patch, "callback_handler"):
+            setattr(patch, "callback_handler", callback_handler)
+
+
+def _validate_active_context_compatibility(
+    context: AssemblyContext,
+    *,
+    gateway_url: str,
+    api_key: str,
+    agent_id: str,
+) -> None:
+    if context.client.gateway_url != gateway_url.rstrip("/"):
+        raise ConfigurationError("init_assembly already initialized with a different gateway_url.")
+    if context.client.api_key != api_key:
+        raise ConfigurationError("init_assembly already initialized with a different api_key.")
+    if context.client.agent_id != agent_id:
+        raise ConfigurationError("init_assembly already initialized with a different agent_id.")
