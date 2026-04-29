@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from agent_assembly import init_assembly
 from agent_assembly.core import assembly as core_assembly
 from agent_assembly.adapters.langchain.runtime import (
@@ -7,6 +9,7 @@ from agent_assembly.adapters.langchain.runtime import (
     auto_inject_callback_handler,
     get_active_callback_handler,
 )
+from agent_assembly.exceptions import ConfigurationError
 
 
 def _reset_assembly_state() -> None:
@@ -64,12 +67,19 @@ def test_init_assembly_reuses_existing_callback_handler(monkeypatch) -> None:
     second_context = init_assembly(
         gateway_url="http://localhost:8080",
         api_key="test-api-key",
-        agent_id="test-agent-b",
+        agent_id="test-agent-a",
     )
     try:
         first_handler = get_active_callback_handler()
         assert first_handler is not None
         assert get_active_callback_handler() is first_handler
+        assert first_context is second_context
+        with pytest.raises(ConfigurationError):
+            init_assembly(
+                gateway_url="http://localhost:8080",
+                api_key="test-api-key",
+                agent_id="test-agent-b",
+            )
     finally:
         first_context.shutdown()
         second_context.shutdown()
