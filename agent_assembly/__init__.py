@@ -12,6 +12,16 @@ from agent_assembly.exceptions import (
     ToolExecutionBlockedError,
 )
 
+try:
+    from agent_assembly._core import (  # type: ignore[attr-defined]
+        GovernanceEvent,
+        PolicyResult,
+        PolicyTimeoutError,
+        RuntimeClient,
+    )
+except ImportError:
+    pass
+
 __version__ = "0.0.0"
 
 __all__ = [
@@ -28,3 +38,13 @@ __all__ = [
     "AdapterValidationError",
     "ToolExecutionBlockedError",
 ]
+
+if "RuntimeClient" in globals():
+    __all__.extend(
+        [
+            "RuntimeClient",
+            "GovernanceEvent",
+            "PolicyResult",
+            "PolicyTimeoutError",
+        ]
+    )

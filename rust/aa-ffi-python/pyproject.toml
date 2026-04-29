@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "agent-assembly-core"
+version = "0.0.0"
+description = "Native core extension for Agent Assembly Python SDK"
+requires-python = ">=3.12,<4.0"
+
+[tool.maturin]
+python-source = "../.."
+module-name = "agent_assembly._core"
+features = ["pyo3/extension-module"]
