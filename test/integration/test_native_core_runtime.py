@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import gc
 import os
 import threading
 import time
+import tracemalloc
 
 import pytest
 
@@ -66,4 +68,20 @@ def test_runtime_client_has_no_thread_deadlock(native_core) -> None:
         assert all(not thread.is_alive() for thread in threads)
         assert errors == []
     finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_runtime_client_tracemalloc_leak_guard(native_core) -> None:
+    client = native_core.RuntimeClient.connect("/tmp/aaasm55.sock")
+    tracemalloc.start()
+    baseline_current, _ = tracemalloc.get_traced_memory()
+    try:
+        for index in range(10_000):
+            client.send_event(native_core.GovernanceEvent(f'{{"index": {index}}}'))
+        gc.collect()
+        current, _ = tracemalloc.get_traced_memory()
+        assert current - baseline_current < 1_000_000
+    finally:
+        tracemalloc.stop()
         client.close()
