@@ -17,8 +17,29 @@ impl GovernanceEvent {
     }
 }
 
+#[pyclass(module = "agent_assembly._core")]
+#[derive(Clone)]
+struct PolicyResult {
+    #[pyo3(get)]
+    allowed: bool,
+    #[pyo3(get)]
+    reason: String,
+}
+
+#[pymethods]
+impl PolicyResult {
+    #[new]
+    fn new(allowed: bool, reason: Option<String>) -> Self {
+        Self {
+            allowed,
+            reason: reason.unwrap_or_default(),
+        }
+    }
+}
+
 #[pymodule]
 fn _core(_py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<GovernanceEvent>()?;
+    module.add_class::<PolicyResult>()?;
     Ok(())
 }
