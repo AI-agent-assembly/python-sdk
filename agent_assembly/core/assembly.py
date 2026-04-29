@@ -38,5 +38,5 @@ def init_assembly(
         agent_id=agent_id,
         api_key=api_key,
     )
-    auto_inject_callback_handler(interceptor=object())
+    auto_inject_callback_handler(interceptor=object(), process_agent_id=agent_id)
     return client
