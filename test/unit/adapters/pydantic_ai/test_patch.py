@@ -272,3 +272,78 @@ async def test_assembly_model_wrapper_passthrough_attrs() -> None:
     assert wrapper.model_name == "demo-model"
     result = await wrapper.request("ignored")
     assert result == "ok"
+
+
+@pytest.mark.asyncio
+async def test_fallback_and_non_awaitable_branches_for_async_helpers() -> None:
+    class NoHandlers:
+        pass
+
+    pydantic_ai_patch.set_process_agent_id(None)
+    assert pydantic_ai_patch._get_process_agent_id() is None
+
+    fallback_check = await pydantic_ai_patch._invoke_async_tool_check(
+        NoHandlers(),
+        tool_name="x",
+        tool_args={},
+        agent_id=None,
+        run_id=None,
+    )
+    assert fallback_check == {"status": "allow"}
+
+    fallback_wait = await pydantic_ai_patch._wait_for_async_tool_approval(
+        NoHandlers(),
+        tool_name="x",
+        timeout_seconds=1,
+        tool_args={},
+        agent_id=None,
+        run_id=None,
+    )
+    assert fallback_wait == {"status": "deny", "reason": "Approval handler is unavailable."}
+
+    assert pydantic_ai_patch._get_pending_tool_approval_timeout_seconds(
+        SimpleNamespace(pending_tool_approval_timeout_seconds="NaN")
+    ) == 300
+
+    class SyncInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "allow"}
+
+        def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "allow"}
+
+    sync_check = await pydantic_ai_patch._invoke_async_tool_check(
+        SyncInterceptor(),
+        tool_name="x",
+        tool_args={},
+        agent_id=None,
+        run_id=None,
+    )
+    assert sync_check == {"status": "allow"}
+
+    sync_wait = await pydantic_ai_patch._wait_for_async_tool_approval(
+        SyncInterceptor(),
+        tool_name="x",
+        timeout_seconds=2,
+        tool_args={},
+        agent_id=None,
+        run_id=None,
+    )
+    assert sync_wait == {"status": "allow"}
+
+    observed_outputs: list[str] = []
+
+    class ToolEndOnlyInterceptor:
+        async def on_tool_end(self, **kwargs: object) -> None:
+            observed_outputs.append(str(kwargs["output"]))
+
+    await pydantic_ai_patch._record_async_tool_result(
+        ToolEndOnlyInterceptor(),
+        tool_name="fallback",
+        result="result-value",
+        agent_id="agent-z",
+        run_id="run-z",
+    )
+    assert observed_outputs == ["result-value"]
