@@ -61,6 +61,23 @@ async def test_apply_patches_tool_run_and_is_idempotent(monkeypatch: pytest.Monk
     assert FakeTool._run is first_run_ref
 
 
+def test_revert_restores_tool_run_and_clears_process_agent_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeTool = _install_fake_pydantic_ai_modules(monkeypatch)
+    original_run = FakeTool._run
+    pydantic_ai_patch.set_process_agent_id("agent-before-revert")
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(_RecordingInterceptor())
+    assert patcher.apply() is True
+    assert FakeTool._run is not original_run
+
+    patcher.revert()
+    assert FakeTool._run is original_run
+    assert getattr(FakeTool, pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is False
+    assert pydantic_ai_patch._get_process_agent_id() is None
+
+
 def test_loader_edge_cases_and_apply_false_without_tool(monkeypatch: pytest.MonkeyPatch) -> None:
     def raise_import_error(module_name: str) -> object:
         raise ImportError(module_name)
