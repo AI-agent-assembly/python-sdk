@@ -37,9 +37,24 @@ impl PolicyResult {
     }
 }
 
+#[pyclass(module = "agent_assembly._core")]
+struct RuntimeClient {
+    #[pyo3(get)]
+    socket_path: String,
+}
+
+#[pymethods]
+impl RuntimeClient {
+    #[new]
+    fn new(socket_path: String) -> Self {
+        Self { socket_path }
+    }
+}
+
 #[pymodule]
 fn _core(_py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<GovernanceEvent>()?;
     module.add_class::<PolicyResult>()?;
+    module.add_class::<RuntimeClient>()?;
     Ok(())
 }
