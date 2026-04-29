@@ -13,6 +13,7 @@ _TASK_PATCHED_FLAG = "_agent_assembly_crewai_task_patched"
 _ORIGINAL_TOOL_RUN = "_agent_assembly_original_crewai_tool_run"
 _ORIGINAL_TASK_EXECUTE_SYNC = "_agent_assembly_original_crewai_task_execute_sync"
 _AGENT_CONTEXT = local()
+_DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS = 300
 
 
 @dataclass(slots=True)
@@ -176,6 +177,30 @@ def _wait_for_sync_tool_approval(
     return {"status": "deny", "reason": "Approval handler is unavailable."}
 
 
+def _get_pending_tool_approval_timeout_seconds(callback_handler: Any) -> int:
+    provider = getattr(callback_handler, "get_pending_tool_approval_timeout_seconds", None)
+    if callable(provider):
+        configured = provider()
+    else:
+        configured = getattr(callback_handler, "pending_tool_approval_timeout_seconds", None)
+
+    if isinstance(configured, str):
+        stripped = configured.strip()
+        if stripped.isdigit():
+            parsed = int(stripped)
+            if parsed > 0:
+                return parsed
+        return _DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS
+
+    if isinstance(configured, bool):
+        return _DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS
+
+    if isinstance(configured, int) and configured > 0:
+        return configured
+
+    return _DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS
+
+
 def _record_sync_tool_result(
     callback_handler: Any,
     *,
@@ -214,10 +239,11 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
         is_pending_flow = False
         if status == "pending":
             is_pending_flow = True
+            timeout_seconds = _get_pending_tool_approval_timeout_seconds(callback_handler)
             final_decision = _wait_for_sync_tool_approval(
                 callback_handler,
                 tool_name=str(tool_name),
-                timeout_seconds=300,
+                timeout_seconds=timeout_seconds,
                 tool_args=tool_args,
                 agent_id=agent_id,
             )

@@ -133,6 +133,18 @@ def test_helper_branch_coverage_for_decision_and_agent_extraction() -> None:
     )
     assert fallback_wait == {"status": "deny", "reason": "Approval handler is unavailable."}
 
+    class TimeoutProvider:
+        def get_pending_tool_approval_timeout_seconds(self) -> str:
+            return "42"
+
+    assert crewai_patch._get_pending_tool_approval_timeout_seconds(TimeoutProvider()) == 42
+    assert crewai_patch._get_pending_tool_approval_timeout_seconds(
+        SimpleNamespace(pending_tool_approval_timeout_seconds=0)
+    ) == 300
+    assert crewai_patch._get_pending_tool_approval_timeout_seconds(
+        SimpleNamespace(pending_tool_approval_timeout_seconds=True)
+    ) == 300
+
 
 def test_record_result_and_task_fallback_handlers_are_used(
     monkeypatch: pytest.MonkeyPatch,
@@ -259,6 +271,33 @@ def test_pending_tool_waits_and_allows_when_approved(
 
     assert result == {"args": (), "kwargs": {"param": "value"}}
     assert len(wait_calls) == 1
+    assert wait_calls[0]["timeout_seconds"] == 300
+
+
+def test_pending_tool_uses_configurable_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
+    wait_calls: list[dict[str, object]] = []
+
+    class PendingWithConfigurableTimeoutInterceptor:
+        pending_tool_approval_timeout_seconds = 37
+
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "needs approval"}
+
+        def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+            wait_calls.append(dict(kwargs))
+            return {"status": "allow"}
+
+    patcher = crewai_patch.CrewAIPatch(PendingWithConfigurableTimeoutInterceptor())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    result = tool.run(param="value")
+
+    assert result == {"args": (), "kwargs": {"param": "value"}}
+    assert len(wait_calls) == 1
+    assert wait_calls[0]["timeout_seconds"] == 37
 
 
 def test_pending_timeout_returns_denied_string(monkeypatch: pytest.MonkeyPatch) -> None:
