@@ -8,10 +8,14 @@ import importlib
 import inspect
 from typing import Any, Literal, Mapping
 
+from agent_assembly.adapters.crewai.patch import (
+    _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
+)
+from agent_assembly.adapters.crewai.patch import _normalize_decision as _normalize_governance_decision
+
 _ORIGINAL_TOOL_RUN = "_agent_assembly_original_pydantic_ai_tool_run"
 _TOOLS_PATCHED_FLAG = "_agent_assembly_pydantic_ai_tools_patched"
 _PROCESS_AGENT_ID: str | None = None
-_DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS = 300
 _MAX_AUDIT_RESULT_CHARS = 2000
 
 
@@ -170,28 +174,7 @@ def _serialize_tool_args(args: Any) -> dict[str, Any]:
 def _normalize_decision(
     decision: object,
 ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
-    if isinstance(decision, str):
-        normalized = decision.strip().lower()
-        if normalized == "deny":
-            return "deny", None
-        if normalized == "pending":
-            return "pending", None
-        return "allow", None
-
-    if isinstance(decision, Mapping):
-        raw_status = str(decision.get("status", "allow")).strip().lower()
-        if raw_status == "deny":
-            status: Literal["allow", "deny", "pending"] = "deny"
-        elif raw_status == "pending":
-            status = "pending"
-        else:
-            status = "allow"
-
-        reason_value = decision.get("reason")
-        reason = str(reason_value) if reason_value is not None else None
-        return status, reason
-
-    return "allow", None
+    return _normalize_governance_decision(decision)
 
 
 async def _invoke_async_tool_check(
@@ -247,27 +230,7 @@ async def _wait_for_async_tool_approval(
 
 
 def _get_pending_tool_approval_timeout_seconds(callback_handler: Any) -> int:
-    provider = getattr(callback_handler, "get_pending_tool_approval_timeout_seconds", None)
-    if callable(provider):
-        configured = provider()
-    else:
-        configured = getattr(callback_handler, "pending_tool_approval_timeout_seconds", None)
-
-    if isinstance(configured, str):
-        stripped = configured.strip()
-        if stripped.isdigit():
-            parsed = int(stripped)
-            if parsed > 0:
-                return parsed
-        return _DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS
-
-    if isinstance(configured, bool):
-        return _DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS
-
-    if isinstance(configured, int) and configured > 0:
-        return configured
-
-    return _DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS
+    return _resolve_pending_timeout_seconds(callback_handler)
 
 
 def _truncate_result_for_audit(result: object) -> str:
