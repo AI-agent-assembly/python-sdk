@@ -81,3 +81,13 @@ from agent_assembly.exceptions import (
 - Blocked tool calls return policy message strings (instead of raising exceptions).
 - `pending` approval decisions block synchronously and return denial strings if not approved.
 - `Task.execute_sync()` emits task start/complete audit events.
+
+## Pydantic AI runtime interception
+
+`init_assembly(...)` also applies Pydantic AI runtime patches when Pydantic AI is installed.
+
+- `Tool._run(...)` is patched with async governance checks.
+- `deny` decisions raise `PolicyViolationError` with tool name and reason.
+- `pending` decisions await approval and raise on rejection.
+- Successful results are recorded with audit payload truncation at 2000 chars.
+- Agent identity resolves from `ctx.deps.assembly_agent_id` with process-level fallback.
