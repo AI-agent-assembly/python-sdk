@@ -166,6 +166,15 @@ impl RuntimeClient {
             reason: payload.reason,
         })
     }
+
+    fn close(&mut self) {
+        if self.closed.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        if let Some(sender) = self.sender.take() {
+            let _ = sender.send(WorkerMessage::Close);
+        }
+    }
 }
 
 fn extract_timeout_ms(action: &Bound<'_, PyAny>) -> u64 {
