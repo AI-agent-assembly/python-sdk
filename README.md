@@ -29,19 +29,20 @@ from agent_assembly import init_assembly
 
 
 async def main() -> None:
-    client = init_assembly(
+    context = init_assembly(
         gateway_url="http://localhost:8080",
+        api_key="required-api-key",
         agent_id="my-agent-001",
-        api_key="optional-api-key",
+        mode="auto",
     )
 
     try:
-        registration = await client.register_agent()
-        decision = await client.check_policy_compliance("tool.call")
+        registration = await context.client.register_agent()
+        decision = await context.client.check_policy_compliance("tool.call")
         print(registration)
         print(decision)
     finally:
-        client.close()
+        context.shutdown()
 
 
 asyncio.run(main())
@@ -49,7 +50,7 @@ asyncio.run(main())
 
 ## Public API
 
-- `init_assembly(gateway_url, agent_id, api_key=None) -> GatewayClient`
+- `init_assembly(gateway_url, api_key, agent_id=None, mode="auto") -> AssemblyContext`
 - `GatewayClient.register_agent() -> dict`
 - `GatewayClient.check_policy_compliance(action: str) -> dict`
 - Exceptions: `AssemblyError`, `AgentError`, `PolicyError`, `GatewayError`, `ConfigurationError`
@@ -62,7 +63,7 @@ from agent_assembly import init_assembly
 from agent_assembly.exceptions import ConfigurationError
 
 try:
-    client = init_assembly(gateway_url="", agent_id="my-agent-001")
+    context = init_assembly(gateway_url="", api_key="my-api-key", agent_id="my-agent-001")
 except ConfigurationError as exc:
     print(f"Invalid configuration: {exc}")
 ```

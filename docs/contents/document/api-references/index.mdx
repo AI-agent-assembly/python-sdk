@@ -21,9 +21,15 @@ from agent_assembly import (
 
 ## Initialization
 
-### `init_assembly(gateway_url: str, agent_id: str, api_key: str | None = None) -> GatewayClient`
+### `init_assembly(gateway_url: str, api_key: str, agent_id: str | None = None, mode: str = "auto", **kwargs) -> AssemblyContext`
 
-Creates a configured `GatewayClient` instance.
+Initializes the runtime patch manager, network interception mode, and returns an `AssemblyContext`.
+
+`AssemblyContext` exposes:
+
+- `.client`: configured `GatewayClient`
+- `.patches`: list of applied runtime patch instances
+- `.shutdown()`: idempotent teardown of active patches and network layer
 
 ## Gateway client
 
@@ -91,3 +97,12 @@ from agent_assembly.exceptions import (
 - `pending` decisions await approval and raise on rejection.
 - Successful results are recorded with audit payload truncation at 2000 chars.
 - Agent identity resolves from `ctx.deps.assembly_agent_id` with process-level fallback.
+
+## Runtime modes
+
+`mode` accepts:
+
+- `"auto"`: prefer eBPF on Linux and fallback to proxy
+- `"ebpf"`: force eBPF mode (raises on unsupported platforms)
+- `"proxy"`: force proxy mode
+- `"sdk-only"`: skip network layer startup
