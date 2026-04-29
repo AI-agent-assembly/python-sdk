@@ -5,10 +5,8 @@ from __future__ import annotations
 from threading import Lock
 from typing import Any
 
-from agent_assembly.adapters.crewai.patch import CrewAIPatch
 from agent_assembly.adapters.langchain.callback_handler import AssemblyCallbackHandler
-from agent_assembly.adapters.langgraph import LangGraphPatch
-from agent_assembly.adapters.pydantic_ai.patch import PydanticAIPatch, set_process_agent_id
+from agent_assembly.adapters.pydantic_ai.patch import set_process_agent_id
 
 _ACTIVE_CALLBACK_HANDLER: AssemblyCallbackHandler | None = None
 _RUNTIME_LOCK = Lock()
@@ -27,16 +25,10 @@ def auto_inject_callback_handler(
             set_process_agent_id(process_agent_id)
 
         if _ACTIVE_CALLBACK_HANDLER is not None:
-            LangGraphPatch(_ACTIVE_CALLBACK_HANDLER).apply()
-            CrewAIPatch(interceptor).apply()
-            PydanticAIPatch(interceptor).apply()
             return _ACTIVE_CALLBACK_HANDLER
 
         handler = AssemblyCallbackHandler(interceptor)
         _ACTIVE_CALLBACK_HANDLER = handler
-        LangGraphPatch(handler).apply()
-        CrewAIPatch(interceptor).apply()
-        PydanticAIPatch(interceptor).apply()
         return handler
 
 
