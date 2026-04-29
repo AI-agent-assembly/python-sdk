@@ -24,3 +24,19 @@ def test_send_event_is_non_blocking(native_core) -> None:
         assert elapsed_ms < 50.0
     finally:
         client.close()
+
+
+@pytest.mark.integration
+def test_query_policy_returns_quickly_and_times_out(native_core) -> None:
+    client = native_core.RuntimeClient.connect("/tmp/aaasm55.sock")
+    try:
+        start = time.perf_counter()
+        result = client.query_policy({"action": "tool.call", "timeout_ms": 50})
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        assert elapsed_ms < 50.0
+        assert result.allowed is True
+
+        with pytest.raises(native_core.PolicyTimeoutError):
+            client.query_policy({"action": "slow.call", "delay_ms": 200, "timeout_ms": 10})
+    finally:
+        client.close()
