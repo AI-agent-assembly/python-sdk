@@ -65,7 +65,6 @@ struct RuntimeClient {
     closed: Arc<AtomicBool>,
 }
 
-#[derive(Clone)]
 enum WorkerMessage {
     Event(GovernanceEvent),
     PolicyQuery {
@@ -140,7 +139,7 @@ impl RuntimeClient {
         Ok(())
     }
 
-    fn query_policy(&self, py: Python<'_>, action: &Bound<'_, PyAny>) -> PyResult<PolicyResult> {
+    fn query_policy(&self, py: Python<'_>, action: &PyAny) -> PyResult<PolicyResult> {
         let action_json = serialize_action_to_json(py, action)?;
         let timeout_ms = extract_timeout_ms(action);
         let sender = self
@@ -177,7 +176,7 @@ impl RuntimeClient {
     }
 }
 
-fn extract_timeout_ms(action: &Bound<'_, PyAny>) -> u64 {
+fn extract_timeout_ms(action: &PyAny) -> u64 {
     action
         .downcast::<PyDict>()
         .ok()
@@ -186,7 +185,7 @@ fn extract_timeout_ms(action: &Bound<'_, PyAny>) -> u64 {
         .unwrap_or(50)
 }
 
-fn serialize_action_to_json(py: Python<'_>, action: &Bound<'_, PyAny>) -> PyResult<String> {
+fn serialize_action_to_json(py: Python<'_>, action: &PyAny) -> PyResult<String> {
     let json_module = PyModule::import(py, "json")?;
     let dumped = json_module.call_method1("dumps", (action,))?;
     dumped.extract::<String>()
@@ -222,8 +221,8 @@ fn wait_for_policy_response(
 }
 
 #[pymodule]
-fn _core(_py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add("PolicyTimeoutError", _py.get_type::<PolicyTimeoutError>())?;
+fn _core(py: Python<'_>, module: &PyModule) -> PyResult<()> {
+    module.add("PolicyTimeoutError", py.get_type::<PolicyTimeoutError>())?;
     module.add_class::<GovernanceEvent>()?;
     module.add_class::<PolicyResult>()?;
     module.add_class::<RuntimeClient>()?;
