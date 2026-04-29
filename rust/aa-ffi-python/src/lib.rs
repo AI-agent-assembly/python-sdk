@@ -111,7 +111,10 @@ impl RuntimeClient {
                         response_tx,
                     } => {
                         let policy_result = evaluate_policy_action(&action_json);
-                        let _ = response_tx.send(policy_result);
+                        if policy_result.delay_ms > 0 {
+                            time::sleep(Duration::from_millis(policy_result.delay_ms)).await;
+                        }
+                        let _ = response_tx.send(policy_result.result);
                     }
                     WorkerMessage::Close => break,
                 }
@@ -191,22 +194,38 @@ fn serialize_action_to_json(py: Python<'_>, action: &PyAny) -> PyResult<String> 
     dumped.extract::<String>()
 }
 
-fn evaluate_policy_action(action_json: &str) -> PolicyResultPayload {
+struct PolicyEvaluation {
+    result: PolicyResultPayload,
+    delay_ms: u64,
+}
+
+fn evaluate_policy_action(action_json: &str) -> PolicyEvaluation {
     let parsed: Value = serde_json::from_str(action_json).unwrap_or(Value::Null);
+    let delay_ms = parsed
+        .as_object()
+        .and_then(|obj| obj.get("delay_ms"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
     let deny_flag = parsed
         .as_object()
         .and_then(|obj| obj.get("deny"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
     if deny_flag {
-        return PolicyResultPayload {
-            allowed: false,
-            reason: "Denied by local policy rule.".to_string(),
+        return PolicyEvaluation {
+            result: PolicyResultPayload {
+                allowed: false,
+                reason: "Denied by local policy rule.".to_string(),
+            },
+            delay_ms,
         };
     }
-    PolicyResultPayload {
-        allowed: true,
-        reason: String::new(),
+    PolicyEvaluation {
+        result: PolicyResultPayload {
+            allowed: true,
+            reason: String::new(),
+        },
+        delay_ms,
     }
 }
 
