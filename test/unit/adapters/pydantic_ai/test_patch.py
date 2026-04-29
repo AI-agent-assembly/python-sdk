@@ -235,3 +235,40 @@ async def test_result_recording_truncates_to_2000_chars(monkeypatch: pytest.Monk
     assert len(result) == 2500
     assert len(observed) == 1
     assert len(observed[0]) == 2000
+
+
+@pytest.mark.asyncio
+async def test_assembly_model_wrapper_scans_and_forwards_request() -> None:
+    class FakeModel:
+        async def request(self, *args: object, **kwargs: object) -> str:
+            del kwargs
+            return f"forwarded:{args[0]}"
+
+    scanned_prompts: list[list[str]] = []
+
+    class Interceptor:
+        async def on_llm_start_scan(self, **kwargs: object) -> None:
+            prompts = kwargs.get("prompts", [])
+            if isinstance(prompts, list):
+                scanned_prompts.append([str(item) for item in prompts])
+
+    wrapper = pydantic_ai_patch.AssemblyModelWrapper(FakeModel(), Interceptor())
+    result = await wrapper.request("hello")
+
+    assert result == "forwarded:hello"
+    assert scanned_prompts == [["hello"]]
+
+
+@pytest.mark.asyncio
+async def test_assembly_model_wrapper_passthrough_attrs() -> None:
+    class FakeModel:
+        model_name = "demo-model"
+
+        def request(self, *args: object, **kwargs: object) -> str:
+            del args, kwargs
+            return "ok"
+
+    wrapper = pydantic_ai_patch.AssemblyModelWrapper(FakeModel(), object())
+    assert wrapper.model_name == "demo-model"
+    result = await wrapper.request("ignored")
+    assert result == "ok"
