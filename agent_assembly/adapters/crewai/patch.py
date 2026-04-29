@@ -34,6 +34,17 @@ class CrewAIPatch:
             _apply_task_execute_sync_patch(task_cls, self.callback_handler)
         return True
 
+    def revert(self) -> None:
+        """Revert CrewAI runtime monkey patches when available."""
+        base_tool_cls = _load_crewai_basetool_class()
+        if base_tool_cls is not None:
+            _revert_basetool_run_patch(base_tool_cls)
+
+        task_cls = _load_crewai_task_class()
+        if task_cls is not None:
+            _revert_task_execute_sync_patch(task_cls)
+        return None
+
 
 def _load_crewai_basetool_class() -> type[Any] | None:
     try:
@@ -263,6 +274,21 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
     setattr(base_tool_cls, _TOOLS_PATCHED_FLAG, True)
 
 
+def _revert_basetool_run_patch(base_tool_cls: type[Any]) -> None:
+    if not getattr(base_tool_cls, _TOOLS_PATCHED_FLAG, False):
+        return None
+
+    original_run = getattr(base_tool_cls, _ORIGINAL_TOOL_RUN, None)
+    if callable(original_run):
+        setattr(base_tool_cls, "run", original_run)
+
+    if hasattr(base_tool_cls, _ORIGINAL_TOOL_RUN):
+        delattr(base_tool_cls, _ORIGINAL_TOOL_RUN)
+    if hasattr(base_tool_cls, _TOOLS_PATCHED_FLAG):
+        delattr(base_tool_cls, _TOOLS_PATCHED_FLAG)
+    return None
+
+
 def _record_task_start(callback_handler: Any, task: Any) -> None:
     method = getattr(callback_handler, "record", None)
     if callable(method):
@@ -313,3 +339,18 @@ def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -
     setattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC, original_execute_sync)
     setattr(task_cls, "execute_sync", patched_execute_sync)
     setattr(task_cls, _TASK_PATCHED_FLAG, True)
+
+
+def _revert_task_execute_sync_patch(task_cls: type[Any]) -> None:
+    if not getattr(task_cls, _TASK_PATCHED_FLAG, False):
+        return None
+
+    original_execute_sync = getattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC, None)
+    if callable(original_execute_sync):
+        setattr(task_cls, "execute_sync", original_execute_sync)
+
+    if hasattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC):
+        delattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC)
+    if hasattr(task_cls, _TASK_PATCHED_FLAG):
+        delattr(task_cls, _TASK_PATCHED_FLAG)
+    return None

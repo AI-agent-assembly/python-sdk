@@ -33,6 +33,14 @@ class PydanticAIPatch:
         _apply_tool_run_patch(tool_cls, self.callback_handler)
         return True
 
+    def revert(self) -> None:
+        """Revert Pydantic AI tool patch when available."""
+        tool_cls = _load_pydantic_ai_tool_class()
+        if tool_cls is not None:
+            _revert_tool_run_patch(tool_cls)
+        set_process_agent_id(None)
+        return None
+
 
 class AssemblyModelWrapper:
     """Optional model wrapper for LLM input scan-forward interception."""
@@ -129,6 +137,21 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> None:
     setattr(tool_cls, _ORIGINAL_TOOL_RUN, original_run)
     setattr(tool_cls, "_run", patched_run)
     setattr(tool_cls, _TOOLS_PATCHED_FLAG, True)
+
+
+def _revert_tool_run_patch(tool_cls: type[Any]) -> None:
+    if not getattr(tool_cls, _TOOLS_PATCHED_FLAG, False):
+        return None
+
+    original_run = getattr(tool_cls, _ORIGINAL_TOOL_RUN, None)
+    if callable(original_run):
+        setattr(tool_cls, "_run", original_run)
+
+    if hasattr(tool_cls, _ORIGINAL_TOOL_RUN):
+        delattr(tool_cls, _ORIGINAL_TOOL_RUN)
+    if hasattr(tool_cls, _TOOLS_PATCHED_FLAG):
+        delattr(tool_cls, _TOOLS_PATCHED_FLAG)
+    return None
 
 
 def set_process_agent_id(agent_id: str | None) -> None:

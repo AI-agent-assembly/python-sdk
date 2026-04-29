@@ -249,6 +249,28 @@ def test_patch_stategraph_compile_is_idempotent(monkeypatch: pytest.MonkeyPatch)
     assert FakeStateGraph.compile is patched_compile
 
 
+def test_langgraph_patch_revert_restores_original_compile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeStateGraph:
+        def compile(self) -> str:
+            return "original"
+
+    original_compile = FakeStateGraph.compile
+    monkeypatch.setattr(
+        "agent_assembly.adapters.langchain.langgraph_patch.importlib.import_module",
+        lambda name: SimpleNamespace(StateGraph=FakeStateGraph),
+    )
+
+    patcher = langgraph_patch.LangGraphPatch(GraphEventRecorder())
+    assert patcher.apply() is True
+    assert FakeStateGraph.compile is not original_compile
+
+    patcher.revert()
+    assert FakeStateGraph.compile is original_compile
+    assert getattr(FakeStateGraph, langgraph_patch._PATCHED_FLAG, False) is False
+
+
 def test_wrap_node_callable_records_metadata_and_preserves_config_passthrough() -> None:
     captured_events: list[tuple[str, dict[str, object]]] = []
     captured_configs: list[object] = []

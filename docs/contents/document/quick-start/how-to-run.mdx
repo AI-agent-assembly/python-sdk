@@ -15,19 +15,20 @@ from agent_assembly import init_assembly
 
 
 async def main() -> None:
-    client = init_assembly(
+    ctx = init_assembly(
         gateway_url="http://localhost:8080",
+        api_key="required-api-key",
         agent_id="my-agent-001",
-        api_key="optional-api-key",
+        mode="auto",
     )
 
     try:
-        registration = await client.register_agent()
-        policy_result = await client.check_policy_compliance("tool.call")
+        registration = await ctx.client.register_agent()
+        policy_result = await ctx.client.check_policy_compliance("tool.call")
         print(registration)
         print(policy_result)
     finally:
-        client.close()
+        ctx.shutdown()
 
 
 asyncio.run(main())

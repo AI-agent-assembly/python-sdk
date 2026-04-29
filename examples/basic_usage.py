@@ -10,8 +10,9 @@ from agent_assembly.models import AgentConfig
 # Initialize the assembly with your agent configuration
 assembly = init_assembly(
     gateway_url="https://gateway.agent-assembly.dev",
+    api_key="your-api-key-here",
     agent_id="my-agent-001",
-    api_key="your-api-key-here",  # Optional, depending on your gateway configuration
+    mode="auto",
 )
 
 # Create an agent configuration
@@ -32,5 +33,5 @@ print(f"Version: {agent_config.version}")
 # - Check policy compliance before executing actions
 # - Log audit events
 
-# Don't forget to close the client when done
-assembly.close()
+# Don't forget to shutdown the runtime when done
+assembly.shutdown()
