@@ -3,11 +3,16 @@
 use once_cell::sync::Lazy;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, oneshot};
+use tokio::time;
+
+pyo3::create_exception!(_core, PolicyTimeoutError, pyo3::exceptions::PyTimeoutError);
 
 static TOKIO_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -132,6 +137,7 @@ impl RuntimeClient {
 
     fn query_policy(&self, py: Python<'_>, action: &Bound<'_, PyAny>) -> PyResult<PolicyResult> {
         let action_json = serialize_action_to_json(py, action)?;
+        let timeout_ms = extract_timeout_ms(action);
         let sender = self
             .sender
             .as_ref()
@@ -143,14 +149,24 @@ impl RuntimeClient {
                 response_tx,
             })
             .map_err(|_| PyRuntimeError::new_err("failed to enqueue policy query"))?;
-        let payload = response_rx
-            .blocking_recv()
+        let payload = TOKIO_RUNTIME
+            .block_on(async move { time::timeout(Duration::from_millis(timeout_ms), response_rx).await })
+            .map_err(|_| PolicyTimeoutError::new_err("policy query timed out"))?
             .map_err(|_| PyRuntimeError::new_err("failed to resolve policy query"))?;
         Ok(PolicyResult {
             allowed: payload.allowed,
             reason: payload.reason,
         })
     }
+}
+
+fn extract_timeout_ms(action: &Bound<'_, PyAny>) -> u64 {
+    action
+        .downcast::<PyDict>()
+        .ok()
+        .and_then(|dict| dict.get_item("timeout_ms").ok().flatten())
+        .and_then(|value| value.extract::<u64>().ok())
+        .unwrap_or(50)
 }
 
 fn serialize_action_to_json(py: Python<'_>, action: &Bound<'_, PyAny>) -> PyResult<String> {
@@ -180,6 +196,7 @@ fn evaluate_policy_action(action_json: &str) -> PolicyResultPayload {
 
 #[pymodule]
 fn _core(_py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add("PolicyTimeoutError", _py.get_type::<PolicyTimeoutError>())?;
     module.add_class::<GovernanceEvent>()?;
     module.add_class::<PolicyResult>()?;
     module.add_class::<RuntimeClient>()?;
