@@ -72,3 +72,79 @@ def test_crewai_two_task_flow_continues_after_blocked_tool(
     assert "[BLOCKED by governance policy]" in results[0]
     assert "blocked by policy" in results[0]
     assert results[1] == "ok:safe_tool"
+
+
+@pytest.mark.integration
+def test_crewai_real_task_and_tool_classes_flow_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    crewai = pytest.importorskip("crewai")
+    crewai_tools = pytest.importorskip("crewai.tools")
+
+    BaseTool = crewai_tools.BaseTool
+    Task = crewai.Task
+    Agent = crewai.Agent
+    Crew = crewai.Crew
+
+    class BlockedTool(BaseTool):
+        name: str = "blocked_tool"
+        description: str = "Tool that should be blocked by governance."
+
+        def _run(self, **kwargs: object) -> str:
+            del kwargs
+            return "should-not-run"
+
+    class SafeTool(BaseTool):
+        name: str = "safe_tool"
+        description: str = "Tool that should remain allowed."
+
+        def _run(self, **kwargs: object) -> str:
+            del kwargs
+            return "ok:safe_tool"
+
+    def fake_execute_sync(self: object, *args: object, **kwargs: object) -> str:
+        del args, kwargs
+        task_tools = getattr(self, "tools", None) or []
+        if task_tools:
+            return str(task_tools[0].run())
+        return "no-tool"
+
+    monkeypatch.setattr(Task, "execute_sync", fake_execute_sync, raising=True)
+
+    class Interceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            if kwargs.get("tool_name") == "blocked_tool":
+                return {"status": "deny", "reason": "blocked by policy"}
+            return {"status": "allow"}
+
+    patcher = crewai_patch.CrewAIPatch(Interceptor())
+    assert patcher.apply() is True
+
+    blocked_agent = Agent(role="blocked", goal="run blocked task", backstory="blocked")
+    safe_agent = Agent(role="safe", goal="run safe task", backstory="safe")
+
+    blocked_task = Task(
+        description="blocked task",
+        expected_output="blocked string",
+        agent=blocked_agent,
+        tools=[BlockedTool()],
+    )
+    safe_task = Task(
+        description="safe task",
+        expected_output="safe string",
+        agent=safe_agent,
+        tools=[SafeTool()],
+    )
+
+    # Build a real CrewAI Crew object to validate object wiring and two-agent task setup.
+    Crew(agents=[blocked_agent, safe_agent], tasks=[blocked_task, safe_task], verbose=False)
+
+    results = [
+        blocked_task.execute_sync(agent_id="agent-1"),
+        safe_task.execute_sync(agent_id="agent-2"),
+    ]
+
+    assert isinstance(results[0], str)
+    assert "[BLOCKED by governance policy]" in results[0]
+    assert "blocked by policy" in results[0]
+    assert results[1] == "ok:safe_tool"
