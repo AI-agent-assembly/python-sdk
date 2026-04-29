@@ -1,0 +1,10 @@
+[package]
+name = "aa-ffi-python"
+version = "0.0.0"
+edition = "2021"
+description = "PyO3 bridge crate for the Agent Assembly Python SDK"
+license = "MIT"
+
+[lib]
+name = "aa_ffi_python"
+crate-type = ["cdylib"]
