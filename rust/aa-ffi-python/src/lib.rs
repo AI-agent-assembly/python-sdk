@@ -81,6 +81,11 @@ struct PolicyResultPayload {
     reason: String,
 }
 
+enum PolicyWaitError {
+    Timeout,
+    Disconnected,
+}
+
 #[pymethods]
 impl RuntimeClient {
     #[new]
@@ -149,10 +154,13 @@ impl RuntimeClient {
                 response_tx,
             })
             .map_err(|_| PyRuntimeError::new_err("failed to enqueue policy query"))?;
-        let payload = TOKIO_RUNTIME
-            .block_on(async move { time::timeout(Duration::from_millis(timeout_ms), response_rx).await })
-            .map_err(|_| PolicyTimeoutError::new_err("policy query timed out"))?
-            .map_err(|_| PyRuntimeError::new_err("failed to resolve policy query"))?;
+        let payload = py.allow_threads(|| wait_for_policy_response(timeout_ms, response_rx));
+        let payload = payload.map_err(|error| match error {
+            PolicyWaitError::Timeout => PolicyTimeoutError::new_err("policy query timed out"),
+            PolicyWaitError::Disconnected => {
+                PyRuntimeError::new_err("failed to resolve policy query")
+            }
+        })?;
         Ok(PolicyResult {
             allowed: payload.allowed,
             reason: payload.reason,
@@ -192,6 +200,16 @@ fn evaluate_policy_action(action_json: &str) -> PolicyResultPayload {
         allowed: true,
         reason: String::new(),
     }
+}
+
+fn wait_for_policy_response(
+    timeout_ms: u64,
+    response_rx: oneshot::Receiver<PolicyResultPayload>,
+) -> Result<PolicyResultPayload, PolicyWaitError> {
+    TOKIO_RUNTIME
+        .block_on(async move { time::timeout(Duration::from_millis(timeout_ms), response_rx).await })
+        .map_err(|_| PolicyWaitError::Timeout)?
+        .map_err(|_| PolicyWaitError::Disconnected)
 }
 
 #[pymodule]
