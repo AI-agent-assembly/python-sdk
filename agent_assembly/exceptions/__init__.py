@@ -10,6 +10,7 @@ __all__ = [
     "ConfigurationError",
     "AdapterValidationError",
     "ToolExecutionBlockedError",
+    "PolicyViolationError",
 ]
 
 
@@ -45,4 +46,9 @@ class AdapterValidationError(AssemblyError):
 
 class ToolExecutionBlockedError(AssemblyError):
     """Exception raised when a tool run is blocked by governance."""
+    pass
+
+
+class PolicyViolationError(ToolExecutionBlockedError):
+    """Exception raised when policy blocks tool execution."""
     pass
