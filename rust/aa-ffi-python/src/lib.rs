@@ -3,10 +3,11 @@
 use once_cell::sync::Lazy;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 static TOKIO_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -62,7 +63,17 @@ struct RuntimeClient {
 #[derive(Clone)]
 enum WorkerMessage {
     Event(GovernanceEvent),
+    PolicyQuery {
+        action_json: String,
+        response_tx: oneshot::Sender<PolicyResultPayload>,
+    },
     Close,
+}
+
+#[derive(Clone)]
+struct PolicyResultPayload {
+    allowed: bool,
+    reason: String,
 }
 
 #[pymethods]
@@ -86,6 +97,13 @@ impl RuntimeClient {
             while let Some(message) = receiver.recv().await {
                 match message {
                     WorkerMessage::Event(_event) => {}
+                    WorkerMessage::PolicyQuery {
+                        action_json,
+                        response_tx,
+                    } => {
+                        let policy_result = evaluate_policy_action(&action_json);
+                        let _ = response_tx.send(policy_result);
+                    }
                     WorkerMessage::Close => break,
                 }
             }
@@ -110,6 +128,53 @@ impl RuntimeClient {
             .send(WorkerMessage::Event(event))
             .map_err(|_| PyRuntimeError::new_err("failed to enqueue governance event"))?;
         Ok(())
+    }
+
+    fn query_policy(&self, py: Python<'_>, action: &Bound<'_, PyAny>) -> PyResult<PolicyResult> {
+        let action_json = serialize_action_to_json(py, action)?;
+        let sender = self
+            .sender
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("runtime event queue is unavailable"))?;
+        let (response_tx, response_rx) = oneshot::channel::<PolicyResultPayload>();
+        sender
+            .send(WorkerMessage::PolicyQuery {
+                action_json,
+                response_tx,
+            })
+            .map_err(|_| PyRuntimeError::new_err("failed to enqueue policy query"))?;
+        let payload = response_rx
+            .blocking_recv()
+            .map_err(|_| PyRuntimeError::new_err("failed to resolve policy query"))?;
+        Ok(PolicyResult {
+            allowed: payload.allowed,
+            reason: payload.reason,
+        })
+    }
+}
+
+fn serialize_action_to_json(py: Python<'_>, action: &Bound<'_, PyAny>) -> PyResult<String> {
+    let json_module = PyModule::import(py, "json")?;
+    let dumped = json_module.call_method1("dumps", (action,))?;
+    dumped.extract::<String>()
+}
+
+fn evaluate_policy_action(action_json: &str) -> PolicyResultPayload {
+    let parsed: Value = serde_json::from_str(action_json).unwrap_or(Value::Null);
+    let deny_flag = parsed
+        .as_object()
+        .and_then(|obj| obj.get("deny"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if deny_flag {
+        return PolicyResultPayload {
+            allowed: false,
+            reason: "Denied by local policy rule.".to_string(),
+        };
+    }
+    PolicyResultPayload {
+        allowed: true,
+        reason: String::new(),
     }
 }
 
