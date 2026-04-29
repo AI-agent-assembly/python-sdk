@@ -29,6 +29,14 @@ class LangGraphPatch:
         _apply_stategraph_compile_patch(state_graph_cls, self.callback_handler)
         return True
 
+    def revert(self) -> None:
+        """Revert state graph compile patch when it is currently active."""
+        state_graph_cls = _load_stategraph_class()
+        if state_graph_cls is None:
+            return None
+        _revert_stategraph_compile_patch(state_graph_cls)
+        return None
+
 
 def patch_stategraph_compile(callback_handler: Any) -> bool:
     """Backward-compatible helper used by existing runtime wiring."""
@@ -237,6 +245,21 @@ def _apply_stategraph_compile_patch(state_graph_cls: type[Any], callback_handler
     setattr(state_graph_cls, _ORIGINAL_COMPILE, original_compile)
     setattr(state_graph_cls, "compile", patched_compile)
     setattr(state_graph_cls, _PATCHED_FLAG, True)
+
+
+def _revert_stategraph_compile_patch(state_graph_cls: type[Any]) -> None:
+    if not getattr(state_graph_cls, _PATCHED_FLAG, False):
+        return None
+
+    original_compile = getattr(state_graph_cls, _ORIGINAL_COMPILE, None)
+    if callable(original_compile):
+        setattr(state_graph_cls, "compile", original_compile)
+
+    if hasattr(state_graph_cls, _ORIGINAL_COMPILE):
+        delattr(state_graph_cls, _ORIGINAL_COMPILE)
+    if hasattr(state_graph_cls, _PATCHED_FLAG):
+        delattr(state_graph_cls, _PATCHED_FLAG)
+    return None
 
 
 def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> None:
