@@ -89,6 +89,27 @@ uv run ruff check .
 uv run mypy agent_assembly
 ```
 
+## Native Core Extension (AAASM-55)
+
+Build and install the PyO3 extension locally:
+
+```bash
+uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+```
+
+Validate native module import:
+
+```python
+from agent_assembly._core import RuntimeClient, GovernanceEvent, PolicyResult
+```
+
+Run opt-in native integration tests:
+
+```bash
+AAASM_RUN_NATIVE_CORE_TESTS=1 uv run pytest test/integration/test_native_core_runtime.py
+AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturin.py
+```
+
 ## Documentation
 
 - Project docs source: `docs/`
