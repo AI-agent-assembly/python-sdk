@@ -1,3 +1,8 @@
 //! aa-ffi-python crate bootstrap.
 
-// Implementation will be introduced incrementally in AAASM-55 commits.
+use pyo3::prelude::*;
+
+#[pymodule]
+fn _core(_py: Python<'_>, _module: &Bound<'_, PyModule>) -> PyResult<()> {
+    Ok(())
+}
