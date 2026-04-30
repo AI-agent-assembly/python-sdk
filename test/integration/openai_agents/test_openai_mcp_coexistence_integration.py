@@ -41,20 +41,15 @@ async def test_openai_agents_and_mcp_layers_both_emit_governance_events(
     )
     fake_mcp_module = SimpleNamespace(ClientSession=FakeMCPClientSession)
 
-    monkeypatch.setattr(
-        openai_patch.importlib,
-        "import_module",
-        lambda name: fake_openai_agents_module
-        if name == "openai.agents"
-        else (_ for _ in ()).throw(ImportError(name)),
-    )
-    monkeypatch.setattr(
-        mcp_patch.importlib,
-        "import_module",
-        lambda name: fake_mcp_module
-        if name == "mcp"
-        else (_ for _ in ()).throw(ImportError(name)),
-    )
+    def fake_import_module(name: str) -> object:
+        if name == "openai.agents":
+            return fake_openai_agents_module
+        if name == "mcp":
+            return fake_mcp_module
+        raise ImportError(name)
+
+    monkeypatch.setattr(openai_patch.importlib, "import_module", fake_import_module)
+    monkeypatch.setattr(mcp_patch.importlib, "import_module", fake_import_module)
 
     checks: list[dict[str, object]] = []
     records: list[dict[str, object]] = []
