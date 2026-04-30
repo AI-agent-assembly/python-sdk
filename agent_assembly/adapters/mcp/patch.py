@@ -44,3 +44,31 @@ def _get_process_agent_id() -> str | None:
     if isinstance(_PROCESS_AGENT_ID, str) and _PROCESS_AGENT_ID:
         return _PROCESS_AGENT_ID
     return None
+
+
+def _load_mcp_client_session_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("mcp")
+    except ImportError:
+        return None
+
+    client_session_cls = getattr(module, "ClientSession", None)
+    if isinstance(client_session_cls, type):
+        return client_session_cls
+    return None
+
+
+def _get_server_identifier(session: Any) -> str:
+    for attr in ("_server_url", "_server_name", "_ws_url"):
+        value = getattr(session, attr, None)
+        if isinstance(value, str) and value.strip():
+            return value
+
+    transport = getattr(session, "_transport", None)
+    if transport is not None:
+        for attr in ("url", "server_url", "server_name", "ws_url", "name"):
+            value = getattr(transport, attr, None)
+            if isinstance(value, str) and value.strip():
+                return value
+
+    return "mcp-unknown"
