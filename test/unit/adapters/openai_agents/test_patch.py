@@ -389,3 +389,23 @@ def test_apply_and_revert_helpers_cover_non_callable_and_unpatched_branches() ->
 
     # _revert_function_tool_call_patch early return when patch flag absent
     openai_patch._revert_function_tool_call_patch(NotPatched)
+
+
+@pytest.mark.asyncio
+async def test_record_result_fallback_awaits_async_on_tool_end() -> None:
+    observed: list[str] = []
+
+    class AsyncOnToolEndOnly:
+        async def on_tool_end(self, **kwargs: object) -> None:
+            observed.append(str(kwargs["output"]))
+
+    await openai_patch._record_async_tool_result(
+        AsyncOnToolEndOnly(),
+        tool_name="x",
+        tool_input={},
+        result={"value": "ok"},
+        agent_id=None,
+        ctx=SimpleNamespace(),
+    )
+
+    assert observed
