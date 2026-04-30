@@ -26,6 +26,10 @@ build/
 dist/
 *.egg-info/
 
+## Rust build artifacts
+rust/target/
+rust/Cargo.lock
+
 ## Script
 scripts/ci/get-all-tests.sh
 

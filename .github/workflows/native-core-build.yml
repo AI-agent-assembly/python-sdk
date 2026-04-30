@@ -1,0 +1,36 @@
+name: Native Core Build Check
+
+on:
+  pull_request:
+    paths:
+      - "rust/**"
+      - "agent_assembly/**"
+      - ".github/workflows/native-core-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build-native-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+      uses: actions/checkout@v5
+
+      - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.13"
+
+      - name: Setup uv
+      uses: astral-sh/setup-uv@v6
+
+      - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+      - name: Build native module with maturin
+      env:
+        PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+      run: uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+
+      - name: Verify native module import
+      run: |
+        uv run python -c "from agent_assembly._core import RuntimeClient, GovernanceEvent, PolicyResult"
