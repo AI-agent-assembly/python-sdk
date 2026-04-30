@@ -194,6 +194,10 @@ async def _record_async_tool_result(
         )
         if inspect.isawaitable(recorded):
             await recorded
+
+
+def _is_governance_error(error: Exception) -> bool:
+    return True
         return None
 
     tool_end_method = getattr(target, "on_tool_end", None)
