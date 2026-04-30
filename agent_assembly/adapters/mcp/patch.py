@@ -28,10 +28,16 @@ class MCPClientPatch:
 
     def apply(self) -> bool:
         set_process_agent_id(self.process_agent_id)
-        _ = self.callback_handler
-        return _is_mcp_available()
+        client_session_cls = _load_mcp_client_session_class()
+        if client_session_cls is None:
+            return False
+        _apply_client_session_patch(client_session_cls, self.callback_handler)
+        return True
 
     def revert(self) -> None:
+        client_session_cls = _load_mcp_client_session_class()
+        if client_session_cls is not None:
+            _revert_client_session_patch(client_session_cls)
         set_process_agent_id(None)
         return None
 
@@ -231,3 +237,77 @@ def _build_blocked_error(
         tool_name=tool_name,
         server=server_identifier,
     )
+
+
+def _apply_client_session_patch(client_session_cls: type[Any], callback_handler: Any) -> None:
+    if getattr(client_session_cls, _PATCHED_FLAG, False):
+        return None
+
+    original_call_tool = getattr(client_session_cls, "call_tool", None)
+    if not callable(original_call_tool):
+        return None
+
+    async def patched_call_tool(self: Any, *args: Any, **kwargs: Any) -> Any:
+        tool_name, tool_args = _extract_tool_call_inputs(args, kwargs)
+        agent_id = _get_process_agent_id()
+        server_identifier = _get_server_identifier(self)
+
+        decision = await _invoke_async_tool_check(
+            callback_handler,
+            tool_name=tool_name,
+            tool_args=tool_args,
+            agent_id=agent_id,
+            server_identifier=server_identifier,
+        )
+        status, reason = _normalize_decision(decision)
+        is_pending_flow = False
+        if status == "pending":
+            is_pending_flow = True
+            timeout_seconds = _get_pending_tool_approval_timeout_seconds(callback_handler)
+            final_decision = await _wait_for_async_tool_approval(
+                callback_handler,
+                tool_name=tool_name,
+                timeout_seconds=timeout_seconds,
+                tool_args=tool_args,
+                agent_id=agent_id,
+                server_identifier=server_identifier,
+            )
+            status, reason = _normalize_decision(final_decision)
+
+        if status == "deny":
+            raise _build_blocked_error(
+                tool_name=tool_name,
+                server_identifier=server_identifier,
+                reason=reason,
+                is_pending_rejection=is_pending_flow,
+            )
+
+        result = original_call_tool(self, *args, **kwargs)
+        if inspect.isawaitable(result):
+            result = await result
+        await _record_async_tool_result(
+            callback_handler,
+            tool_name=tool_name,
+            result=result,
+            agent_id=agent_id,
+            server_identifier=server_identifier,
+        )
+        return result
+
+    setattr(client_session_cls, _ORIGINAL_CALL_TOOL, original_call_tool)
+    setattr(client_session_cls, "call_tool", patched_call_tool)
+    setattr(client_session_cls, _PATCHED_FLAG, True)
+
+
+def _revert_client_session_patch(client_session_cls: type[Any]) -> None:
+    if not getattr(client_session_cls, _PATCHED_FLAG, False):
+        return None
+
+    original_call_tool = getattr(client_session_cls, _ORIGINAL_CALL_TOOL, None)
+    if callable(original_call_tool):
+        setattr(client_session_cls, "call_tool", original_call_tool)
+
+    if hasattr(client_session_cls, _ORIGINAL_CALL_TOOL):
+        delattr(client_session_cls, _ORIGINAL_CALL_TOOL)
+    if hasattr(client_session_cls, _PATCHED_FLAG):
+        delattr(client_session_cls, _PATCHED_FLAG)
