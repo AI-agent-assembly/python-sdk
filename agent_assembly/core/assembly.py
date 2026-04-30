@@ -189,7 +189,12 @@ def _build_patch_plan(client: GatewayClient, process_agent_id: str) -> list[Runt
         patch_plan.append(OpenAIAgentsPatch(callback_target))
     if _is_installed("mcp"):
         # Keep MCP patch last as fallback for remaining tool dispatch paths.
-        patch_plan.append(MCPClientPatch(callback_target))
+        patch_plan.append(
+            MCPClientPatch(
+                callback_handler=callback_target,
+                process_agent_id=process_agent_id,
+            )
+        )
 
     return patch_plan
 
