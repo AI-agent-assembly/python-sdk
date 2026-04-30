@@ -246,3 +246,146 @@ async def test_gateway_error_uses_fail_open_and_executes_original_tool(
     result = await tool(SimpleNamespace(agent_id="agent-fail-open"), {"x": 2})
 
     assert result["name"] == "fail_open_tool"
+
+
+@pytest.mark.asyncio
+async def test_non_governance_error_is_reraised(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    function_tool_cls, _ = _install_fake_openai_agents_module(monkeypatch)
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            raise ValueError("unexpected")
+
+    monkeypatch.setattr(openai_patch, "_is_governance_error", lambda error: False)
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=Interceptor())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="strict_tool")
+    with pytest.raises(ValueError, match="unexpected"):
+        await tool(SimpleNamespace(agent_id="agent-strict"), {"x": 3})
+
+
+@pytest.mark.asyncio
+async def test_helper_fallback_branches_for_check_wait_record_and_result_build(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_fake_openai_agents_module(monkeypatch)
+
+    class Wrapper:
+        def __init__(self) -> None:
+            self._interceptor = SimpleNamespace()
+
+    # _resolve_governance_target with wrapper
+    assert openai_patch._resolve_governance_target(Wrapper()) is not None
+
+    # _invoke_async_tool_check fallback when check method missing
+    fallback_check = await openai_patch._invoke_async_tool_check(
+        object(),
+        tool_name="x",
+        tool_input={},
+        agent_id=None,
+        ctx=SimpleNamespace(),
+    )
+    assert fallback_check == {"status": "allow"}
+
+    class SyncCheck:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "allow"}
+
+    # _invoke_async_tool_check non-awaitable branch
+    sync_check = await openai_patch._invoke_async_tool_check(
+        SyncCheck(),
+        tool_name="x",
+        tool_input={},
+        agent_id=None,
+        ctx=SimpleNamespace(),
+    )
+    assert sync_check == {"status": "allow"}
+
+    # _wait_for_async_tool_approval fallback when wait method missing
+    fallback_wait = await openai_patch._wait_for_async_tool_approval(
+        object(),
+        tool_name="x",
+        timeout_seconds=1,
+        tool_input={},
+        agent_id=None,
+        ctx=SimpleNamespace(),
+    )
+    assert fallback_wait["status"] == "deny"
+
+    class SyncWait:
+        def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "allow"}
+
+    # _wait_for_async_tool_approval non-awaitable branch
+    sync_wait = await openai_patch._wait_for_async_tool_approval(
+        SyncWait(),
+        tool_name="x",
+        timeout_seconds=1,
+        tool_input={},
+        agent_id=None,
+        ctx=SimpleNamespace(),
+    )
+    assert sync_wait == {"status": "allow"}
+
+    observed_tool_end: list[str] = []
+
+    class OnToolEndOnly:
+        def on_tool_end(self, **kwargs: object) -> None:
+            observed_tool_end.append(str(kwargs["output"]))
+
+    # _record_async_tool_result on_tool_end fallback branch
+    await openai_patch._record_async_tool_result(
+        OnToolEndOnly(),
+        tool_name="x",
+        tool_input={},
+        result={"value": "ok"},
+        agent_id=None,
+        ctx=SimpleNamespace(),
+    )
+    assert observed_tool_end
+
+    class FailingToolResult:
+        def __init__(self, **kwargs: object) -> None:
+            del kwargs
+            raise RuntimeError("cannot build")
+
+    fake_module = SimpleNamespace(FunctionTool=object(), ToolResult=FailingToolResult)
+    monkeypatch.setattr(
+        openai_patch.importlib,
+        "import_module",
+        lambda name: fake_module
+        if name == "openai.agents"
+        else (_ for _ in ()).throw(ImportError(name)),
+    )
+
+    # _build_tool_result_error fallback dict branch
+    fallback_result = openai_patch._build_tool_result_error(
+        tool_name="x",
+        reason="nope",
+        is_pending_rejection=False,
+    )
+    assert isinstance(fallback_result, dict)
+    assert "error" in fallback_result
+
+
+def test_apply_and_revert_helpers_cover_non_callable_and_unpatched_branches() -> None:
+    class NoCallable:
+        __call__ = None
+
+    class NotPatched:
+        async def __call__(self, ctx: Any, tool_input: Any) -> None:
+            del ctx, tool_input
+            return None
+
+    # _apply_function_tool_call_patch early return when __call__ is not callable
+    openai_patch._apply_function_tool_call_patch(NoCallable, callback_handler=object())
+
+    # _revert_function_tool_call_patch early return when patch flag absent
+    openai_patch._revert_function_tool_call_patch(NotPatched)
