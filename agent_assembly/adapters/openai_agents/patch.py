@@ -8,6 +8,9 @@ import importlib.util
 import inspect
 from typing import Any, Literal
 
+from agent_assembly.adapters.crewai.patch import (
+    _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
+)
 from agent_assembly.adapters.crewai.patch import _normalize_decision as _normalize_governance_decision
 
 _ORIGINAL_FUNCTION_TOOL_CALL = "_agent_assembly_original_openai_agents_function_tool_call"
@@ -96,6 +99,38 @@ async def _invoke_async_tool_check(
         serialized={"name": tool_name},
         input_str=str(tool_input),
         tool_name=tool_name,
+        args=tool_input,
+        agent_id=agent_id,
+        run_context=ctx,
+    )
+    if inspect.isawaitable(result):
+        return await result
+    return result
+
+
+def _get_pending_tool_approval_timeout_seconds(callback_handler: Any) -> int:
+    return _resolve_pending_timeout_seconds(callback_handler)
+
+
+async def _wait_for_async_tool_approval(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    timeout_seconds: int,
+    tool_input: Any,
+    agent_id: str | None,
+    ctx: Any,
+) -> object:
+    target = _resolve_governance_target(callback_handler)
+    method = getattr(target, "wait_for_tool_approval", None)
+    if not callable(method):
+        return {"status": "deny", "reason": "Approval handler is unavailable."}
+
+    result = method(
+        serialized={"name": tool_name},
+        input_str=str(tool_input),
+        tool_name=tool_name,
+        timeout_seconds=timeout_seconds,
         args=tool_input,
         agent_id=agent_id,
         run_context=ctx,
