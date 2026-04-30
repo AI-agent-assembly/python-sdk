@@ -138,3 +138,30 @@ async def _wait_for_async_tool_approval(
     if inspect.isawaitable(result):
         return await result
     return result
+
+
+def _build_tool_result_error(
+    *,
+    tool_name: str,
+    reason: str | None,
+    is_pending_rejection: bool,
+) -> object:
+    try:
+        module = importlib.import_module("openai.agents")
+    except ImportError:
+        module = None
+
+    tool_result_cls = getattr(module, "ToolResult", None) if module is not None else None
+    reason_text = reason or "No reason provided."
+    if is_pending_rejection:
+        error_message = f"Approval denied for tool '{tool_name}': {reason_text}"
+    else:
+        error_message = f"Action blocked by governance policy for tool '{tool_name}': {reason_text}"
+
+    if isinstance(tool_result_cls, type):
+        try:
+            return tool_result_cls(error=error_message)
+        except Exception:
+            pass
+
+    return {"error": error_message}
