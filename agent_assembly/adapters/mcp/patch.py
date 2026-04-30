@@ -165,3 +165,69 @@ async def _wait_for_async_tool_approval(
     if inspect.isawaitable(result):
         return await result
     return result
+
+
+def _truncate_result_for_audit(result: object) -> str:
+    return str(result)[:_MAX_AUDIT_RESULT_CHARS]
+
+
+async def _record_async_tool_result(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    result: object,
+    agent_id: str | None,
+    server_identifier: str,
+) -> None:
+    target = _resolve_governance_target(callback_handler)
+
+    record_method = getattr(target, "record_result", None)
+    if callable(record_method):
+        recorded = record_method(
+            tool_name=tool_name,
+            result=_truncate_result_for_audit(result),
+            agent_id=agent_id,
+            server=server_identifier,
+        )
+        if inspect.isawaitable(recorded):
+            await recorded
+        return None
+
+    tool_end_method = getattr(target, "on_tool_end", None)
+    if callable(tool_end_method):
+        recorded = tool_end_method(
+            output=_truncate_result_for_audit(result),
+            tool_name=tool_name,
+            agent_id=agent_id,
+            server=server_identifier,
+        )
+        if inspect.isawaitable(recorded):
+            await recorded
+
+
+def _build_blocked_error(
+    *,
+    tool_name: str,
+    server_identifier: str,
+    reason: str | None,
+    is_pending_rejection: bool,
+) -> Exception:
+    from agent_assembly.exceptions import MCPToolBlockedError
+
+    reason_text = reason or "No reason provided."
+    if is_pending_rejection:
+        message = (
+            f"MCP tool '{tool_name}' on server '{server_identifier}' "
+            f"rejected during approval: {reason_text}"
+        )
+    else:
+        message = (
+            f"MCP tool '{tool_name}' on server '{server_identifier}' "
+            f"blocked by governance policy: {reason_text}"
+        )
+
+    return MCPToolBlockedError(
+        message,
+        tool_name=tool_name,
+        server=server_identifier,
+    )
