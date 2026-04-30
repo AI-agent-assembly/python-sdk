@@ -16,6 +16,7 @@ from agent_assembly.adapters.crewai.patch import _normalize_decision as _normali
 _ORIGINAL_FUNCTION_TOOL_CALL = "_agent_assembly_original_openai_agents_function_tool_call"
 _PATCHED_FLAG = "_agent_assembly_openai_agents_function_tool_patched"
 _PROCESS_AGENT_ID: str | None = None
+_MAX_AUDIT_RESULT_CHARS = 2000
 
 
 @dataclass(slots=True)
@@ -165,3 +166,43 @@ def _build_tool_result_error(
             pass
 
     return {"error": error_message}
+
+
+def _truncate_result_for_audit(result: object) -> str:
+    return str(result)[:_MAX_AUDIT_RESULT_CHARS]
+
+
+async def _record_async_tool_result(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    tool_input: Any,
+    result: object,
+    agent_id: str | None,
+    ctx: Any,
+) -> None:
+    target = _resolve_governance_target(callback_handler)
+
+    record_method = getattr(target, "record_result", None)
+    if callable(record_method):
+        recorded = record_method(
+            tool_name=tool_name,
+            args=tool_input,
+            result=_truncate_result_for_audit(result),
+            agent_id=agent_id,
+            run_context=ctx,
+        )
+        if inspect.isawaitable(recorded):
+            await recorded
+        return None
+
+    tool_end_method = getattr(target, "on_tool_end", None)
+    if callable(tool_end_method):
+        recorded = tool_end_method(
+            output=_truncate_result_for_audit(result),
+            tool_name=tool_name,
+            agent_id=agent_id,
+            run_context=ctx,
+        )
+        if inspect.isawaitable(recorded):
+            await recorded
