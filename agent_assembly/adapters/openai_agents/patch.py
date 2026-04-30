@@ -201,6 +201,18 @@ async def _record_async_tool_result(
         )
         if inspect.isawaitable(recorded):
             await recorded
+        return None
+
+    tool_end_method = getattr(target, "on_tool_end", None)
+    if callable(tool_end_method):
+        recorded = tool_end_method(
+            output=_truncate_result_for_audit(result),
+            tool_name=tool_name,
+            agent_id=agent_id,
+            run_context=ctx,
+        )
+        if inspect.isawaitable(recorded):
+            await recorded
 
 
 def _is_governance_error(error: Exception) -> bool:
@@ -298,15 +310,3 @@ def _revert_function_tool_call_patch(function_tool_cls: type[Any]) -> None:
         delattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL)
     if hasattr(function_tool_cls, _PATCHED_FLAG):
         delattr(function_tool_cls, _PATCHED_FLAG)
-        return None
-
-    tool_end_method = getattr(target, "on_tool_end", None)
-    if callable(tool_end_method):
-        recorded = tool_end_method(
-            output=_truncate_result_for_audit(result),
-            tool_name=tool_name,
-            agent_id=agent_id,
-            run_context=ctx,
-        )
-        if inspect.isawaitable(recorded):
-            await recorded
