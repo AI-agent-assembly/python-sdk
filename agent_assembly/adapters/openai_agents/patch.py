@@ -54,3 +54,10 @@ def _load_openai_agents_function_tool_class() -> type[Any] | None:
     if isinstance(function_tool_cls, type):
         return function_tool_cls
     return None
+
+
+def _resolve_agent_id(ctx: Any) -> str | None:
+    candidate = getattr(ctx, "agent_id", None)
+    if isinstance(candidate, str) and candidate:
+        return candidate
+    return _get_process_agent_id()
