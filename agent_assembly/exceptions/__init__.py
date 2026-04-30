@@ -10,6 +10,7 @@ __all__ = [
     "ConfigurationError",
     "AdapterValidationError",
     "ToolExecutionBlockedError",
+    "MCPToolBlockedError",
     "PolicyViolationError",
 ]
 
@@ -47,6 +48,21 @@ class AdapterValidationError(AssemblyError):
 class ToolExecutionBlockedError(AssemblyError):
     """Exception raised when a tool run is blocked by governance."""
     pass
+
+
+class MCPToolBlockedError(ToolExecutionBlockedError):
+    """Exception raised when an MCP tool call is blocked by governance."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        tool_name: str | None = None,
+        server: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.tool_name = tool_name
+        self.server = server
 
 
 class PolicyViolationError(ToolExecutionBlockedError):
