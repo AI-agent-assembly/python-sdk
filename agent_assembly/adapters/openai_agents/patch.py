@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import wraps
 import importlib
 import importlib.util
 import inspect
@@ -28,10 +29,16 @@ class OpenAIAgentsPatch:
 
     def apply(self) -> bool:
         set_process_agent_id(self.process_agent_id)
-        _ = self.callback_handler
-        return _is_openai_agents_available()
+        function_tool_cls = _load_openai_agents_function_tool_class()
+        if function_tool_cls is None:
+            return False
+        _apply_function_tool_call_patch(function_tool_cls, self.callback_handler)
+        return True
 
     def revert(self) -> None:
+        function_tool_cls = _load_openai_agents_function_tool_class()
+        if function_tool_cls is not None:
+            _revert_function_tool_call_patch(function_tool_cls)
         set_process_agent_id(None)
         return None
 
@@ -197,7 +204,100 @@ async def _record_async_tool_result(
 
 
 def _is_governance_error(error: Exception) -> bool:
+    del error
     return True
+
+
+def _apply_function_tool_call_patch(function_tool_cls: type[Any], callback_handler: Any) -> None:
+    if getattr(function_tool_cls, _PATCHED_FLAG, False):
+        return None
+
+    original_call = getattr(function_tool_cls, "__call__", None)
+    if not callable(original_call):
+        return None
+
+    @wraps(original_call)
+    async def patched_call(self: Any, ctx: Any, tool_input: Any, *args: Any, **kwargs: Any) -> Any:
+        tool_name = str(getattr(self, "name", self.__class__.__name__))
+        agent_id = _resolve_agent_id(ctx)
+
+        decision: object = {"status": "allow"}
+        governance_failed = False
+        try:
+            decision = await _invoke_async_tool_check(
+                callback_handler,
+                tool_name=tool_name,
+                tool_input=tool_input,
+                agent_id=agent_id,
+                ctx=ctx,
+            )
+            status, reason = _normalize_decision(decision)
+            is_pending_flow = False
+            if status == "pending":
+                is_pending_flow = True
+                timeout_seconds = _get_pending_tool_approval_timeout_seconds(callback_handler)
+                final_decision = await _wait_for_async_tool_approval(
+                    callback_handler,
+                    tool_name=tool_name,
+                    timeout_seconds=timeout_seconds,
+                    tool_input=tool_input,
+                    agent_id=agent_id,
+                    ctx=ctx,
+                )
+                status, reason = _normalize_decision(final_decision)
+
+            if status == "deny":
+                blocked_result = _build_tool_result_error(
+                    tool_name=tool_name,
+                    reason=reason,
+                    is_pending_rejection=is_pending_flow,
+                )
+                await _record_async_tool_result(
+                    callback_handler,
+                    tool_name=tool_name,
+                    tool_input=tool_input,
+                    result=blocked_result,
+                    agent_id=agent_id,
+                    ctx=ctx,
+                )
+                return blocked_result
+        except Exception as error:
+            governance_failed = _is_governance_error(error)
+            if not governance_failed:
+                raise
+
+        result = original_call(self, ctx, tool_input, *args, **kwargs)
+        if inspect.isawaitable(result):
+            result = await result
+
+        if not governance_failed:
+            await _record_async_tool_result(
+                callback_handler,
+                tool_name=tool_name,
+                tool_input=tool_input,
+                result=result,
+                agent_id=agent_id,
+                ctx=ctx,
+            )
+        return result
+
+    setattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL, original_call)
+    setattr(function_tool_cls, "__call__", patched_call)
+    setattr(function_tool_cls, _PATCHED_FLAG, True)
+
+
+def _revert_function_tool_call_patch(function_tool_cls: type[Any]) -> None:
+    if not getattr(function_tool_cls, _PATCHED_FLAG, False):
+        return None
+
+    original_call = getattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL, None)
+    if callable(original_call):
+        setattr(function_tool_cls, "__call__", original_call)
+
+    if hasattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL):
+        delattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL)
+    if hasattr(function_tool_cls, _PATCHED_FLAG):
+        delattr(function_tool_cls, _PATCHED_FLAG)
         return None
 
     tool_end_method = getattr(target, "on_tool_end", None)
