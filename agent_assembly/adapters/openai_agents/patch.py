@@ -42,3 +42,15 @@ def _get_process_agent_id() -> str | None:
     if isinstance(_PROCESS_AGENT_ID, str) and _PROCESS_AGENT_ID:
         return _PROCESS_AGENT_ID
     return None
+
+
+def _load_openai_agents_function_tool_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("openai.agents")
+    except ImportError:
+        return None
+
+    function_tool_cls = getattr(module, "FunctionTool", None)
+    if isinstance(function_tool_cls, type):
+        return function_tool_cls
+    return None
