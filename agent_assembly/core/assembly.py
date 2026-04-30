@@ -186,7 +186,12 @@ def _build_patch_plan(client: GatewayClient, process_agent_id: str) -> list[Runt
     if _is_installed("pydantic_ai"):
         patch_plan.append(PydanticAIPatch(callback_target))
     if _is_installed("openai") and _has_agents_sdk():
-        patch_plan.append(OpenAIAgentsPatch(callback_target))
+        patch_plan.append(
+            OpenAIAgentsPatch(
+                callback_handler=callback_target,
+                process_agent_id=process_agent_id,
+            )
+        )
     if _is_installed("mcp"):
         # Keep MCP patch last as fallback for remaining tool dispatch paths.
         patch_plan.append(
