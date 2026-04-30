@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib
 import importlib.util
+import inspect
 from typing import Any, Literal
 
 from agent_assembly.adapters.crewai.patch import _normalize_decision as _normalize_governance_decision
@@ -69,3 +70,36 @@ def _normalize_decision(
     decision: object,
 ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
     return _normalize_governance_decision(decision)
+
+
+def _resolve_governance_target(callback_handler: Any) -> Any:
+    target = getattr(callback_handler, "_interceptor", None)
+    if target is not None:
+        return target
+    return callback_handler
+
+
+async def _invoke_async_tool_check(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    tool_input: Any,
+    agent_id: str | None,
+    ctx: Any,
+) -> object:
+    target = _resolve_governance_target(callback_handler)
+    method = getattr(target, "check_tool_start", None)
+    if not callable(method):
+        return {"status": "allow"}
+
+    result = method(
+        serialized={"name": tool_name},
+        input_str=str(tool_input),
+        tool_name=tool_name,
+        args=tool_input,
+        agent_id=agent_id,
+        run_context=ctx,
+    )
+    if inspect.isawaitable(result):
+        return await result
+    return result
