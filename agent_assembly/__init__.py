@@ -8,6 +8,7 @@ from agent_assembly.exceptions import (
     AssemblyError,
     ConfigurationError,
     GatewayError,
+    MCPToolBlockedError,
     PolicyError,
     ToolExecutionBlockedError,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "ConfigurationError",
     "AdapterValidationError",
     "ToolExecutionBlockedError",
+    "MCPToolBlockedError",
 ]
 
 if "RuntimeClient" in globals():
