@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib
 import importlib.util
-from typing import Any
+from typing import Any, Literal
+
+from agent_assembly.adapters.crewai.patch import _normalize_decision as _normalize_governance_decision
 
 _ORIGINAL_FUNCTION_TOOL_CALL = "_agent_assembly_original_openai_agents_function_tool_call"
 _PATCHED_FLAG = "_agent_assembly_openai_agents_function_tool_patched"
@@ -61,3 +63,9 @@ def _resolve_agent_id(ctx: Any) -> str | None:
     if isinstance(candidate, str) and candidate:
         return candidate
     return _get_process_agent_id()
+
+
+def _normalize_decision(
+    decision: object,
+) -> tuple[Literal["allow", "deny", "pending"], str | None]:
+    return _normalize_governance_decision(decision)
