@@ -34,11 +34,11 @@ async def test_langchain_and_mcp_layers_both_emit_governance_events(
     records: list[dict[str, object]] = []
 
     class Interceptor:
-        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
             checks.append(dict(kwargs))
             return {"status": "allow"}
 
-        async def record_result(self, **kwargs: object) -> None:
+        def record_result(self, **kwargs: object) -> None:
             records.append(dict(kwargs))
 
     callback_handler = AssemblyCallbackHandler(Interceptor())
