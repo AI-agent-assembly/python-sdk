@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gc
+import json
 import os
 import socket
 import tempfile
@@ -133,6 +134,21 @@ class MockRuntimeServer:
             conn.sendall(payload)
 
 
+def make_audit_entry_payload(index: int, *, worker_id: int = 0) -> str:
+    return json.dumps(
+        {
+            "seq": index,
+            "timestamp_ns": 1_700_000_000_000_000_000 + index,
+            "event_type": "ToolCallIntercepted",
+            "agent_id": [worker_id % 255] * 16,
+            "session_id": [index % 255] * 16,
+            "payload": json.dumps({"index": index, "worker": worker_id}),
+            "previous_hash": [0] * 32,
+            "entry_hash": [0] * 32,
+        }
+    )
+
+
 @pytest.fixture()
 def native_core():
     if os.getenv("AAASM_RUN_NATIVE_CORE_TESTS") != "1":
@@ -147,9 +163,10 @@ def test_send_event_is_non_blocking(native_core) -> None:
 
     client = native_core.RuntimeClient.connect(server.socket_path)
     try:
+        events = [native_core.GovernanceEvent(make_audit_entry_payload(index)) for index in range(500)]
         start = time.perf_counter()
-        for index in range(500):
-            client.send_event(native_core.GovernanceEvent(f'{{"index": {index}}}'))
+        for event in events:
+            client.send_event(event)
         elapsed_ms = (time.perf_counter() - start) * 1000.0
         assert elapsed_ms < 50.0
     finally:
@@ -196,7 +213,9 @@ def test_runtime_client_has_no_thread_deadlock(native_core) -> None:
     def worker(worker_id: int) -> None:
         try:
             for index in range(100):
-                client.send_event(native_core.GovernanceEvent(f'{{"worker": {worker_id}, "idx": {index}}}'))
+                client.send_event(
+                    native_core.GovernanceEvent(make_audit_entry_payload(index, worker_id=worker_id))
+                )
                 client.query_policy({"action": "tool.call", "timeout_ms": 50})
         except Exception as error:  # pragma: no cover - runtime guard
             errors.append(error)
@@ -225,7 +244,7 @@ def test_runtime_client_tracemalloc_leak_guard(native_core) -> None:
     baseline_current, _ = tracemalloc.get_traced_memory()
     try:
         for index in range(10_000):
-            client.send_event(native_core.GovernanceEvent(f'{{"index": {index}}}'))
+            client.send_event(native_core.GovernanceEvent(make_audit_entry_payload(index)))
         gc.collect()
         current, _ = tracemalloc.get_traced_memory()
         assert current - baseline_current < 1_000_000

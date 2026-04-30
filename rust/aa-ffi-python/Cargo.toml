@@ -10,6 +10,7 @@ name = "aa_ffi_python"
 crate-type = ["cdylib"]
 
 [dependencies]
+aa-core = { git = "https://github.com/AI-agent-assembly/agent-assembly.git", package = "aa-core", features = ["serde"] }
 aa-proto = { git = "https://github.com/AI-agent-assembly/agent-assembly.git", package = "aa-proto" }
 once_cell = "1.20"
 prost = "0.13"

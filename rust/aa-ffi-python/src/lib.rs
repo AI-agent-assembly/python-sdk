@@ -1,11 +1,13 @@
 //! aa-ffi-python crate bootstrap.
 
+use aa_core::AuditEntry;
 use aa_proto::assembly::audit::v1::AuditEvent;
 use aa_proto::assembly::common::v1::Decision;
 use aa_proto::assembly::policy::v1::CheckActionRequest;
 use aa_proto::assembly::policy::v1::CheckActionResponse;
 use once_cell::sync::Lazy;
 use prost::Message;
+use pyo3::exceptions::PyValueError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -41,13 +43,22 @@ const TAG_ACK: u8 = 3;
 struct GovernanceEvent {
     #[pyo3(get)]
     payload_json: String,
+    audit_entry: AuditEntry,
 }
 
 #[pymethods]
 impl GovernanceEvent {
     #[new]
-    fn new(payload_json: String) -> Self {
-        Self { payload_json }
+    fn new(payload_json: String) -> PyResult<Self> {
+        let audit_entry = serde_json::from_str::<AuditEntry>(&payload_json).map_err(|error| {
+            PyValueError::new_err(format!(
+                "GovernanceEvent payload must be serialized aa_core::AuditEntry JSON: {error}"
+            ))
+        })?;
+        Ok(Self {
+            payload_json,
+            audit_entry,
+        })
     }
 }
 
@@ -273,12 +284,22 @@ async fn send_event_frame<W>(writer: &mut W, event: &GovernanceEvent) -> Result<
 where
     W: AsyncWrite + Unpin,
 {
+    let entry = &event.audit_entry;
+    let event_type = format!("{:?}", entry.event_type());
+    let agent_id_hex = bytes_to_hex(entry.agent_id().as_bytes());
+    let session_id_hex = bytes_to_hex(entry.session_id().as_bytes());
     let audit_event = AuditEvent {
         event_id: make_event_id(),
         trace_id: "python-sdk".to_string(),
         span_id: "ffi-send-event".to_string(),
         decision: Decision::Allow as i32,
-        labels: std::collections::HashMap::from([(String::from("payload_json"), event.payload_json.clone())]),
+        labels: std::collections::HashMap::from([
+            (String::from("payload_json"), event.payload_json.clone()),
+            (String::from("event_type"), event_type),
+            (String::from("agent_id_hex"), agent_id_hex),
+            (String::from("session_id_hex"), session_id_hex),
+            (String::from("payload"), entry.payload().to_string()),
+        ]),
         ..Default::default()
     };
     let payload = audit_event.encode_to_vec();
@@ -380,6 +401,16 @@ fn make_event_id() -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
     format!("py-{}-{}", now.as_secs(), now.subsec_nanos())
+}
+
+fn bytes_to_hex(bytes: &[u8; 16]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut result = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        result.push(HEX[(byte >> 4) as usize] as char);
+        result.push(HEX[(byte & 0x0F) as usize] as char);
+    }
+    result
 }
 
 enum RuntimeResponse {
