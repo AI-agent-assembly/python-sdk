@@ -1,13 +1,20 @@
 //! aa-ffi-python crate bootstrap.
 
+use aa_proto::assembly::audit::v1::AuditEvent;
+use aa_proto::assembly::common::v1::Decision;
+use aa_proto::assembly::policy::v1::CheckActionRequest;
+use aa_proto::assembly::policy::v1::CheckActionResponse;
 use once_cell::sync::Lazy;
+use prost::Message;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use serde_json::Value;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::net::UnixStream;
 use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time;
@@ -21,6 +28,13 @@ static TOKIO_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
         .build()
         .expect("failed to build aa-ffi-python tokio runtime")
 });
+
+const TAG_POLICY_QUERY: u8 = 1;
+const TAG_EVENT_REPORT: u8 = 2;
+const TAG_HEARTBEAT: u8 = 4;
+
+const TAG_POLICY_RESPONSE: u8 = 1;
+const TAG_ACK: u8 = 3;
 
 #[pyclass(module = "agent_assembly._core")]
 #[derive(Clone)]
@@ -63,13 +77,15 @@ struct RuntimeClient {
     socket_path: String,
     sender: Option<mpsc::UnboundedSender<WorkerMessage>>,
     closed: Arc<AtomicBool>,
+    last_error: Arc<Mutex<Option<String>>>,
 }
 
 enum WorkerMessage {
     Event(GovernanceEvent),
     PolicyQuery {
         action_json: String,
-        response_tx: oneshot::Sender<PolicyResultPayload>,
+        timeout_ms: u64,
+        response_tx: oneshot::Sender<Result<PolicyResultPayload, WorkerError>>,
     },
     Close,
 }
@@ -80,7 +96,15 @@ struct PolicyResultPayload {
     reason: String,
 }
 
-enum PolicyWaitError {
+#[derive(Debug)]
+enum WorkerError {
+    Timeout,
+    Disconnected,
+    Transport(String),
+    Decode(String),
+}
+
+enum WorkerWaitError {
     Timeout,
     Disconnected,
 }
@@ -93,45 +117,35 @@ impl RuntimeClient {
             socket_path,
             sender: None,
             closed: Arc::new(AtomicBool::new(true)),
+            last_error: Arc::new(Mutex::new(None)),
         }
     }
 
     #[staticmethod]
     fn connect(socket_path: String) -> Self {
         let _ = &*TOKIO_RUNTIME;
-        let (sender, mut receiver) = mpsc::unbounded_channel::<WorkerMessage>();
+
+        let (sender, receiver) = mpsc::unbounded_channel::<WorkerMessage>();
         let closed = Arc::new(AtomicBool::new(false));
-        let closed_for_task = Arc::clone(&closed);
-        TOKIO_RUNTIME.spawn(async move {
-            while let Some(message) = receiver.recv().await {
-                match message {
-                    WorkerMessage::Event(_event) => {}
-                    WorkerMessage::PolicyQuery {
-                        action_json,
-                        response_tx,
-                    } => {
-                        let policy_result = evaluate_policy_action(&action_json);
-                        if policy_result.delay_ms > 0 {
-                            time::sleep(Duration::from_millis(policy_result.delay_ms)).await;
-                        }
-                        let _ = response_tx.send(policy_result.result);
-                    }
-                    WorkerMessage::Close => break,
-                }
-            }
-            closed_for_task.store(true, Ordering::SeqCst);
-        });
+        let last_error = Arc::new(Mutex::new(None));
+
+        TOKIO_RUNTIME.spawn(worker_loop(
+            socket_path.clone(),
+            receiver,
+            Arc::clone(&closed),
+            Arc::clone(&last_error),
+        ));
+
         Self {
             socket_path,
             sender: Some(sender),
             closed,
+            last_error,
         }
     }
 
     fn send_event(&self, event: GovernanceEvent) -> PyResult<()> {
-        if self.closed.load(Ordering::SeqCst) {
-            return Err(PyRuntimeError::new_err("runtime client is closed"));
-        }
+        ensure_client_open(self.closed.as_ref(), self.last_error.as_ref())?;
         let sender = self
             .sender
             .as_ref()
@@ -143,26 +157,30 @@ impl RuntimeClient {
     }
 
     fn query_policy(&self, py: Python<'_>, action: &PyAny) -> PyResult<PolicyResult> {
+        ensure_client_open(self.closed.as_ref(), self.last_error.as_ref())?;
         let action_json = serialize_action_to_json(py, action)?;
         let timeout_ms = extract_timeout_ms(action);
         let sender = self
             .sender
             .as_ref()
             .ok_or_else(|| PyRuntimeError::new_err("runtime event queue is unavailable"))?;
-        let (response_tx, response_rx) = oneshot::channel::<PolicyResultPayload>();
+
+        let (response_tx, response_rx) = oneshot::channel::<Result<PolicyResultPayload, WorkerError>>();
         sender
             .send(WorkerMessage::PolicyQuery {
                 action_json,
+                timeout_ms,
                 response_tx,
             })
             .map_err(|_| PyRuntimeError::new_err("failed to enqueue policy query"))?;
-        let payload = py.allow_threads(|| wait_for_policy_response(timeout_ms, response_rx));
-        let payload = payload.map_err(|error| match error {
-            PolicyWaitError::Timeout => PolicyTimeoutError::new_err("policy query timed out"),
-            PolicyWaitError::Disconnected => {
-                PyRuntimeError::new_err("failed to resolve policy query")
-            }
+
+        let worker_result = py.allow_threads(|| wait_for_worker_response(timeout_ms + 100, response_rx));
+        let worker_result = worker_result.map_err(|error| match error {
+            WorkerWaitError::Timeout => PolicyTimeoutError::new_err("policy query timed out"),
+            WorkerWaitError::Disconnected => PyRuntimeError::new_err("policy worker disconnected"),
         })?;
+
+        let payload = worker_result.map_err(map_worker_error_to_py)?;
         Ok(PolicyResult {
             allowed: payload.allowed,
             reason: payload.reason,
@@ -177,6 +195,161 @@ impl RuntimeClient {
             let _ = sender.send(WorkerMessage::Close);
         }
     }
+}
+
+async fn worker_loop(
+    socket_path: String,
+    mut receiver: mpsc::UnboundedReceiver<WorkerMessage>,
+    closed: Arc<AtomicBool>,
+    last_error: Arc<Mutex<Option<String>>>,
+) {
+    let stream = match UnixStream::connect(&socket_path).await {
+        Ok(stream) => stream,
+        Err(error) => {
+            set_worker_error(last_error.as_ref(), format!("failed to connect runtime socket: {error}"));
+            closed.store(true, Ordering::SeqCst);
+            return;
+        }
+    };
+
+    let (mut reader, mut writer) = stream.into_split();
+    if let Err(error) = write_heartbeat(&mut writer).await {
+        set_worker_error(last_error.as_ref(), format!("failed to send heartbeat: {error:?}"));
+        closed.store(true, Ordering::SeqCst);
+        return;
+    }
+
+    match read_runtime_response(&mut reader).await {
+        Ok(RuntimeResponse::Ack) => {}
+        Ok(_) => {
+            set_worker_error(last_error.as_ref(), "unexpected heartbeat response from runtime".to_string());
+            closed.store(true, Ordering::SeqCst);
+            return;
+        }
+        Err(error) => {
+            set_worker_error(last_error.as_ref(), format!("failed to read heartbeat ack: {error}"));
+            closed.store(true, Ordering::SeqCst);
+            return;
+        }
+    }
+
+    while let Some(message) = receiver.recv().await {
+        match message {
+            WorkerMessage::Event(event) => {
+                let send_result = send_event_frame(&mut writer, &event).await;
+                if let Err(error) = send_result {
+                    set_worker_error(last_error.as_ref(), format!("failed to send event: {error:?}"));
+                    break;
+                }
+
+                match read_runtime_response(&mut reader).await {
+                    Ok(RuntimeResponse::Ack) => {}
+                    Ok(_) => {
+                        set_worker_error(last_error.as_ref(), "unexpected event ack response from runtime".to_string());
+                        break;
+                    }
+                    Err(error) => {
+                        set_worker_error(last_error.as_ref(), format!("failed to read event ack: {error}"));
+                        break;
+                    }
+                }
+            }
+            WorkerMessage::PolicyQuery {
+                action_json,
+                timeout_ms,
+                response_tx,
+            } => {
+                let response = process_policy_query(&mut reader, &mut writer, action_json, timeout_ms).await;
+                let _ = response_tx.send(response);
+            }
+            WorkerMessage::Close => break,
+        }
+    }
+
+    closed.store(true, Ordering::SeqCst);
+}
+
+async fn send_event_frame<W>(writer: &mut W, event: &GovernanceEvent) -> Result<(), WorkerError>
+where
+    W: AsyncWrite + Unpin,
+{
+    let audit_event = AuditEvent {
+        event_id: make_event_id(),
+        trace_id: "python-sdk".to_string(),
+        span_id: "ffi-send-event".to_string(),
+        decision: Decision::Allow as i32,
+        labels: std::collections::HashMap::from([(String::from("payload_json"), event.payload_json.clone())]),
+        ..Default::default()
+    };
+    let payload = audit_event.encode_to_vec();
+    write_frame(writer, TAG_EVENT_REPORT, &payload).await
+}
+
+async fn process_policy_query<R, W>(
+    reader: &mut R,
+    writer: &mut W,
+    action_json: String,
+    timeout_ms: u64,
+) -> Result<PolicyResultPayload, WorkerError>
+where
+    R: AsyncRead + Unpin,
+    W: AsyncWrite + Unpin,
+{
+    let request = CheckActionRequest {
+        trace_id: action_json,
+        span_id: "ffi-query-policy".to_string(),
+        ..Default::default()
+    };
+    let payload = request.encode_to_vec();
+    write_frame(writer, TAG_POLICY_QUERY, &payload).await?;
+
+    let response = time::timeout(
+        Duration::from_millis(timeout_ms),
+        read_runtime_response(reader),
+    )
+    .await
+    .map_err(|_| WorkerError::Timeout)?
+    .map_err(|error| WorkerError::Transport(error))?;
+
+    match response {
+        RuntimeResponse::PolicyResponse(bytes) => {
+            let policy = CheckActionResponse::decode(bytes.as_slice())
+                .map_err(|error| WorkerError::Decode(error.to_string()))?;
+            let allowed = matches!(policy.decision, x if x == Decision::Allow as i32 || x == Decision::Redact as i32);
+            Ok(PolicyResultPayload {
+                allowed,
+                reason: policy.reason,
+            })
+        }
+        RuntimeResponse::Ack => Err(WorkerError::Transport(
+            "runtime returned ACK instead of policy response".to_string(),
+        )),
+        RuntimeResponse::Unknown(tag, _) => Err(WorkerError::Transport(format!(
+            "runtime returned unexpected tag {tag} for policy query"
+        ))),
+    }
+}
+
+fn map_worker_error_to_py(error: WorkerError) -> PyErr {
+    match error {
+        WorkerError::Timeout => PolicyTimeoutError::new_err("policy query timed out"),
+        WorkerError::Disconnected => PyRuntimeError::new_err("policy worker disconnected"),
+        WorkerError::Transport(message) | WorkerError::Decode(message) => PyRuntimeError::new_err(message),
+    }
+}
+
+fn ensure_client_open(closed: &AtomicBool, last_error: &Mutex<Option<String>>) -> PyResult<()> {
+    if !closed.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+
+    if let Ok(guard) = last_error.lock() {
+        if let Some(message) = guard.as_ref() {
+            return Err(PyRuntimeError::new_err(message.clone()));
+        }
+    }
+
+    Err(PyRuntimeError::new_err("runtime client is closed"))
 }
 
 fn extract_timeout_ms(action: &PyAny) -> u64 {
@@ -194,49 +367,146 @@ fn serialize_action_to_json(py: Python<'_>, action: &PyAny) -> PyResult<String> 
     dumped.extract::<String>()
 }
 
-struct PolicyEvaluation {
-    result: PolicyResultPayload,
-    delay_ms: u64,
-}
-
-fn evaluate_policy_action(action_json: &str) -> PolicyEvaluation {
-    let parsed: Value = serde_json::from_str(action_json).unwrap_or(Value::Null);
-    let delay_ms = parsed
-        .as_object()
-        .and_then(|obj| obj.get("delay_ms"))
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
-    let deny_flag = parsed
-        .as_object()
-        .and_then(|obj| obj.get("deny"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    if deny_flag {
-        return PolicyEvaluation {
-            result: PolicyResultPayload {
-                allowed: false,
-                reason: "Denied by local policy rule.".to_string(),
-            },
-            delay_ms,
-        };
-    }
-    PolicyEvaluation {
-        result: PolicyResultPayload {
-            allowed: true,
-            reason: String::new(),
-        },
-        delay_ms,
+fn set_worker_error(last_error: &Mutex<Option<String>>, message: String) {
+    if let Ok(mut guard) = last_error.lock() {
+        *guard = Some(message);
     }
 }
 
-fn wait_for_policy_response(
+fn make_event_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    format!("py-{}-{}", now.as_secs(), now.subsec_nanos())
+}
+
+enum RuntimeResponse {
+    Ack,
+    PolicyResponse(Vec<u8>),
+    Unknown(u8, Vec<u8>),
+}
+
+async fn write_heartbeat<W>(writer: &mut W) -> Result<(), WorkerError>
+where
+    W: AsyncWrite + Unpin,
+{
+    writer
+        .write_u8(TAG_HEARTBEAT)
+        .await
+        .map_err(|error| WorkerError::Transport(error.to_string()))?;
+    writer
+        .flush()
+        .await
+        .map_err(|error| WorkerError::Transport(error.to_string()))
+}
+
+async fn write_frame<W>(writer: &mut W, tag: u8, payload: &[u8]) -> Result<(), WorkerError>
+where
+    W: AsyncWrite + Unpin,
+{
+    writer
+        .write_u8(tag)
+        .await
+        .map_err(|error| WorkerError::Transport(error.to_string()))?;
+    write_varint(writer, payload.len() as u64).await?;
+    writer
+        .write_all(payload)
+        .await
+        .map_err(|error| WorkerError::Transport(error.to_string()))?;
+    writer
+        .flush()
+        .await
+        .map_err(|error| WorkerError::Transport(error.to_string()))
+}
+
+async fn read_runtime_response<R>(reader: &mut R) -> Result<RuntimeResponse, String>
+where
+    R: AsyncRead + Unpin,
+{
+    let tag = reader.read_u8().await.map_err(|error| error.to_string())?;
+    match tag {
+        TAG_ACK => {
+            let _ = read_length_delimited(reader).await?;
+            Ok(RuntimeResponse::Ack)
+        }
+        TAG_POLICY_RESPONSE => {
+            let payload = read_length_delimited(reader).await?;
+            Ok(RuntimeResponse::PolicyResponse(payload))
+        }
+        other => {
+            let payload = read_length_delimited(reader).await?;
+            Ok(RuntimeResponse::Unknown(other, payload))
+        }
+    }
+}
+
+async fn read_length_delimited<R>(reader: &mut R) -> Result<Vec<u8>, String>
+where
+    R: AsyncRead + Unpin,
+{
+    let len = read_varint(reader).await? as usize;
+    let mut payload = vec![0u8; len];
+    reader
+        .read_exact(&mut payload)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(payload)
+}
+
+async fn read_varint<R>(reader: &mut R) -> Result<u64, String>
+where
+    R: AsyncRead + Unpin,
+{
+    let mut result: u64 = 0;
+    let mut shift = 0u32;
+    loop {
+        let byte = reader.read_u8().await.map_err(|error| error.to_string())?;
+        result |= ((byte & 0x7F) as u64) << shift;
+        if byte & 0x80 == 0 {
+            break;
+        }
+        shift += 7;
+        if shift >= 64 {
+            return Err("varint too long".to_string());
+        }
+    }
+    Ok(result)
+}
+
+async fn write_varint<W>(writer: &mut W, mut value: u64) -> Result<(), WorkerError>
+where
+    W: AsyncWrite + Unpin,
+{
+    loop {
+        let byte = (value & 0x7F) as u8;
+        value >>= 7;
+        if value == 0 {
+            writer
+                .write_u8(byte)
+                .await
+                .map_err(|error| WorkerError::Transport(error.to_string()))?;
+            break;
+        }
+
+        writer
+            .write_u8(byte | 0x80)
+            .await
+            .map_err(|error| WorkerError::Transport(error.to_string()))?;
+    }
+
+    Ok(())
+}
+
+fn wait_for_worker_response(
     timeout_ms: u64,
-    response_rx: oneshot::Receiver<PolicyResultPayload>,
-) -> Result<PolicyResultPayload, PolicyWaitError> {
+    response_rx: oneshot::Receiver<Result<PolicyResultPayload, WorkerError>>,
+) -> Result<Result<PolicyResultPayload, WorkerError>, WorkerWaitError> {
     TOKIO_RUNTIME
         .block_on(async move { time::timeout(Duration::from_millis(timeout_ms), response_rx).await })
-        .map_err(|_| PolicyWaitError::Timeout)?
-        .map_err(|_| PolicyWaitError::Disconnected)
+        .map_err(|_| WorkerWaitError::Timeout)?
+        .map_err(|_| WorkerWaitError::Disconnected)
 }
 
 #[pymodule]

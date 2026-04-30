@@ -22,7 +22,9 @@ def test_maturin_develop_exposes_runtime_client() -> None:
         "rust/aa-ffi-python/Cargo.toml",
         "--release",
     ]
-    subprocess.run(command, check=True)
+    env = os.environ.copy()
+    env.setdefault("PYO3_USE_ABI3_FORWARD_COMPATIBILITY", "1")
+    subprocess.run(command, check=True, env=env)
 
     from agent_assembly._core import RuntimeClient
 
