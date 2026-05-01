@@ -7,6 +7,7 @@ from agent_assembly.cli.adapter_validator import (
     _check_abstract_methods_implemented,
     _check_framework_name,
     _check_inherits_framework_adapter,
+    _check_supported_versions,
 )
 from agent_assembly.adapters.base import FrameworkAdapter
 
@@ -94,3 +95,27 @@ class TestCheckFrameworkName:
 
         result = _check_framework_name(WhitespaceAdapter())
         assert result.passed is False
+
+
+class TestCheckSupportedVersions:
+    """Tests for _check_supported_versions."""
+
+    def test_valid_list_passes(self, valid_adapter_cls: type) -> None:
+        result = _check_supported_versions(valid_adapter_cls())
+        assert result.passed is True
+
+    def test_empty_list_fails(self, empty_versions_adapter_cls: type) -> None:
+        result = _check_supported_versions(empty_versions_adapter_cls())
+        assert result.passed is False
+        assert "non-empty list" in result.message
+
+    def test_empty_string_in_list_fails(self) -> None:
+        from test.unit.cli.conftest import ValidAdapter
+
+        class EmptyStringVersionAdapter(ValidAdapter):
+            def get_supported_versions(self) -> list[str]:
+                return [">=1.0.0", ""]
+
+        result = _check_supported_versions(EmptyStringVersionAdapter())
+        assert result.passed is False
+        assert "index 1" in result.message
