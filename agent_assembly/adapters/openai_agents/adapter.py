@@ -31,7 +31,10 @@ class OpenAIAgentsAdapter(FrameworkAdapter):
 
     def is_available(self) -> bool:
         """Check specifically for openai.agents module, not just openai base."""
-        return importlib.util.find_spec("openai.agents") is not None
+        try:
+            return importlib.util.find_spec("openai.agents") is not None
+        except (ModuleNotFoundError, ValueError):
+            return False
 
     def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
         self._patch = OpenAIAgentsPatch(
