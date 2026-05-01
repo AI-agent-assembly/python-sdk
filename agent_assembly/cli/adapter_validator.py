@@ -34,3 +34,30 @@ def _check_inherits_framework_adapter(cls: type) -> AdapterValidationResult:
         passed=False,
         message=f"Class {cls.__name__} does not inherit from FrameworkAdapter.",
     )
+
+
+_REQUIRED_ABSTRACT_METHODS = frozenset(
+    {
+        "get_framework_name",
+        "get_supported_versions",
+        "register_hooks",
+        "unregister_hooks",
+    }
+)
+
+
+def _check_abstract_methods_implemented(cls: type) -> AdapterValidationResult:
+    """Check that all 4 required abstract methods are concretely implemented."""
+    remaining = getattr(cls, "__abstractmethods__", frozenset())
+    missing = _REQUIRED_ABSTRACT_METHODS & remaining
+    if not missing:
+        return AdapterValidationResult(
+            check_name="abstract_methods_implemented",
+            passed=True,
+            message="All required abstract methods are implemented.",
+        )
+    return AdapterValidationResult(
+        check_name="abstract_methods_implemented",
+        passed=False,
+        message=f"Missing implementations: {', '.join(sorted(missing))}.",
+    )
