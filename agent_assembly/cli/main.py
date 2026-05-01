@@ -30,3 +30,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def _handle_adapter_validate(args: argparse.Namespace) -> int:
+    """Run adapter validation and return an exit code."""
+    from agent_assembly.cli.adapter_validator import load_adapter_class, validate_adapter
+    from agent_assembly.cli.output import format_results
+
+    try:
+        cls = load_adapter_class(args.path_or_module)
+    except (ImportError, FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    results = validate_adapter(cls, args.path_or_module)
+    print(format_results(results))
+
+    all_passed = all(r.passed for r in results)
+    return 0 if all_passed else 1
