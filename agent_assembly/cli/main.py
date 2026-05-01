@@ -14,6 +14,19 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    subparsers.add_parser("adapter", help="Adapter management commands")
+    adapter_parser = subparsers.add_parser(
+        "adapter", help="Adapter management commands"
+    )
+    adapter_subparsers = adapter_parser.add_subparsers(
+        dest="adapter_command", help="Adapter subcommands"
+    )
+
+    validate_parser = adapter_subparsers.add_parser(
+        "validate", help="Validate a community adapter against the FrameworkAdapter contract"
+    )
+    validate_parser.add_argument(
+        "path_or_module",
+        help="File path or dotted module name of the adapter to validate",
+    )
 
     return parser
