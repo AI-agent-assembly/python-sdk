@@ -61,6 +61,22 @@ patches intercept framework calls and route them through the `GatewayClient` (or
 (`RuntimeClient`) is available, it provides the IPC transport; otherwise the
 `GatewayClient` uses HTTP.
 
+## Integration Path Status
+
+Each adapter's end-to-end path: framework → adapter → patch → interceptor → gateway.
+
+| Adapter | Patch | Hook interception | Gateway integration | Integration test |
+|---|---|---|---|---|
+| LangChain | `LangChainPatch` | `AssemblyCallbackHandler` (sync + async) | via callback handler → `GatewayClient` | `test_langchain_mcp_coexistence_integration` |
+| LangGraph | `LangGraphPatch` | `StateGraph.compile()` node wrapping | via LangChain callback handler | `test_langgraph_compile_patch_*` |
+| CrewAI | `CrewAIPatch` | `Crew._execute_tasks()` wrapping | direct `interceptor.check_tool()` | `test_crewai_two_task_flow_*` |
+| Pydantic AI | `PydanticAIPatch` | `Tool.run()` + model wrapper | direct `interceptor.check_tool()` | `test_pydantic_ai_two_tool_flow_*` |
+| OpenAI Agents | `OpenAIAgentsPatch` | `FunctionTool.__call__()` wrapping | direct `interceptor.check_tool()` | `test_direct_openai_agents_functiontool_*` |
+| MCP | `MCPClientPatch` | `ClientSession.call_tool()` wrapping | direct `interceptor.check_tool()` | `test_direct_mcp_clientsession_*` |
+
+All six adapters are fully wired through the `FrameworkAdapter` → `RuntimePatch` →
+interceptor path. No adapter bypasses the registry or uses a parallel detection path.
+
 ## Consequences
 
 - No `hooks.rs`, `detect.rs`, or Rust-side `install()/uninstall()` will be built.
