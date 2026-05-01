@@ -11,6 +11,7 @@ from agent_assembly.cli.adapter_validator import (
     _check_supported_versions,
     _check_entry_point_metadata,
     _check_unregister_hooks_idempotent,
+    validate_adapter,
 )
 from agent_assembly.adapters.base import FrameworkAdapter
 
@@ -197,3 +198,32 @@ class TestCheckEntryPointMetadata:
         result = _check_entry_point_metadata(valid_adapter_cls, str(tmp_path))
         assert result.passed is True
         assert "skipping" in result.message.lower()
+
+
+class TestValidateAdapter:
+    """Tests for validate_adapter orchestrator."""
+
+    def test_all_pass_for_valid_adapter(self, valid_adapter_cls: type) -> None:
+        results = validate_adapter(valid_adapter_cls, "test.module")
+        assert all(r.passed for r in results)
+
+    def test_mixed_fail_for_empty_name(
+        self, empty_name_adapter_cls: type
+    ) -> None:
+        results = validate_adapter(empty_name_adapter_cls, "test.module")
+        failed = [r for r in results if not r.passed]
+        assert len(failed) >= 1
+        assert any(r.check_name == "framework_name" for r in failed)
+
+    def test_short_circuits_on_inheritance_failure(
+        self, not_an_adapter_cls: type
+    ) -> None:
+        results = validate_adapter(not_an_adapter_cls, "test.module")
+        assert len(results) == 2
+        assert not results[0].passed
+
+    def test_result_count_for_valid_adapter(
+        self, valid_adapter_cls: type
+    ) -> None:
+        results = validate_adapter(valid_adapter_cls, "test.module")
+        assert len(results) == 7
