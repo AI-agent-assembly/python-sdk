@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
+from agent_assembly.adapters.base import FrameworkAdapter
 from agent_assembly.cli.adapter_validator import (
     AdapterValidationResult,
     _check_abstract_methods_implemented,
+    _check_entry_point_metadata,
     _check_framework_name,
     _check_inherits_framework_adapter,
     _check_register_hooks_signature,
     _check_supported_versions,
-    _check_entry_point_metadata,
     _check_unregister_hooks_idempotent,
     validate_adapter,
 )
-from agent_assembly.adapters.base import FrameworkAdapter
 
 
 class TestAdapterValidationResult:

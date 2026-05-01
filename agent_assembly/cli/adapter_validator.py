@@ -5,10 +5,11 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import inspect
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+import tomllib
 
 if TYPE_CHECKING:
     pass
@@ -52,7 +53,7 @@ _REQUIRED_ABSTRACT_METHODS = frozenset(
 
 def _check_abstract_methods_implemented(cls: type) -> AdapterValidationResult:
     """Check that all 4 required abstract methods are concretely implemented."""
-    remaining = getattr(cls, "__abstractmethods__", frozenset())
+    remaining: frozenset[str] = getattr(cls, "__abstractmethods__", frozenset())
     missing = _REQUIRED_ABSTRACT_METHODS & remaining
     if not missing:
         return AdapterValidationResult(
@@ -122,7 +123,8 @@ def _check_supported_versions(instance: FrameworkAdapter) -> AdapterValidationRe
 
 def _check_register_hooks_signature(cls: type) -> AdapterValidationResult:
     """Check that register_hooks accepts a GovernanceInterceptor argument."""
-    sig = inspect.signature(cls.register_hooks)
+    register_hooks = getattr(cls, "register_hooks")
+    sig = inspect.signature(register_hooks)
     params = [p for name, p in sig.parameters.items() if name != "self"]
     if not params:
         return AdapterValidationResult(
