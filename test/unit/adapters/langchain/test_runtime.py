@@ -33,10 +33,16 @@ def test_auto_inject_callback_handler_is_idempotent() -> None:
 def test_init_assembly_auto_injects_callback_handler(monkeypatch) -> None:
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
+
+    def fake_register_adapters(**kwargs):  # type: ignore[no-untyped-def]
+        auto_inject_callback_handler(kwargs["client"])
+        return []
+
+    monkeypatch.setattr(core_assembly, "_register_adapters", fake_register_adapters)
     monkeypatch.setattr(
         core_assembly,
-        "_is_installed",
-        lambda package: package == "langchain",
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
     )
 
     context = init_assembly(
@@ -53,10 +59,16 @@ def test_init_assembly_auto_injects_callback_handler(monkeypatch) -> None:
 def test_init_assembly_reuses_existing_callback_handler(monkeypatch) -> None:
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
+
+    def fake_register_adapters(**kwargs):  # type: ignore[no-untyped-def]
+        auto_inject_callback_handler(kwargs["client"])
+        return []
+
+    monkeypatch.setattr(core_assembly, "_register_adapters", fake_register_adapters)
     monkeypatch.setattr(
         core_assembly,
-        "_is_installed",
-        lambda package: package == "langchain",
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
     )
 
     first_context = init_assembly(
