@@ -5,6 +5,7 @@ from __future__ import annotations
 from agent_assembly.cli.adapter_validator import (
     AdapterValidationResult,
     _check_abstract_methods_implemented,
+    _check_framework_name,
     _check_inherits_framework_adapter,
 )
 from agent_assembly.adapters.base import FrameworkAdapter
@@ -69,3 +70,27 @@ class TestCheckAbstractMethodsImplemented:
         assert result.passed is False
         assert "register_hooks" in result.message
         assert "unregister_hooks" in result.message
+
+
+class TestCheckFrameworkName:
+    """Tests for _check_framework_name."""
+
+    def test_non_empty_name_passes(self, valid_adapter_cls: type) -> None:
+        result = _check_framework_name(valid_adapter_cls())
+        assert result.passed is True
+        assert "test_framework" in result.message
+
+    def test_empty_name_fails(self, empty_name_adapter_cls: type) -> None:
+        result = _check_framework_name(empty_name_adapter_cls())
+        assert result.passed is False
+        assert "non-empty string" in result.message
+
+    def test_whitespace_name_fails(self) -> None:
+        from test.unit.cli.conftest import ValidAdapter
+
+        class WhitespaceAdapter(ValidAdapter):
+            def get_framework_name(self) -> str:
+                return "   "
+
+        result = _check_framework_name(WhitespaceAdapter())
+        assert result.passed is False
