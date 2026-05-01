@@ -265,9 +265,8 @@ def test_auto_detect_uses_resilient_noop_interceptor(
     assert adapter.hook_registered is True
 
 
-def test_builtin_registry_name_uses_pydantic_ai_label_with_python_import_name() -> None:
+def test_builtin_registry_keys_match_adapter_framework_name() -> None:
     registry = AdapterRegistry()
 
-    assert "pydantic-ai" in registry._registered
-    assert "pydantic_ai" not in registry._registered
-    assert registry._registered["pydantic-ai"].get_framework_name() == "pydantic_ai"
+    assert "pydantic_ai" in registry._registered
+    assert registry._registered["pydantic_ai"].get_framework_name() == "pydantic_ai"
