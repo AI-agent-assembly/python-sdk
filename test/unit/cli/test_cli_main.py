@@ -20,3 +20,22 @@ class TestCliMainExitCodeZero:
             with pytest.raises(SystemExit) as exc_info:
                 main()
             assert exc_info.value.code == 0
+
+
+class TestCliMainExitCodeOne:
+    """Tests for CLI main returning exit code 1."""
+
+    def test_nonexistent_module_exits_one(self) -> None:
+        with mock.patch(
+            "sys.argv",
+            ["aasm", "adapter", "validate", "nonexistent.module"],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+            assert exc_info.value.code == 1
+
+    def test_no_command_exits_one(self) -> None:
+        with mock.patch("sys.argv", ["aasm"]):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+            assert exc_info.value.code == 1
