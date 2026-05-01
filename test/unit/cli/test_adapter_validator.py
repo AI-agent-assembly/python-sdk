@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from agent_assembly.cli.adapter_validator import (
     AdapterValidationResult,
+    _check_abstract_methods_implemented,
     _check_inherits_framework_adapter,
 )
+from agent_assembly.adapters.base import FrameworkAdapter
 
 
 class TestAdapterValidationResult:
@@ -46,3 +48,24 @@ class TestCheckInheritsFrameworkAdapter:
         result = _check_inherits_framework_adapter(not_an_adapter_cls)
         assert result.passed is False
         assert "does not inherit" in result.message
+
+
+class TestCheckAbstractMethodsImplemented:
+    """Tests for _check_abstract_methods_implemented."""
+
+    def test_all_methods_concrete_passes(self, valid_adapter_cls: type) -> None:
+        result = _check_abstract_methods_implemented(valid_adapter_cls)
+        assert result.passed is True
+
+    def test_missing_method_fails(self) -> None:
+        class PartialAdapter(FrameworkAdapter):
+            def get_framework_name(self) -> str:
+                return "test"
+
+            def get_supported_versions(self) -> list[str]:
+                return [">=1.0.0"]
+
+        result = _check_abstract_methods_implemented(PartialAdapter)
+        assert result.passed is False
+        assert "register_hooks" in result.message
+        assert "unregister_hooks" in result.message
