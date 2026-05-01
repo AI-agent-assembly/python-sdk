@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import inspect
+import tomllib
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -164,4 +166,62 @@ def _check_unregister_hooks_idempotent(
         check_name="unregister_hooks_idempotent",
         passed=True,
         message="unregister_hooks() is idempotent (two calls without error).",
+    )
+
+
+def _check_entry_point_metadata(
+    cls: type, path_or_module: str
+) -> AdapterValidationResult:
+    """Check entry point metadata in pyproject.toml if present at the given path."""
+    search_path = Path(path_or_module)
+    if search_path.is_file():
+        search_path = search_path.parent
+
+    pyproject_path = search_path / "pyproject.toml"
+    if not pyproject_path.is_file():
+        return AdapterValidationResult(
+            check_name="entry_point_metadata",
+            passed=True,
+            message="No pyproject.toml found; skipping entry point check.",
+        )
+
+    try:
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+    except Exception as exc:
+        return AdapterValidationResult(
+            check_name="entry_point_metadata",
+            passed=False,
+            message=f"Failed to parse pyproject.toml: {exc}",
+        )
+
+    entry_points = (
+        data.get("project", {}).get("entry-points", {}).get("agent_assembly.adapters", {})
+    )
+    if not entry_points:
+        return AdapterValidationResult(
+            check_name="entry_point_metadata",
+            passed=False,
+            message=(
+                "pyproject.toml missing [project.entry-points.\"agent_assembly.adapters\"] "
+                "section."
+            ),
+        )
+
+    class_qualname = f"{cls.__module__}:{cls.__qualname__}"
+    for ep_name, ep_value in entry_points.items():
+        if ep_value == class_qualname:
+            return AdapterValidationResult(
+                check_name="entry_point_metadata",
+                passed=True,
+                message=f"Entry point '{ep_name}' correctly references {class_qualname}.",
+            )
+
+    return AdapterValidationResult(
+        check_name="entry_point_metadata",
+        passed=False,
+        message=(
+            f"No entry point references {class_qualname}. "
+            f"Found: {entry_points}."
+        ),
     )
