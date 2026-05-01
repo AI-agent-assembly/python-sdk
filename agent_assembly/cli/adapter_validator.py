@@ -61,3 +61,26 @@ def _check_abstract_methods_implemented(cls: type) -> AdapterValidationResult:
         passed=False,
         message=f"Missing implementations: {', '.join(sorted(missing))}.",
     )
+
+
+def _check_framework_name(instance: FrameworkAdapter) -> AdapterValidationResult:
+    """Check that get_framework_name() returns a non-empty string."""
+    try:
+        name = instance.get_framework_name()
+    except Exception as exc:
+        return AdapterValidationResult(
+            check_name="framework_name",
+            passed=False,
+            message=f"get_framework_name() raised {type(exc).__name__}: {exc}",
+        )
+    if isinstance(name, str) and name.strip():
+        return AdapterValidationResult(
+            check_name="framework_name",
+            passed=True,
+            message=f"Framework name: '{name}'.",
+        )
+    return AdapterValidationResult(
+        check_name="framework_name",
+        passed=False,
+        message="get_framework_name() must return a non-empty string.",
+    )
