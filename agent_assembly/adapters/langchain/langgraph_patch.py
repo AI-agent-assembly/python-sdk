@@ -1,5 +1,7 @@
 """Backward-compatible shim for LangGraph patch utilities."""
 
+import importlib  # noqa: F401 — re-exported for monkeypatch targets in tests
+
 from agent_assembly.adapters.langgraph import patch as _impl
 
 LangGraphPatch = _impl.LangGraphPatch
