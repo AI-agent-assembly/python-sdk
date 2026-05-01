@@ -48,3 +48,15 @@ def _handle_adapter_validate(args: argparse.Namespace) -> int:
 
     all_passed = all(r.passed for r in results)
     return 0 if all_passed else 1
+
+
+def main() -> None:
+    """Parse CLI arguments and dispatch to the appropriate handler."""
+    parser = _build_parser()
+    args = parser.parse_args()
+
+    if args.command == "adapter" and getattr(args, "adapter_command", None) == "validate":
+        sys.exit(_handle_adapter_validate(args))
+    else:
+        parser.print_help()
+        sys.exit(1)
