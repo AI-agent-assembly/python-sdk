@@ -16,8 +16,33 @@ class GovernanceInterceptor(Protocol):
 class FrameworkAdapter(ABC):
     """Abstract contract implemented by every framework adapter.
 
-    Adapters should be registered through `register()` so contract validation
-    errors are raised before framework hooks are attached.
+    This is the **public adapter API** — the interface that SDK users and
+    third-party plugin authors interact with.  Each concrete adapter represents
+    one AI framework (e.g. LangChain, CrewAI) and knows how to install
+    governance hooks for that framework.
+
+    The two key lifecycle methods are:
+
+    - ``register_hooks(interceptor)`` — install framework-specific
+      monkey-patches that route intercepted calls through the governance
+      interceptor.  Internally, each adapter delegates to one or more
+      ``RuntimePatch`` instances whose ``apply()`` method performs the
+      actual monkey-patching.
+
+    - ``unregister_hooks()`` — tear down all patches installed by this
+      adapter, delegating to each patch's ``revert()`` method.
+
+    Adapters are discovered and activated by ``AdapterRegistry.auto_detect()``
+    which is the single detection path used by ``init_assembly()``.
+
+    Adapters should be registered through ``register()`` so contract
+    validation errors are raised before framework hooks are attached.
+
+    See Also:
+        ``RuntimePatch`` in ``core/assembly.py`` — the internal
+        monkey-patch protocol with ``apply()`` / ``revert()`` methods.
+        ADR-0001 (``docs/adr/0001-hook-architecture.md``) for the full
+        architecture rationale.
     """
 
     @abstractmethod
