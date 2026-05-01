@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import inspect
 import tomllib
 from dataclasses import dataclass
@@ -248,3 +250,27 @@ def validate_adapter(
     results.append(_check_entry_point_metadata(cls, path_or_module))
 
     return results
+
+
+def _find_adapter_class_in_module(module: object) -> type | None:
+    """Scan a module for the first FrameworkAdapter subclass."""
+    for _name, obj in inspect.getmembers(module, inspect.isclass):
+        if obj is not FrameworkAdapter and issubclass(obj, FrameworkAdapter):
+            return obj
+    return None
+
+
+def load_adapter_class_from_module(module_name: str) -> type:
+    """Load an adapter class from a dotted module name.
+
+    Raises:
+        ImportError: If the module cannot be imported.
+        ValueError: If no FrameworkAdapter subclass is found in the module.
+    """
+    module = importlib.import_module(module_name)
+    cls = _find_adapter_class_in_module(module)
+    if cls is None:
+        raise ValueError(
+            f"No FrameworkAdapter subclass found in module '{module_name}'."
+        )
+    return cls
