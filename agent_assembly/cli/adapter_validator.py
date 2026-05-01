@@ -114,3 +114,31 @@ def _check_supported_versions(instance: FrameworkAdapter) -> AdapterValidationRe
         passed=True,
         message=f"Supported versions: {versions}.",
     )
+
+
+def _check_register_hooks_signature(cls: type) -> AdapterValidationResult:
+    """Check that register_hooks accepts a GovernanceInterceptor argument."""
+    sig = inspect.signature(cls.register_hooks)
+    params = [p for name, p in sig.parameters.items() if name != "self"]
+    if not params:
+        return AdapterValidationResult(
+            check_name="register_hooks_signature",
+            passed=False,
+            message="register_hooks() must accept an interceptor argument.",
+        )
+    first_param = params[0]
+    annotation = first_param.annotation
+    if annotation is inspect.Parameter.empty or annotation is GovernanceInterceptor:
+        return AdapterValidationResult(
+            check_name="register_hooks_signature",
+            passed=True,
+            message="register_hooks() accepts an interceptor argument.",
+        )
+    return AdapterValidationResult(
+        check_name="register_hooks_signature",
+        passed=False,
+        message=(
+            f"register_hooks() first parameter annotated as {annotation}, "
+            f"expected GovernanceInterceptor."
+        ),
+    )
