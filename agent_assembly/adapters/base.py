@@ -136,6 +136,16 @@ class FrameworkAdapter(ABC):
 
         return True
 
+    def set_process_agent_id(self, agent_id: str | None) -> None:
+        """Set the process-level agent ID for governance event attribution.
+
+        Adapters that need an agent ID (e.g. LangChain, OpenAI Agents, MCP)
+        override ``process_agent_id`` as a property.  This base method is
+        a no-op for adapters that do not use an agent ID.
+        """
+        if hasattr(self, "process_agent_id"):
+            self.process_agent_id = agent_id  # type: ignore[attr-defined]
+
     def get_active_version(self) -> str | None:
         """Return framework `__version__` when present, otherwise `None`.
 
