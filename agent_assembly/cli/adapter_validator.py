@@ -10,3 +10,12 @@ if TYPE_CHECKING:
     pass
 
 from agent_assembly.adapters.base import FrameworkAdapter, GovernanceInterceptor
+
+
+@dataclass(frozen=True, slots=True)
+class AdapterValidationResult:
+    """Result of a single adapter contract check."""
+
+    check_name: str
+    passed: bool
+    message: str
