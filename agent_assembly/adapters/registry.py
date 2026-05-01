@@ -6,6 +6,10 @@ from threading import Lock
 from typing import Callable, Literal
 
 from agent_assembly.adapters.base import FrameworkAdapter
+from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
+from agent_assembly.adapters.langchain.adapter import LangChainAdapter
+from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
+from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,24 +18,6 @@ class AdapterInfo:
     version: str
     status: Literal["active", "error"]
     hooks_registered: int
-
-
-class _BuiltinPlaceholderAdapter(FrameworkAdapter):
-    def __init__(self, framework_name: str, import_name: str | None = None) -> None:
-        self._framework_name = framework_name
-        self._import_name = import_name or framework_name
-
-    def get_framework_name(self) -> str:
-        return self._import_name
-
-    def get_supported_versions(self) -> list[str]:
-        return [">=0.0.0"]
-
-    def register_hooks(self, interceptor: object) -> None:
-        return None
-
-    def unregister_hooks(self) -> None:
-        return None
 
 
 def _noop_interceptor_method(*args: object, **kwargs: object) -> None:
@@ -55,17 +41,14 @@ class AdapterRegistry:
         self._active: dict[str, FrameworkAdapter] = {}
         self._errors: dict[str, str] = {}
         self._discovered_entry_points: set[str] = set()
-        builtin_frameworks = [
-            ("langchain", "langchain"),
-            ("langgraph", "langgraph"),
-            ("crewai", "crewai"),
-            ("pydantic-ai", "pydantic_ai"),
+        builtin_adapters: list[FrameworkAdapter] = [
+            LangChainAdapter(),
+            LangGraphAdapter(),
+            CrewAIAdapter(),
+            PydanticAIAdapter(),
         ]
-        for registry_name, import_name in builtin_frameworks:
-            self._registered[registry_name] = _BuiltinPlaceholderAdapter(
-                framework_name=registry_name,
-                import_name=import_name,
-            )
+        for adapter in builtin_adapters:
+            self._registered[adapter.get_framework_name()] = adapter
 
     def register(self, adapter: FrameworkAdapter) -> None:
         adapter_name = adapter.get_framework_name()
