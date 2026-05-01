@@ -13,21 +13,17 @@ from typing import Any
 
 import pytest
 
-from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
 from agent_assembly.adapters.crewai import patch as crewai_patch_mod
+from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
 from agent_assembly.adapters.langchain.adapter import LangChainAdapter
-from agent_assembly.adapters.langchain import runtime as langchain_runtime
-from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
 from agent_assembly.adapters.langgraph import patch as langgraph_patch_mod
-from agent_assembly.adapters.mcp.adapter import MCPAdapter
+from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
 from agent_assembly.adapters.mcp import patch as mcp_patch_mod
-from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
+from agent_assembly.adapters.mcp.adapter import MCPAdapter
 from agent_assembly.adapters.openai_agents import patch as openai_patch_mod
-from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
+from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
 from agent_assembly.adapters.pydantic_ai import patch as pydantic_ai_patch_mod
-
-from test.bench.conftest import MAX_PER_CALL_NS
-
+from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
 
 # ---------------------------------------------------------------------------
 # Fake framework classes used to satisfy adapter loader checks

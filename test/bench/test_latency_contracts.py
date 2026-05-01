@@ -11,28 +11,26 @@ Contracts:
 
 from __future__ import annotations
 
-import statistics
 import time
+from test.bench.conftest import MAX_DETECTION_NS, MAX_PER_CALL_NS
 from typing import Any
 
 import pytest
 
-from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
-from agent_assembly.adapters.crewai import patch as crewai_patch_mod
-from agent_assembly.adapters.langchain.adapter import LangChainAdapter
-from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
-from agent_assembly.adapters.langgraph import patch as langgraph_patch_mod
-from agent_assembly.adapters.mcp.adapter import MCPAdapter
-from agent_assembly.adapters.mcp import patch as mcp_patch_mod
-from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
-from agent_assembly.adapters.openai_agents import patch as openai_patch_mod
-from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
-from agent_assembly.adapters.pydantic_ai import patch as pydantic_ai_patch_mod
-from agent_assembly.adapters.registry import AdapterRegistry
 import agent_assembly.core.assembly as assembly_mod
+from agent_assembly.adapters.crewai import patch as crewai_patch_mod
+from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
+from agent_assembly.adapters.langchain.adapter import LangChainAdapter
+from agent_assembly.adapters.langgraph import patch as langgraph_patch_mod
+from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
+from agent_assembly.adapters.mcp import patch as mcp_patch_mod
+from agent_assembly.adapters.mcp.adapter import MCPAdapter
+from agent_assembly.adapters.openai_agents import patch as openai_patch_mod
+from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
+from agent_assembly.adapters.pydantic_ai import patch as pydantic_ai_patch_mod
+from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
+from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.core.assembly import init_assembly
-
-from test.bench.conftest import MAX_PER_CALL_NS, MAX_DETECTION_NS
 
 _ITERATIONS = 100
 

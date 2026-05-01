@@ -10,13 +10,10 @@ Contract: detection must complete in <50ms P99 (AAASM-47).
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
 from agent_assembly.adapters.registry import AdapterRegistry
-
-from test.bench.conftest import MAX_DETECTION_NS
 
 
 def _make_registry_with_n_available(n: int) -> AdapterRegistry:

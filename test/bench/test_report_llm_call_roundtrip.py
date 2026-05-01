@@ -25,15 +25,17 @@ def test_governance_event_construction(benchmark: Any) -> None:
         reason="native _core module not built (requires maturin develop)",
     )
 
-    payload = json.dumps({
-        "event_type": "LlmCall",
-        "agent_id": "bench-agent",
-        "tool_name": "bench-tool",
-        "input": "benchmark input",
-        "output": "benchmark output",
-        "timestamp": "2026-01-01T00:00:00Z",
-        "duration_ms": 100,
-    })
+    payload = json.dumps(
+        {
+            "event_type": "LlmCall",
+            "agent_id": "bench-agent",
+            "tool_name": "bench-tool",
+            "input": "benchmark input",
+            "output": "benchmark output",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "duration_ms": 100,
+        }
+    )
 
     def construct() -> Any:
         return _core.GovernanceEvent(payload)
@@ -55,15 +57,17 @@ def test_send_event_enqueue(benchmark: Any) -> None:
         reason="native _core module not built (requires maturin develop)",
     )
 
-    payload = json.dumps({
-        "event_type": "LlmCall",
-        "agent_id": "bench-agent",
-        "tool_name": "bench-tool",
-        "input": "benchmark input",
-        "output": "benchmark output",
-        "timestamp": "2026-01-01T00:00:00Z",
-        "duration_ms": 100,
-    })
+    payload = json.dumps(
+        {
+            "event_type": "LlmCall",
+            "agent_id": "bench-agent",
+            "tool_name": "bench-tool",
+            "input": "benchmark input",
+            "output": "benchmark output",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "duration_ms": 100,
+        }
+    )
     event = _core.GovernanceEvent(payload)
 
     # connect() spawns a background worker; send_event() enqueues to the
