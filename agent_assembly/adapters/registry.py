@@ -14,6 +14,21 @@ from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
 from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
 
 
+# LangChain must be first: its callback handler threads through to all
+# subsequent adapters.  MCP must be last: it acts as a fallback for
+# remaining tool dispatch paths.
+_ADAPTER_PRIORITY: dict[str, int] = {
+    "langchain": 0,
+    "langgraph": 1,
+    "crewai": 2,
+    "pydantic_ai": 3,
+    "openai": 4,
+    "mcp": 99,
+}
+
+_DEFAULT_PRIORITY = 50
+
+
 @dataclass(frozen=True, slots=True)
 class AdapterInfo:
     name: str
@@ -103,6 +118,31 @@ class AdapterRegistry:
             )
 
         return sorted(result, key=lambda info: info.name)
+
+    def get_available_adapters_by_priority(self) -> list[FrameworkAdapter]:
+        """Return available adapters sorted by registration priority.
+
+        This method discovers entry-point adapters, checks availability,
+        and returns adapters in the order they should be registered by
+        ``init_assembly()``.  It does **not** call ``register_hooks()``
+        — that is the caller's responsibility.
+        """
+        self._discover_entry_point_adapters()
+
+        with self._lock:
+            registered_items = list(self._registered.items())
+
+        available: list[FrameworkAdapter] = []
+        for _name, adapter in registered_items:
+            if adapter.is_available():
+                available.append(adapter)
+
+        available.sort(
+            key=lambda a: _ADAPTER_PRIORITY.get(
+                a.get_framework_name(), _DEFAULT_PRIORITY
+            )
+        )
+        return available
 
     def _discover_entry_point_adapters(self) -> list[str]:
         discovered: list[str] = []
