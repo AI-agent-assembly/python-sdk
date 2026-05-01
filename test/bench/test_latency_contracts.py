@@ -166,7 +166,7 @@ def test_detection_latency_under_50ms() -> None:
         registry = AdapterRegistry()
         # Make all adapters unavailable for fast detection
         for adapter in registry._registered.values():
-            adapter.is_available = lambda: False  # type: ignore[assignment]
+            adapter.is_available = lambda: False  # type: ignore[method-assign]
 
         start = time.perf_counter_ns()
         registry.auto_detect()

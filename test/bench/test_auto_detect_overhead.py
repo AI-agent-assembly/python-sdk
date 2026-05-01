@@ -25,12 +25,12 @@ def _make_registry_with_n_available(n: int) -> AdapterRegistry:
     adapters = list(registry._registered.values())
     for i, adapter in enumerate(adapters):
         if i < n:
-            adapter.is_available = lambda: True  # type: ignore[assignment]
+            adapter.is_available = lambda: True  # type: ignore[method-assign]
             # Provide a no-op register_hooks so auto_detect() succeeds
-            adapter.register_hooks = lambda interceptor: None  # type: ignore[assignment]
-            adapter.unregister_hooks = lambda: None  # type: ignore[assignment]
+            adapter.register_hooks = lambda interceptor: None  # type: ignore[method-assign]
+            adapter.unregister_hooks = lambda: None  # type: ignore[method-assign]
         else:
-            adapter.is_available = lambda: False  # type: ignore[assignment]
+            adapter.is_available = lambda: False  # type: ignore[method-assign]
     return registry
 
 
