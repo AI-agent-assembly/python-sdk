@@ -9,6 +9,8 @@ from agent_assembly.adapters.base import FrameworkAdapter
 from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
 from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
+from agent_assembly.adapters.mcp.adapter import MCPAdapter
+from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
 from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
 
 
@@ -46,6 +48,8 @@ class AdapterRegistry:
             LangGraphAdapter(),
             CrewAIAdapter(),
             PydanticAIAdapter(),
+            OpenAIAgentsAdapter(),
+            MCPAdapter(),
         ]
         for adapter in builtin_adapters:
             self._registered[adapter.get_framework_name()] = adapter
