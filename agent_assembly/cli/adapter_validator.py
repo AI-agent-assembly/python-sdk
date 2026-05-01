@@ -19,3 +19,18 @@ class AdapterValidationResult:
     check_name: str
     passed: bool
     message: str
+
+
+def _check_inherits_framework_adapter(cls: type) -> AdapterValidationResult:
+    """Check that the class inherits from FrameworkAdapter."""
+    if issubclass(cls, FrameworkAdapter):
+        return AdapterValidationResult(
+            check_name="inherits_framework_adapter",
+            passed=True,
+            message="Class inherits from FrameworkAdapter.",
+        )
+    return AdapterValidationResult(
+        check_name="inherits_framework_adapter",
+        passed=False,
+        message=f"Class {cls.__name__} does not inherit from FrameworkAdapter.",
+    )
