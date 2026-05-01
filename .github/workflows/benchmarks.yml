@@ -1,0 +1,52 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches:
+      - "master"
+    paths:
+      - "agent_assembly/**/*.py"
+      - "test/bench/**/*.py"
+      - ".github/workflows/benchmarks.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+
+jobs:
+  benchmark:
+    name: Run performance benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run benchmark suite
+        run: |
+          uv run pytest test/bench/ \
+            --benchmark-only \
+            --benchmark-disable-gc \
+            --benchmark-json=benchmark-results.json \
+            -v
+
+      - name: Run latency contract tests
+        run: |
+          uv run pytest test/bench/test_latency_contracts.py \
+            --benchmark-disable \
+            -v
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+          retention-days: 30
