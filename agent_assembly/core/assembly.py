@@ -28,6 +28,23 @@ _ACTIVE_CONTEXT: AssemblyContext | None = None
 
 
 class RuntimePatch(Protocol):
+    """Internal monkey-patch mechanism used by framework adapters.
+
+    This is the **internal mechanism layer** — not intended for SDK users
+    or plugin authors.  Each ``RuntimePatch`` knows how to apply and
+    revert a single monkey-patch on a specific framework class or function.
+
+    A ``FrameworkAdapter``'s ``register_hooks()`` creates one or more
+    ``RuntimePatch`` instances and calls ``apply()`` on each.  The
+    adapter's ``unregister_hooks()`` calls ``revert()`` on each in
+    reverse order.
+
+    See Also:
+        ``FrameworkAdapter`` in ``adapters/base.py`` — the public adapter
+        API with ``register_hooks()`` / ``unregister_hooks()`` methods.
+        ADR-0001 (``docs/adr/0001-hook-architecture.md``).
+    """
+
     def apply(self) -> bool: ...
 
     def revert(self) -> None: ...
