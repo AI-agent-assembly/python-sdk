@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from agent_assembly.cli.adapter_validator import AdapterValidationResult
+from agent_assembly.cli.adapter_validator import (
+    AdapterValidationResult,
+    _check_inherits_framework_adapter,
+)
 
 
 class TestAdapterValidationResult:
@@ -29,3 +32,17 @@ class TestAdapterValidationResult:
         )
         with pytest.raises(AttributeError):
             result.passed = False  # type: ignore[misc]
+
+
+class TestCheckInheritsFrameworkAdapter:
+    """Tests for _check_inherits_framework_adapter."""
+
+    def test_valid_subclass_passes(self, valid_adapter_cls: type) -> None:
+        result = _check_inherits_framework_adapter(valid_adapter_cls)
+        assert result.passed is True
+        assert result.check_name == "inherits_framework_adapter"
+
+    def test_non_subclass_fails(self, not_an_adapter_cls: type) -> None:
+        result = _check_inherits_framework_adapter(not_an_adapter_cls)
+        assert result.passed is False
+        assert "does not inherit" in result.message
