@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from functools import wraps
 import importlib
 import inspect
+from dataclasses import dataclass
+from functools import wraps
 from typing import Any, Literal, Mapping
 
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
-from agent_assembly.adapters.crewai.patch import _normalize_decision as _normalize_governance_decision
+from agent_assembly.adapters.crewai.patch import (
+    _normalize_decision as _normalize_governance_decision,
+)
 
 _ORIGINAL_TOOL_RUN = "_agent_assembly_original_pydantic_ai_tool_run"
 _TOOLS_PATCHED_FLAG = "_agent_assembly_pydantic_ai_tools_patched"

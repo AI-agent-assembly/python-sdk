@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import importlib
+from abc import ABC, abstractmethod
 from typing import Protocol
 
 from agent_assembly.exceptions import AdapterValidationError
@@ -10,14 +10,37 @@ from agent_assembly.exceptions import AdapterValidationError
 class GovernanceInterceptor(Protocol):
     """Protocol implemented by governance interceptors used by adapters."""
 
-    pass
-
 
 class FrameworkAdapter(ABC):
     """Abstract contract implemented by every framework adapter.
 
-    Adapters should be registered through `register()` so contract validation
-    errors are raised before framework hooks are attached.
+    This is the **public adapter API** — the interface that SDK users and
+    third-party plugin authors interact with.  Each concrete adapter represents
+    one AI framework (e.g. LangChain, CrewAI) and knows how to install
+    governance hooks for that framework.
+
+    The two key lifecycle methods are:
+
+    - ``register_hooks(interceptor)`` — install framework-specific
+      monkey-patches that route intercepted calls through the governance
+      interceptor.  Internally, each adapter delegates to one or more
+      ``RuntimePatch`` instances whose ``apply()`` method performs the
+      actual monkey-patching.
+
+    - ``unregister_hooks()`` — tear down all patches installed by this
+      adapter, delegating to each patch's ``revert()`` method.
+
+    Adapters are discovered and activated by ``AdapterRegistry.auto_detect()``
+    which is the single detection path used by ``init_assembly()``.
+
+    Adapters should be registered through ``register()`` so contract
+    validation errors are raised before framework hooks are attached.
+
+    See Also:
+        ``RuntimePatch`` in ``core/assembly.py`` — the internal
+        monkey-patch protocol with ``apply()`` / ``revert()`` methods.
+        ADR-0001 (``docs/adr/0001-hook-architecture.md``) for the full
+        architecture rationale.
     """
 
     @abstractmethod
@@ -72,21 +95,15 @@ class FrameworkAdapter(ABC):
         """
         framework_name = self.get_framework_name()
         if not framework_name.strip():
-            raise AdapterValidationError(
-                "Adapter contract invalid: framework name must be non-empty."
-            )
+            raise AdapterValidationError("Adapter contract invalid: framework name must be non-empty.")
 
         supported_versions = self.get_supported_versions()
         if not supported_versions:
-            raise AdapterValidationError(
-                "Adapter contract invalid: supported versions must not be empty."
-            )
+            raise AdapterValidationError("Adapter contract invalid: supported versions must not be empty.")
 
         for version_range in supported_versions:
             if not version_range.strip():
-                raise AdapterValidationError(
-                    "Adapter contract invalid: version ranges must be non-empty strings."
-                )
+                raise AdapterValidationError("Adapter contract invalid: version ranges must be non-empty strings.")
 
     def register(self, interceptor: GovernanceInterceptor) -> None:
         """Validate contract values and then attach framework hooks.
@@ -110,6 +127,16 @@ class FrameworkAdapter(ABC):
             return False
 
         return True
+
+    def set_process_agent_id(self, agent_id: str | None) -> None:
+        """Set the process-level agent ID for governance event attribution.
+
+        Adapters that need an agent ID (e.g. LangChain, OpenAI Agents, MCP)
+        override ``process_agent_id`` as a property.  This base method is
+        a no-op for adapters that do not use an agent ID.
+        """
+        if hasattr(self, "process_agent_id"):
+            self.process_agent_id = agent_id
 
     def get_active_version(self) -> str | None:
         """Return framework `__version__` when present, otherwise `None`.

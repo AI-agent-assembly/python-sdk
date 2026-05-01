@@ -2,19 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-import importlib.util
 import sys
+from dataclasses import dataclass, field
 from threading import Lock
 from typing import Any, Callable, Literal, Protocol
 
-from agent_assembly.adapters.crewai.patch import CrewAIPatch
-from agent_assembly.adapters.langchain.patch import LangChainPatch
+from agent_assembly.adapters.base import FrameworkAdapter
+from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langchain.runtime import get_active_callback_handler
-from agent_assembly.adapters.langgraph import LangGraphPatch
-from agent_assembly.adapters.mcp import MCPClientPatch
-from agent_assembly.adapters.openai_agents import OpenAIAgentsPatch
-from agent_assembly.adapters.pydantic_ai.patch import PydanticAIPatch
+from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
@@ -28,6 +24,23 @@ _ACTIVE_CONTEXT: AssemblyContext | None = None
 
 
 class RuntimePatch(Protocol):
+    """Internal monkey-patch mechanism used by framework adapters.
+
+    This is the **internal mechanism layer** — not intended for SDK users
+    or plugin authors.  Each ``RuntimePatch`` knows how to apply and
+    revert a single monkey-patch on a specific framework class or function.
+
+    A ``FrameworkAdapter``'s ``register_hooks()`` creates one or more
+    ``RuntimePatch`` instances and calls ``apply()`` on each.  The
+    adapter's ``unregister_hooks()`` calls ``revert()`` on each in
+    reverse order.
+
+    See Also:
+        ``FrameworkAdapter`` in ``adapters/base.py`` — the public adapter
+        API with ``register_hooks()`` / ``unregister_hooks()`` methods.
+        ADR-0001 (``docs/adr/0001-hook-architecture.md``).
+    """
+
     def apply(self) -> bool: ...
 
     def revert(self) -> None: ...
@@ -38,7 +51,7 @@ class AssemblyContext:
     """Represents an active assembly runtime session."""
 
     client: GatewayClient
-    patches: list[RuntimePatch]
+    adapters: list[FrameworkAdapter]
     network_mode: NetworkMode
     _network_shutdown: Callable[[], None]
     _lock: Lock = field(default_factory=Lock, init=False, repr=False)
@@ -69,11 +82,11 @@ class AssemblyContext:
             except Exception as error:  # pragma: no cover - defensive guard
                 shutdown_errors.append(f"network shutdown failed: {error}")
 
-            for patch in reversed(self.patches):
+            for adapter in reversed(self.adapters):
                 try:
-                    patch.revert()
+                    adapter.unregister_hooks()
                 except Exception as error:  # pragma: no cover - defensive guard
-                    shutdown_errors.append(f"patch revert failed: {error}")
+                    shutdown_errors.append(f"adapter hook removal failed: {error}")
 
             try:
                 self.client.close()
@@ -96,7 +109,11 @@ def init_assembly(
     mode: RuntimeMode = "auto",
     **kwargs: Any,
 ) -> AssemblyContext:
-    """Initialize the Agent Assembly SDK runtime for this process."""
+    """Initialize the Agent Assembly SDK runtime for this process.
+
+    Uses ``AdapterRegistry.get_available_adapters_by_priority()`` as the
+    single detection path for framework adapters (see ADR-0001).
+    """
     del kwargs
     _validate_inputs(gateway_url=gateway_url, api_key=api_key, mode=mode)
     resolved_agent_id = agent_id or _DEFAULT_AGENT_ID
@@ -118,23 +135,23 @@ def init_assembly(
             api_key=api_key,
         )
 
-        patches: list[RuntimePatch] = []
+        registered_adapters: list[FrameworkAdapter] = []
         network_mode: NetworkMode = "sdk-only"
         network_shutdown: Callable[[], None] = _noop_shutdown
         try:
-            patches = _apply_runtime_patches(
+            registered_adapters = _register_adapters(
                 client=client,
                 process_agent_id=resolved_agent_id,
             )
             network_mode, network_shutdown = _start_network_layer(client=client, mode=mode)
         except Exception as error:
-            _revert_patches(patches)
+            _unregister_adapters(registered_adapters)
             client.close()
             raise ConfigurationError(f"Failed to initialize assembly runtime: {error}") from error
 
         context = AssemblyContext(
             client=client,
-            patches=patches,
+            adapters=registered_adapters,
             network_mode=network_mode,
             _network_shutdown=network_shutdown,
         )
@@ -148,78 +165,49 @@ def _validate_inputs(*, gateway_url: str, api_key: str, mode: RuntimeMode) -> No
     if not api_key:
         raise ConfigurationError("api_key is required")
     if mode not in _VALID_RUNTIME_MODES:
-        raise ConfigurationError(
-            "mode must be one of: auto, ebpf, proxy, sdk-only"
-        )
+        raise ConfigurationError("mode must be one of: auto, ebpf, proxy, sdk-only")
 
 
-def _is_installed(package: str) -> bool:
-    """Check if a package is importable without importing it."""
-    try:
-        return importlib.util.find_spec(package) is not None
-    except (ImportError, AttributeError, ValueError):
-        return False
+def _register_adapters(
+    client: GatewayClient,
+    process_agent_id: str,
+) -> list[FrameworkAdapter]:
+    """Detect available frameworks via AdapterRegistry and register hooks.
 
+    Adapters are returned in priority order.  LangChain is registered first
+    so its ``AssemblyCallbackHandler`` can thread through to subsequent
+    adapters as the governance interceptor.
+    """
+    registry = AdapterRegistry()
+    adapters = registry.get_available_adapters_by_priority()
 
-def _has_agents_sdk() -> bool:
-    """Check specifically for openai.agents module (not just openai base)."""
-    return _is_installed("openai.agents")
+    registered: list[FrameworkAdapter] = []
+    interceptor: Any = client
 
+    for adapter in adapters:
+        adapter.set_process_agent_id(process_agent_id)
 
-def _build_patch_plan(client: GatewayClient, process_agent_id: str) -> list[RuntimePatch]:
-    patch_plan: list[RuntimePatch] = []
-    langchain_installed = _is_installed("langchain")
-    langgraph_installed = _is_installed("langgraph")
-    callback_target: Any = client
+        try:
+            adapter.register_hooks(interceptor)
+        except Exception:
+            continue
 
-    if langchain_installed or langgraph_installed:
-        patch_plan.append(LangChainPatch(client, process_agent_id=process_agent_id))
-        callback_handler = get_active_callback_handler()
-        if callback_handler is not None:
-            callback_target = callback_handler
+        registered.append(adapter)
 
-    if langgraph_installed:
-        patch_plan.append(LangGraphPatch(callback_target))
-
-    if _is_installed("crewai"):
-        patch_plan.append(CrewAIPatch(callback_target))
-    if _is_installed("pydantic_ai"):
-        patch_plan.append(PydanticAIPatch(callback_target))
-    if _is_installed("openai") and _has_agents_sdk():
-        patch_plan.append(
-            OpenAIAgentsPatch(
-                callback_handler=callback_target,
-                process_agent_id=process_agent_id,
-            )
-        )
-    if _is_installed("mcp"):
-        # Keep MCP patch last as fallback for remaining tool dispatch paths.
-        patch_plan.append(
-            MCPClientPatch(
-                callback_handler=callback_target,
-                process_agent_id=process_agent_id,
-            )
-        )
-
-    return patch_plan
-
-
-def _apply_runtime_patches(client: GatewayClient, process_agent_id: str) -> list[RuntimePatch]:
-    applied: list[RuntimePatch] = []
-    patch_plan = _build_patch_plan(client=client, process_agent_id=process_agent_id)
-    for index, patch in enumerate(patch_plan):
-        if patch.apply():
-            applied.append(patch)
+        # After LangChain registers, its callback handler becomes the
+        # interceptor for all subsequent adapters.
+        if isinstance(adapter, LangChainAdapter):
             callback_handler = get_active_callback_handler()
             if callback_handler is not None:
-                _replace_callback_targets(patch_plan[index + 1 :], callback_handler)
-    return applied
+                interceptor = callback_handler
+
+    return registered
 
 
-def _revert_patches(patches: list[RuntimePatch]) -> None:
-    for patch in reversed(patches):
+def _unregister_adapters(adapters: list[FrameworkAdapter]) -> None:
+    for adapter in reversed(adapters):
         try:
-            patch.revert()
+            adapter.unregister_hooks()
         except Exception:
             continue
 
@@ -264,12 +252,6 @@ def _clear_active_context(context: AssemblyContext) -> None:
     with _INIT_LOCK:
         if _ACTIVE_CONTEXT is context:
             _ACTIVE_CONTEXT = None
-
-
-def _replace_callback_targets(patches: list[RuntimePatch], callback_handler: Any) -> None:
-    for patch in patches:
-        if hasattr(patch, "callback_handler"):
-            setattr(patch, "callback_handler", callback_handler)
 
 
 def _validate_active_context_compatibility(

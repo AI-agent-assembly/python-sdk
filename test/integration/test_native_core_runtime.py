@@ -213,9 +213,7 @@ def test_runtime_client_has_no_thread_deadlock(native_core) -> None:
     def worker(worker_id: int) -> None:
         try:
             for index in range(100):
-                client.send_event(
-                    native_core.GovernanceEvent(make_audit_entry_payload(index, worker_id=worker_id))
-                )
+                client.send_event(native_core.GovernanceEvent(make_audit_entry_payload(index, worker_id=worker_id)))
                 client.query_policy({"action": "tool.call", "timeout_ms": 50})
         except Exception as error:  # pragma: no cover - runtime guard
             errors.append(error)

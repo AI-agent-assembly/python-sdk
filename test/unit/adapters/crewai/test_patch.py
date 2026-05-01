@@ -110,9 +110,7 @@ def test_helper_branch_coverage_for_decision_and_agent_extraction() -> None:
     assert crewai_patch._normalize_decision("allow") == ("allow", None)
     assert crewai_patch._normalize_decision(12345) == ("allow", None)
 
-    assert (
-        crewai_patch._extract_agent_id_from_inputs((), {"agent_id": "agent-direct"}) == "agent-direct"
-    )
+    assert crewai_patch._extract_agent_id_from_inputs((), {"agent_id": "agent-direct"}) == "agent-direct"
     assert (
         crewai_patch._extract_agent_id_from_inputs(
             (),
@@ -155,12 +153,18 @@ def test_helper_branch_coverage_for_decision_and_agent_extraction() -> None:
             return "42"
 
     assert crewai_patch._get_pending_tool_approval_timeout_seconds(TimeoutProvider()) == 42
-    assert crewai_patch._get_pending_tool_approval_timeout_seconds(
-        SimpleNamespace(pending_tool_approval_timeout_seconds=0)
-    ) == 300
-    assert crewai_patch._get_pending_tool_approval_timeout_seconds(
-        SimpleNamespace(pending_tool_approval_timeout_seconds=True)
-    ) == 300
+    assert (
+        crewai_patch._get_pending_tool_approval_timeout_seconds(
+            SimpleNamespace(pending_tool_approval_timeout_seconds=0)
+        )
+        == 300
+    )
+    assert (
+        crewai_patch._get_pending_tool_approval_timeout_seconds(
+            SimpleNamespace(pending_tool_approval_timeout_seconds=True)
+        )
+        == 300
+    )
 
 
 def test_record_result_and_task_fallback_handlers_are_used(
@@ -399,9 +403,7 @@ def test_thread_local_agent_id_isolated_across_concurrent_tasks(
 
     class ConcurrencyInterceptor:
         def check_tool_start(self, **kwargs: object) -> dict[str, str]:
-            observed_agent_ids.append(
-                str(kwargs.get("agent_id")) if kwargs.get("agent_id") is not None else None
-            )
+            observed_agent_ids.append(str(kwargs.get("agent_id")) if kwargs.get("agent_id") is not None else None)
             return {"status": "allow"}
 
     patcher = crewai_patch.CrewAIPatch(ConcurrencyInterceptor())

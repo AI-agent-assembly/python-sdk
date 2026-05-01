@@ -5,7 +5,10 @@ from uuid import uuid4
 
 import pytest
 
-from agent_assembly.adapters.langchain import AssemblyCallbackHandler, patch_stategraph_compile
+from agent_assembly.adapters.langchain import (
+    AssemblyCallbackHandler,
+    patch_stategraph_compile,
+)
 from agent_assembly.exceptions import ToolExecutionBlockedError
 
 
@@ -137,9 +140,9 @@ def test_langgraph_compile_patch_allows_downstream_node_after_blocked_tool_handl
     fake_module = SimpleNamespace(StateGraph=FakeStateGraph)
     monkeypatch.setattr(
         "agent_assembly.adapters.langchain.langgraph_patch.importlib.import_module",
-        lambda module_name: fake_module
-        if module_name == "langgraph.graph.state"
-        else (_ for _ in ()).throw(ImportError(module_name)),
+        lambda module_name: (
+            fake_module if module_name == "langgraph.graph.state" else (_ for _ in ()).throw(ImportError(module_name))
+        ),
     )
 
     assert patch_stategraph_compile(handler) is True

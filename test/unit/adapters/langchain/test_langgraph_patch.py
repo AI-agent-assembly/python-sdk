@@ -34,12 +34,8 @@ class GraphEventRecorder:
 
 
 def test_extract_state_prefers_args_and_falls_back_to_kwargs() -> None:
-    assert langgraph_patch._extract_state(({"from": "args"},), {"state": {"from": "kwargs"}}) == {
-        "from": "args"
-    }
-    assert langgraph_patch._extract_state((), {"state": {"from": "kwargs"}}) == {
-        "from": "kwargs"
-    }
+    assert langgraph_patch._extract_state(({"from": "args"},), {"state": {"from": "kwargs"}}) == {"from": "args"}
+    assert langgraph_patch._extract_state((), {"state": {"from": "kwargs"}}) == {"from": "kwargs"}
 
 
 def test_invoke_hooks_handle_missing_methods_and_awaitables() -> None:

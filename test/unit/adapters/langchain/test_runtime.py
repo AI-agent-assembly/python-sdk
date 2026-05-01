@@ -3,12 +3,12 @@ from __future__ import annotations
 import pytest
 
 from agent_assembly import init_assembly
-from agent_assembly.core import assembly as core_assembly
 from agent_assembly.adapters.langchain.runtime import (
     _reset_runtime_state_for_tests,
     auto_inject_callback_handler,
     get_active_callback_handler,
 )
+from agent_assembly.core import assembly as core_assembly
 from agent_assembly.exceptions import ConfigurationError
 
 
@@ -30,13 +30,19 @@ def test_auto_inject_callback_handler_is_idempotent() -> None:
     assert get_active_callback_handler() is first
 
 
-def test_init_assembly_auto_injects_callback_handler(monkeypatch) -> None:
+def test_init_assembly_auto_injects_callback_handler(monkeypatch: pytest.MonkeyPatch) -> None:
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
+
+    def fake_register_adapters(**kwargs: object) -> list[object]:
+        auto_inject_callback_handler(kwargs["client"])
+        return []
+
+    monkeypatch.setattr(core_assembly, "_register_adapters", fake_register_adapters)
     monkeypatch.setattr(
         core_assembly,
-        "_is_installed",
-        lambda package: package == "langchain",
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
     )
 
     context = init_assembly(
@@ -50,13 +56,19 @@ def test_init_assembly_auto_injects_callback_handler(monkeypatch) -> None:
         context.shutdown()
 
 
-def test_init_assembly_reuses_existing_callback_handler(monkeypatch) -> None:
+def test_init_assembly_reuses_existing_callback_handler(monkeypatch: pytest.MonkeyPatch) -> None:
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
+
+    def fake_register_adapters(**kwargs: object) -> list[object]:
+        auto_inject_callback_handler(kwargs["client"])
+        return []
+
+    monkeypatch.setattr(core_assembly, "_register_adapters", fake_register_adapters)
     monkeypatch.setattr(
         core_assembly,
-        "_is_installed",
-        lambda package: package == "langchain",
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
     )
 
     first_context = init_assembly(
