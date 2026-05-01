@@ -142,3 +142,26 @@ def _check_register_hooks_signature(cls: type) -> AdapterValidationResult:
             f"expected GovernanceInterceptor."
         ),
     )
+
+
+def _check_unregister_hooks_idempotent(
+    instance: FrameworkAdapter,
+) -> AdapterValidationResult:
+    """Check that calling unregister_hooks() twice does not raise."""
+    try:
+        instance.unregister_hooks()
+        instance.unregister_hooks()
+    except Exception as exc:
+        return AdapterValidationResult(
+            check_name="unregister_hooks_idempotent",
+            passed=False,
+            message=(
+                f"unregister_hooks() is not idempotent: "
+                f"second call raised {type(exc).__name__}: {exc}"
+            ),
+        )
+    return AdapterValidationResult(
+        check_name="unregister_hooks_idempotent",
+        passed=True,
+        message="unregister_hooks() is idempotent (two calls without error).",
+    )
