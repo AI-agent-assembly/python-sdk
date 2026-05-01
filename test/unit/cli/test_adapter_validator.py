@@ -7,6 +7,7 @@ from agent_assembly.cli.adapter_validator import (
     _check_abstract_methods_implemented,
     _check_framework_name,
     _check_inherits_framework_adapter,
+    _check_register_hooks_signature,
     _check_supported_versions,
 )
 from agent_assembly.adapters.base import FrameworkAdapter
@@ -119,3 +120,22 @@ class TestCheckSupportedVersions:
         result = _check_supported_versions(EmptyStringVersionAdapter())
         assert result.passed is False
         assert "index 1" in result.message
+
+
+class TestCheckRegisterHooksSignature:
+    """Tests for _check_register_hooks_signature."""
+
+    def test_correct_signature_passes(self, valid_adapter_cls: type) -> None:
+        result = _check_register_hooks_signature(valid_adapter_cls)
+        assert result.passed is True
+
+    def test_missing_param_fails(self) -> None:
+        from test.unit.cli.conftest import ValidAdapter
+
+        class NoParamAdapter(ValidAdapter):
+            def register_hooks(self) -> None:  # type: ignore[override]
+                pass
+
+        result = _check_register_hooks_signature(NoParamAdapter)
+        assert result.passed is False
+        assert "must accept" in result.message

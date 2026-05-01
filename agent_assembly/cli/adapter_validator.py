@@ -132,7 +132,12 @@ def _check_register_hooks_signature(cls: type) -> AdapterValidationResult:
         )
     first_param = params[0]
     annotation = first_param.annotation
-    if annotation is inspect.Parameter.empty or annotation is GovernanceInterceptor:
+    acceptable = (
+        annotation is inspect.Parameter.empty
+        or annotation is GovernanceInterceptor
+        or (isinstance(annotation, str) and "GovernanceInterceptor" in annotation)
+    )
+    if acceptable:
         return AdapterValidationResult(
             check_name="register_hooks_signature",
             passed=True,
