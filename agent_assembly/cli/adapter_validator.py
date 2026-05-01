@@ -274,3 +274,30 @@ def load_adapter_class_from_module(module_name: str) -> type:
             f"No FrameworkAdapter subclass found in module '{module_name}'."
         )
     return cls
+
+
+def load_adapter_class_from_path(file_path: str) -> type:
+    """Load an adapter class from a file system path.
+
+    Raises:
+        FileNotFoundError: If the path does not exist.
+        ValueError: If no FrameworkAdapter subclass is found in the file.
+    """
+    path = Path(file_path).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"File not found: {path}")
+
+    module_name = f"_aasm_validate_{path.stem}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ValueError(f"Cannot create module spec from path: {path}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    cls = _find_adapter_class_in_module(module)
+    if cls is None:
+        raise ValueError(
+            f"No FrameworkAdapter subclass found in '{path}'."
+        )
+    return cls
