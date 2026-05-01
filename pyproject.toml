@@ -29,6 +29,9 @@ dependencies = [
     "typing-extensions>=4.0.0",
 ]
 
+[project.scripts]
+aasm = "agent_assembly.cli.main:main"
+
 [project.urls]
 Homepage = "https://github.com/agent-assembly/python-sdk"
 Repository = "https://github.com/agent-assembly/python-sdk"
