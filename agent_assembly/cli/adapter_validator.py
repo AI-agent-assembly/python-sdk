@@ -225,3 +225,26 @@ def _check_entry_point_metadata(
             f"Found: {entry_points}."
         ),
     )
+
+
+def validate_adapter(
+    cls: type, path_or_module: str
+) -> list[AdapterValidationResult]:
+    """Run all contract checks against an adapter class and return results."""
+    results: list[AdapterValidationResult] = []
+
+    results.append(_check_inherits_framework_adapter(cls))
+    results.append(_check_abstract_methods_implemented(cls))
+
+    # Instance-level checks require a concrete class that can be instantiated
+    if any(not r.passed for r in results):
+        return results
+
+    instance = cls()
+    results.append(_check_framework_name(instance))
+    results.append(_check_supported_versions(instance))
+    results.append(_check_register_hooks_signature(cls))
+    results.append(_check_unregister_hooks_idempotent(instance))
+    results.append(_check_entry_point_metadata(cls, path_or_module))
+
+    return results
