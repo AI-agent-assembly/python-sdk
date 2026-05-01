@@ -8,9 +8,7 @@ Captured: 2026-05-01
 - Platform: macOS arm64 (Apple M3 Max)
 - pytest-benchmark: 4.0+
 
-## Adapter Hook Overhead (register + unregister cycle)
-
-Contract: < 2ms per call (AAASM-45)
+## Adapter Hook Setup/Teardown (register + unregister cycle)
 
 | Adapter         | Min (us) | Mean (us) | P99 (us) | Status |
 |-----------------|----------|-----------|----------|--------|
@@ -21,6 +19,23 @@ Contract: < 2ms per call (AAASM-45)
 | OpenAI Agents   | 1.50     | 2.00      | ~6       | PASS   |
 | CrewAI          | 2.29     | 2.73      | ~8       | PASS   |
 
+## Per-Call Patched Function Overhead (governance interception hot path)
+
+Contract: < 2ms per call (AAASM-45)
+
+| Adapter         | Min (us) | Mean (us) | Median (us) | Status |
+|-----------------|----------|-----------|-------------|--------|
+| LangChain       | 0.75     | 1.01      | 0.92        | PASS   |
+| CrewAI          | 1.13     | 1.94      | 1.29        | PASS   |
+| LangGraph       | 1.25     | 1.71      | 1.46        | PASS   |
+| Pydantic AI     | 30.54    | 40.43     | 34.92       | PASS   |
+| OpenAI Agents   | 22.50    | 39.48     | 33.08       | PASS   |
+| MCP             | 29.17    | 39.77     | 33.17       | PASS   |
+
+Sync adapters (CrewAI, LangChain, LangGraph) have ~1-2us overhead.
+Async adapters include event-loop scheduling overhead (~30-40us) which
+is an artifact of the benchmark harness; in real async code the event
+loop is already running, so actual per-call overhead is lower.
 All adapters are well under the 2ms (2000us) contract threshold.
 
 ## Detection Overhead (AdapterRegistry.auto_detect)
