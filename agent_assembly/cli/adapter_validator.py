@@ -301,3 +301,11 @@ def load_adapter_class_from_path(file_path: str) -> type:
             f"No FrameworkAdapter subclass found in '{path}'."
         )
     return cls
+
+
+def load_adapter_class(path_or_module: str) -> type:
+    """Load an adapter class from either a file path or a dotted module name."""
+    candidate = Path(path_or_module)
+    if candidate.exists():
+        return load_adapter_class_from_path(path_or_module)
+    return load_adapter_class_from_module(path_or_module)
