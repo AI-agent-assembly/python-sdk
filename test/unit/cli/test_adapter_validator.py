@@ -9,6 +9,7 @@ from agent_assembly.cli.adapter_validator import (
     _check_inherits_framework_adapter,
     _check_register_hooks_signature,
     _check_supported_versions,
+    _check_entry_point_metadata,
     _check_unregister_hooks_idempotent,
 )
 from agent_assembly.adapters.base import FrameworkAdapter
@@ -155,3 +156,44 @@ class TestCheckUnregisterHooksIdempotent:
         result = _check_unregister_hooks_idempotent(non_idempotent_adapter_cls())
         assert result.passed is False
         assert "not idempotent" in result.message
+
+
+class TestCheckEntryPointMetadata:
+    """Tests for _check_entry_point_metadata."""
+
+    def test_valid_pyproject_passes(
+        self, valid_adapter_cls: type, tmp_path: object
+    ) -> None:
+        import pathlib
+
+        assert isinstance(tmp_path, pathlib.Path)
+        pyproject = tmp_path / "pyproject.toml"
+        qualname = f"{valid_adapter_cls.__module__}:{valid_adapter_cls.__qualname__}"
+        pyproject.write_text(
+            f'[project.entry-points."agent_assembly.adapters"]\n'
+            f'test_framework = "{qualname}"\n'
+        )
+        result = _check_entry_point_metadata(valid_adapter_cls, str(tmp_path))
+        assert result.passed is True
+
+    def test_missing_entry_point_fails(
+        self, valid_adapter_cls: type, tmp_path: object
+    ) -> None:
+        import pathlib
+
+        assert isinstance(tmp_path, pathlib.Path)
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'test'\n")
+        result = _check_entry_point_metadata(valid_adapter_cls, str(tmp_path))
+        assert result.passed is False
+        assert "missing" in result.message
+
+    def test_no_pyproject_skips(
+        self, valid_adapter_cls: type, tmp_path: object
+    ) -> None:
+        import pathlib
+
+        assert isinstance(tmp_path, pathlib.Path)
+        result = _check_entry_point_metadata(valid_adapter_cls, str(tmp_path))
+        assert result.passed is True
+        assert "skipping" in result.message.lower()
