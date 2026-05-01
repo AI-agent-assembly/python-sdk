@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from agent_assembly.cli.adapter_validator import load_adapter_class_from_module
+from agent_assembly.cli.adapter_validator import (
+    load_adapter_class_from_module,
+    load_adapter_class_from_path,
+)
 
 
 class TestLoadAdapterClassFromModule:
@@ -25,3 +28,43 @@ class TestLoadAdapterClassFromModule:
     def test_module_with_no_adapter_raises(self) -> None:
         with pytest.raises(ValueError, match="No FrameworkAdapter subclass"):
             load_adapter_class_from_module("agent_assembly.exceptions")
+
+
+class TestLoadAdapterClassFromPath:
+    """Tests for load_adapter_class_from_path."""
+
+    def test_valid_file_path(self, tmp_path: object) -> None:
+        import pathlib
+
+        assert isinstance(tmp_path, pathlib.Path)
+        adapter_file = tmp_path / "my_adapter.py"
+        adapter_file.write_text(
+            "from agent_assembly.adapters.base import FrameworkAdapter, GovernanceInterceptor\n"
+            "\n"
+            "class MyAdapter(FrameworkAdapter):\n"
+            "    def get_framework_name(self) -> str:\n"
+            "        return 'my_framework'\n"
+            "    def get_supported_versions(self) -> list[str]:\n"
+            "        return ['>=1.0.0']\n"
+            "    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:\n"
+            "        pass\n"
+            "    def unregister_hooks(self) -> None:\n"
+            "        pass\n"
+        )
+        cls = load_adapter_class_from_path(str(adapter_file))
+        from agent_assembly.adapters.base import FrameworkAdapter
+
+        assert issubclass(cls, FrameworkAdapter)
+
+    def test_invalid_path_raises(self) -> None:
+        with pytest.raises(FileNotFoundError):
+            load_adapter_class_from_path("/nonexistent/path/adapter.py")
+
+    def test_file_with_no_adapter_raises(self, tmp_path: object) -> None:
+        import pathlib
+
+        assert isinstance(tmp_path, pathlib.Path)
+        empty_file = tmp_path / "empty.py"
+        empty_file.write_text("x = 1\n")
+        with pytest.raises(ValueError, match="No FrameworkAdapter subclass"):
+            load_adapter_class_from_path(str(empty_file))
