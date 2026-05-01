@@ -9,6 +9,7 @@ from agent_assembly.cli.adapter_validator import (
     _check_inherits_framework_adapter,
     _check_register_hooks_signature,
     _check_supported_versions,
+    _check_unregister_hooks_idempotent,
 )
 from agent_assembly.adapters.base import FrameworkAdapter
 
@@ -139,3 +140,18 @@ class TestCheckRegisterHooksSignature:
         result = _check_register_hooks_signature(NoParamAdapter)
         assert result.passed is False
         assert "must accept" in result.message
+
+
+class TestCheckUnregisterHooksIdempotent:
+    """Tests for _check_unregister_hooks_idempotent."""
+
+    def test_double_call_no_raise_passes(self, valid_adapter_cls: type) -> None:
+        result = _check_unregister_hooks_idempotent(valid_adapter_cls())
+        assert result.passed is True
+
+    def test_raises_on_second_call_fails(
+        self, non_idempotent_adapter_cls: type
+    ) -> None:
+        result = _check_unregister_hooks_idempotent(non_idempotent_adapter_cls())
+        assert result.passed is False
+        assert "not idempotent" in result.message
