@@ -5,7 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from agent_assembly.adapters import AdapterRegistry, FrameworkAdapter, GovernanceInterceptor
+from agent_assembly.adapters import (
+    AdapterRegistry,
+    FrameworkAdapter,
+    GovernanceInterceptor,
+)
 
 
 class DummyAdapter(FrameworkAdapter):

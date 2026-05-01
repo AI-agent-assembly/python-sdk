@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
 from dataclasses import dataclass
 from functools import wraps
-import importlib
 from threading import local
 from typing import Any, Literal, Mapping
 
@@ -111,8 +111,7 @@ def _extract_agent_id_from_inputs(args: tuple[Any, ...], kwargs: dict[str, Any])
 def _format_blocked_message(reason: str | None) -> str:
     reason_text = reason or "No reason provided."
     return (
-        f"[BLOCKED by governance policy] {reason_text}. "
-        "Please choose a different approach to accomplish this task."
+        f"[BLOCKED by governance policy] {reason_text}. " "Please choose a different approach to accomplish this task."
     )
 
 

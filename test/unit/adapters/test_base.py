@@ -1,5 +1,6 @@
-import pytest
 from types import SimpleNamespace
+
+import pytest
 
 from agent_assembly.adapters import FrameworkAdapter, GovernanceInterceptor
 from agent_assembly.exceptions import AdapterValidationError

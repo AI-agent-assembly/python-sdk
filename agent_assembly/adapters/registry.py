@@ -13,7 +13,6 @@ from agent_assembly.adapters.mcp.adapter import MCPAdapter
 from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
 from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
 
-
 # LangChain must be first: its callback handler threads through to all
 # subsequent adapters.  MCP must be last: it acts as a fallback for
 # remaining tool dispatch paths.
@@ -137,11 +136,7 @@ class AdapterRegistry:
             if adapter.is_available():
                 available.append(adapter)
 
-        available.sort(
-            key=lambda a: _ADAPTER_PRIORITY.get(
-                a.get_framework_name(), _DEFAULT_PRIORITY
-            )
-        )
+        available.sort(key=lambda a: _ADAPTER_PRIORITY.get(a.get_framework_name(), _DEFAULT_PRIORITY))
         return available
 
     def _discover_entry_point_adapters(self) -> list[str]:

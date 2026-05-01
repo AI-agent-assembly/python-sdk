@@ -63,14 +63,20 @@ async def test_openai_agents_and_mcp_layers_both_emit_governance_events(
             records.append(dict(kwargs))
 
     interceptor = Interceptor()
-    assert openai_patch.OpenAIAgentsPatch(
-        callback_handler=interceptor,
-        process_agent_id="agent-openai",
-    ).apply() is True
-    assert mcp_patch.MCPClientPatch(
-        callback_handler=interceptor,
-        process_agent_id="agent-openai",
-    ).apply() is True
+    assert (
+        openai_patch.OpenAIAgentsPatch(
+            callback_handler=interceptor,
+            process_agent_id="agent-openai",
+        ).apply()
+        is True
+    )
+    assert (
+        mcp_patch.MCPClientPatch(
+            callback_handler=interceptor,
+            process_agent_id="agent-openai",
+        ).apply()
+        is True
+    )
 
     result = await FakeFunctionTool("openai_tool")(SimpleNamespace(agent_id="agent-openai"), {"step": "run"})
 

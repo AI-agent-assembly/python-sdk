@@ -13,8 +13,6 @@ from agent_assembly.exceptions import ToolExecutionBlockedError
 class _FallbackBaseCallbackHandler:
     """Fallback base type when langchain-core is not installed."""
 
-    pass
-
 
 _CallbackHandlerBase: type[object] = _FallbackBaseCallbackHandler
 try:  # pragma: no cover - import availability depends on installed extras.

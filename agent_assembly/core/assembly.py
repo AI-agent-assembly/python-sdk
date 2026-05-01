@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import sys
+from dataclasses import dataclass, field
 from threading import Lock
 from typing import Any, Callable, Literal, Protocol
 
@@ -165,9 +165,7 @@ def _validate_inputs(*, gateway_url: str, api_key: str, mode: RuntimeMode) -> No
     if not api_key:
         raise ConfigurationError("api_key is required")
     if mode not in _VALID_RUNTIME_MODES:
-        raise ConfigurationError(
-            "mode must be one of: auto, ebpf, proxy, sdk-only"
-        )
+        raise ConfigurationError("mode must be one of: auto, ebpf, proxy, sdk-only")
 
 
 def _register_adapters(

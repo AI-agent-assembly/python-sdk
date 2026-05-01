@@ -32,9 +32,7 @@ async def test_direct_openai_agents_functiontool_blocks_then_allows_followup(
     monkeypatch.setattr(
         openai_patch.importlib,
         "import_module",
-        lambda name: fake_openai_agents_module
-        if name == "openai.agents"
-        else (_ for _ in ()).throw(ImportError(name)),
+        lambda name: fake_openai_agents_module if name == "openai.agents" else (_ for _ in ()).throw(ImportError(name)),
     )
 
     class Interceptor:

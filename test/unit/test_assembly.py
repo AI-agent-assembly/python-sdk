@@ -258,9 +258,7 @@ def test_unregister_adapters_ignores_unregister_failures() -> None:
         def unregister_hooks(self) -> None:
             raise RuntimeError("boom")
 
-    core_assembly._unregister_adapters(
-        [_AdapterOk("ok1"), _AdapterFails("fail"), _AdapterOk("ok2")]
-    )  # no raise
+    core_assembly._unregister_adapters([_AdapterOk("ok1"), _AdapterFails("fail"), _AdapterOk("ok2")])  # no raise
 
 
 def test_init_assembly_is_thread_safe_and_idempotent(

@@ -3,12 +3,12 @@ from __future__ import annotations
 import pytest
 
 from agent_assembly import init_assembly
-from agent_assembly.core import assembly as core_assembly
 from agent_assembly.adapters.langchain.runtime import (
     _reset_runtime_state_for_tests,
     auto_inject_callback_handler,
     get_active_callback_handler,
 )
+from agent_assembly.core import assembly as core_assembly
 from agent_assembly.exceptions import ConfigurationError
 
 

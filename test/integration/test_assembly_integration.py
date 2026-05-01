@@ -50,9 +50,9 @@ def test_gateway_client_context_manager():
         api_key="test-api-key",
         agent_id="test-agent-001",
     )
-    
+
     with context:
         assert context.client.client is not None
-    
+
     # Client should be closed after exiting context
     assert context.client._client is None

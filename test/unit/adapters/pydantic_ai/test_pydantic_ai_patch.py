@@ -103,12 +103,18 @@ def test_helper_branches_for_agent_id_timeout_and_serialization() -> None:
             return "42"
 
     assert pydantic_ai_patch._get_pending_tool_approval_timeout_seconds(TimeoutProvider()) == 42
-    assert pydantic_ai_patch._get_pending_tool_approval_timeout_seconds(
-        SimpleNamespace(pending_tool_approval_timeout_seconds=0)
-    ) == 300
-    assert pydantic_ai_patch._get_pending_tool_approval_timeout_seconds(
-        SimpleNamespace(pending_tool_approval_timeout_seconds=True)
-    ) == 300
+    assert (
+        pydantic_ai_patch._get_pending_tool_approval_timeout_seconds(
+            SimpleNamespace(pending_tool_approval_timeout_seconds=0)
+        )
+        == 300
+    )
+    assert (
+        pydantic_ai_patch._get_pending_tool_approval_timeout_seconds(
+            SimpleNamespace(pending_tool_approval_timeout_seconds=True)
+        )
+        == 300
+    )
 
     assert pydantic_ai_patch._normalize_decision("deny") == ("deny", None)
     assert pydantic_ai_patch._normalize_decision("pending") == ("pending", None)
@@ -318,9 +324,12 @@ async def test_fallback_and_non_awaitable_branches_for_async_helpers() -> None:
     )
     assert fallback_wait == {"status": "deny", "reason": "Approval handler is unavailable."}
 
-    assert pydantic_ai_patch._get_pending_tool_approval_timeout_seconds(
-        SimpleNamespace(pending_tool_approval_timeout_seconds="NaN")
-    ) == 300
+    assert (
+        pydantic_ai_patch._get_pending_tool_approval_timeout_seconds(
+            SimpleNamespace(pending_tool_approval_timeout_seconds="NaN")
+        )
+        == 300
+    )
 
     class SyncInterceptor:
         def check_tool_start(self, **kwargs: object) -> dict[str, str]:

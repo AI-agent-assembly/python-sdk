@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import importlib
 import importlib.util
 import inspect
+from dataclasses import dataclass
 from typing import Any, Literal, Mapping
 
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
-from agent_assembly.adapters.crewai.patch import _normalize_decision as _normalize_governance_decision
+from agent_assembly.adapters.crewai.patch import (
+    _normalize_decision as _normalize_governance_decision,
+)
 
 _ORIGINAL_CALL_TOOL = "_agent_assembly_original_mcp_call_tool"
 _PATCHED_FLAG = "_agent_assembly_mcp_clientsession_patched"
@@ -222,14 +224,10 @@ def _build_blocked_error(
 
     reason_text = reason or "No reason provided."
     if is_pending_rejection:
-        message = (
-            f"MCP tool '{tool_name}' on server '{server_identifier}' "
-            f"rejected during approval: {reason_text}"
-        )
+        message = f"MCP tool '{tool_name}' on server '{server_identifier}' " f"rejected during approval: {reason_text}"
     else:
         message = (
-            f"MCP tool '{tool_name}' on server '{server_identifier}' "
-            f"blocked by governance policy: {reason_text}"
+            f"MCP tool '{tool_name}' on server '{server_identifier}' " f"blocked by governance policy: {reason_text}"
         )
 
     return MCPToolBlockedError(

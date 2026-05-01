@@ -84,9 +84,7 @@ def test_loader_edge_cases_and_apply_false_when_functiontool_missing(
     monkeypatch.setattr(
         openai_patch.importlib,
         "import_module",
-        lambda name: fake_module
-        if name == "openai.agents"
-        else (_ for _ in ()).throw(ImportError(name)),
+        lambda name: fake_module if name == "openai.agents" else (_ for _ in ()).throw(ImportError(name)),
     )
     monkeypatch.setattr(openai_patch.importlib.util, "find_spec", lambda package: object())
     assert openai_patch._is_openai_agents_available() is True
@@ -360,9 +358,7 @@ async def test_helper_fallback_branches_for_check_wait_record_and_result_build(
     monkeypatch.setattr(
         openai_patch.importlib,
         "import_module",
-        lambda name: fake_module
-        if name == "openai.agents"
-        else (_ for _ in ()).throw(ImportError(name)),
+        lambda name: fake_module if name == "openai.agents" else (_ for _ in ()).throw(ImportError(name)),
     )
 
     # _build_tool_result_error fallback dict branch
