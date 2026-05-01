@@ -84,3 +84,33 @@ def _check_framework_name(instance: FrameworkAdapter) -> AdapterValidationResult
         passed=False,
         message="get_framework_name() must return a non-empty string.",
     )
+
+
+def _check_supported_versions(instance: FrameworkAdapter) -> AdapterValidationResult:
+    """Check that get_supported_versions() returns a non-empty list of strings."""
+    try:
+        versions = instance.get_supported_versions()
+    except Exception as exc:
+        return AdapterValidationResult(
+            check_name="supported_versions",
+            passed=False,
+            message=f"get_supported_versions() raised {type(exc).__name__}: {exc}",
+        )
+    if not isinstance(versions, list) or not versions:
+        return AdapterValidationResult(
+            check_name="supported_versions",
+            passed=False,
+            message="get_supported_versions() must return a non-empty list.",
+        )
+    for i, v in enumerate(versions):
+        if not isinstance(v, str) or not v.strip():
+            return AdapterValidationResult(
+                check_name="supported_versions",
+                passed=False,
+                message=f"Version at index {i} must be a non-empty string.",
+            )
+    return AdapterValidationResult(
+        check_name="supported_versions",
+        passed=True,
+        message=f"Supported versions: {versions}.",
+    )
