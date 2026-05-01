@@ -15,9 +15,7 @@ class TestLoadAdapterClassFromModule:
     """Tests for load_adapter_class_from_module."""
 
     def test_valid_module(self) -> None:
-        cls = load_adapter_class_from_module(
-            "agent_assembly.adapters.langchain.adapter"
-        )
+        cls = load_adapter_class_from_module("agent_assembly.adapters.langchain.adapter")
         from agent_assembly.adapters.base import FrameworkAdapter
 
         assert issubclass(cls, FrameworkAdapter)
@@ -74,9 +72,7 @@ class TestLoadAdapterClassFromPath:
 class TestLoadAdapterClass:
     """Tests for load_adapter_class dispatcher."""
 
-    def test_dispatches_to_path_for_existing_file(
-        self, tmp_path: object
-    ) -> None:
+    def test_dispatches_to_path_for_existing_file(self, tmp_path: object) -> None:
         import pathlib
 
         assert isinstance(tmp_path, pathlib.Path)

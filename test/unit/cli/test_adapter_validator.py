@@ -20,9 +20,7 @@ class TestAdapterValidationResult:
     """Tests for the AdapterValidationResult dataclass."""
 
     def test_fields_stored(self) -> None:
-        result = AdapterValidationResult(
-            check_name="test_check", passed=True, message="ok"
-        )
+        result = AdapterValidationResult(check_name="test_check", passed=True, message="ok")
         assert result.check_name == "test_check"
         assert result.passed is True
         assert result.message == "ok"
@@ -35,9 +33,7 @@ class TestAdapterValidationResult:
     def test_frozen(self) -> None:
         import pytest
 
-        result = AdapterValidationResult(
-            check_name="c", passed=True, message="m"
-        )
+        result = AdapterValidationResult(check_name="c", passed=True, message="m")
         with pytest.raises(AttributeError):
             result.passed = False  # type: ignore[misc]
 
@@ -151,9 +147,7 @@ class TestCheckUnregisterHooksIdempotent:
         result = _check_unregister_hooks_idempotent(valid_adapter_cls())
         assert result.passed is True
 
-    def test_raises_on_second_call_fails(
-        self, non_idempotent_adapter_cls: type
-    ) -> None:
+    def test_raises_on_second_call_fails(self, non_idempotent_adapter_cls: type) -> None:
         result = _check_unregister_hooks_idempotent(non_idempotent_adapter_cls())
         assert result.passed is False
         assert "not idempotent" in result.message
@@ -162,24 +156,17 @@ class TestCheckUnregisterHooksIdempotent:
 class TestCheckEntryPointMetadata:
     """Tests for _check_entry_point_metadata."""
 
-    def test_valid_pyproject_passes(
-        self, valid_adapter_cls: type, tmp_path: object
-    ) -> None:
+    def test_valid_pyproject_passes(self, valid_adapter_cls: type, tmp_path: object) -> None:
         import pathlib
 
         assert isinstance(tmp_path, pathlib.Path)
         pyproject = tmp_path / "pyproject.toml"
         qualname = f"{valid_adapter_cls.__module__}:{valid_adapter_cls.__qualname__}"
-        pyproject.write_text(
-            f'[project.entry-points."agent_assembly.adapters"]\n'
-            f'test_framework = "{qualname}"\n'
-        )
+        pyproject.write_text(f'[project.entry-points."agent_assembly.adapters"]\n' f'test_framework = "{qualname}"\n')
         result = _check_entry_point_metadata(valid_adapter_cls, str(tmp_path))
         assert result.passed is True
 
-    def test_missing_entry_point_fails(
-        self, valid_adapter_cls: type, tmp_path: object
-    ) -> None:
+    def test_missing_entry_point_fails(self, valid_adapter_cls: type, tmp_path: object) -> None:
         import pathlib
 
         assert isinstance(tmp_path, pathlib.Path)
@@ -189,9 +176,7 @@ class TestCheckEntryPointMetadata:
         assert result.passed is False
         assert "missing" in result.message
 
-    def test_no_pyproject_skips(
-        self, valid_adapter_cls: type, tmp_path: object
-    ) -> None:
+    def test_no_pyproject_skips(self, valid_adapter_cls: type, tmp_path: object) -> None:
         import pathlib
 
         assert isinstance(tmp_path, pathlib.Path)
@@ -207,23 +192,17 @@ class TestValidateAdapter:
         results = validate_adapter(valid_adapter_cls, "test.module")
         assert all(r.passed for r in results)
 
-    def test_mixed_fail_for_empty_name(
-        self, empty_name_adapter_cls: type
-    ) -> None:
+    def test_mixed_fail_for_empty_name(self, empty_name_adapter_cls: type) -> None:
         results = validate_adapter(empty_name_adapter_cls, "test.module")
         failed = [r for r in results if not r.passed]
         assert len(failed) >= 1
         assert any(r.check_name == "framework_name" for r in failed)
 
-    def test_short_circuits_on_inheritance_failure(
-        self, not_an_adapter_cls: type
-    ) -> None:
+    def test_short_circuits_on_inheritance_failure(self, not_an_adapter_cls: type) -> None:
         results = validate_adapter(not_an_adapter_cls, "test.module")
         assert len(results) == 2
         assert not results[0].passed
 
-    def test_result_count_for_valid_adapter(
-        self, valid_adapter_cls: type
-    ) -> None:
+    def test_result_count_for_valid_adapter(self, valid_adapter_cls: type) -> None:
         results = validate_adapter(valid_adapter_cls, "test.module")
         assert len(results) == 7

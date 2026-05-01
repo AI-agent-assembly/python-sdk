@@ -22,9 +22,7 @@ class TestFormatResults:
     def test_mixed_output(self) -> None:
         results = [
             AdapterValidationResult(check_name="check_a", passed=True, message="ok"),
-            AdapterValidationResult(
-                check_name="check_b", passed=False, message="bad"
-            ),
+            AdapterValidationResult(check_name="check_b", passed=False, message="bad"),
         ]
         output = format_results(results)
         assert "[PASS]" in output

@@ -5,11 +5,10 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import inspect
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
-
-import tomllib
 
 if TYPE_CHECKING:
     pass
@@ -148,10 +147,7 @@ def _check_register_hooks_signature(cls: type) -> AdapterValidationResult:
     return AdapterValidationResult(
         check_name="register_hooks_signature",
         passed=False,
-        message=(
-            f"register_hooks() first parameter annotated as {annotation}, "
-            f"expected GovernanceInterceptor."
-        ),
+        message=(f"register_hooks() first parameter annotated as {annotation}, " f"expected GovernanceInterceptor."),
     )
 
 
@@ -166,10 +162,7 @@ def _check_unregister_hooks_idempotent(
         return AdapterValidationResult(
             check_name="unregister_hooks_idempotent",
             passed=False,
-            message=(
-                f"unregister_hooks() is not idempotent: "
-                f"second call raised {type(exc).__name__}: {exc}"
-            ),
+            message=(f"unregister_hooks() is not idempotent: " f"second call raised {type(exc).__name__}: {exc}"),
         )
     return AdapterValidationResult(
         check_name="unregister_hooks_idempotent",
@@ -178,9 +171,7 @@ def _check_unregister_hooks_idempotent(
     )
 
 
-def _check_entry_point_metadata(
-    cls: type, path_or_module: str
-) -> AdapterValidationResult:
+def _check_entry_point_metadata(cls: type, path_or_module: str) -> AdapterValidationResult:
     """Check entry point metadata in pyproject.toml if present at the given path."""
     search_path = Path(path_or_module)
     if search_path.is_file():
@@ -204,17 +195,12 @@ def _check_entry_point_metadata(
             message=f"Failed to parse pyproject.toml: {exc}",
         )
 
-    entry_points = (
-        data.get("project", {}).get("entry-points", {}).get("agent_assembly.adapters", {})
-    )
+    entry_points = data.get("project", {}).get("entry-points", {}).get("agent_assembly.adapters", {})
     if not entry_points:
         return AdapterValidationResult(
             check_name="entry_point_metadata",
             passed=False,
-            message=(
-                "pyproject.toml missing [project.entry-points.\"agent_assembly.adapters\"] "
-                "section."
-            ),
+            message=('pyproject.toml missing [project.entry-points."agent_assembly.adapters"] ' "section."),
         )
 
     class_qualname = f"{cls.__module__}:{cls.__qualname__}"
@@ -229,16 +215,11 @@ def _check_entry_point_metadata(
     return AdapterValidationResult(
         check_name="entry_point_metadata",
         passed=False,
-        message=(
-            f"No entry point references {class_qualname}. "
-            f"Found: {entry_points}."
-        ),
+        message=(f"No entry point references {class_qualname}. " f"Found: {entry_points}."),
     )
 
 
-def validate_adapter(
-    cls: type, path_or_module: str
-) -> list[AdapterValidationResult]:
+def validate_adapter(cls: type, path_or_module: str) -> list[AdapterValidationResult]:
     """Run all contract checks against an adapter class and return results."""
     results: list[AdapterValidationResult] = []
 
@@ -277,9 +258,7 @@ def load_adapter_class_from_module(module_name: str) -> type:
     module = importlib.import_module(module_name)
     cls = _find_adapter_class_in_module(module)
     if cls is None:
-        raise ValueError(
-            f"No FrameworkAdapter subclass found in module '{module_name}'."
-        )
+        raise ValueError(f"No FrameworkAdapter subclass found in module '{module_name}'.")
     return cls
 
 
@@ -304,9 +283,7 @@ def load_adapter_class_from_path(file_path: str) -> type:
 
     cls = _find_adapter_class_in_module(module)
     if cls is None:
-        raise ValueError(
-            f"No FrameworkAdapter subclass found in '{path}'."
-        )
+        raise ValueError(f"No FrameworkAdapter subclass found in '{path}'.")
     return cls
 
 

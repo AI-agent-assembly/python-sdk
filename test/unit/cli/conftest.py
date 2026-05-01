@@ -79,8 +79,6 @@ class NonIdempotentAdapter(FrameworkAdapter):
 class NotAnAdapter:
     """A class that does not inherit from FrameworkAdapter."""
 
-    pass
-
 
 @pytest.fixture()
 def valid_adapter_cls() -> type:

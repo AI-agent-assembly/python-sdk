@@ -14,12 +14,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    adapter_parser = subparsers.add_parser(
-        "adapter", help="Adapter management commands"
-    )
-    adapter_subparsers = adapter_parser.add_subparsers(
-        dest="adapter_command", help="Adapter subcommands"
-    )
+    adapter_parser = subparsers.add_parser("adapter", help="Adapter management commands")
+    adapter_subparsers = adapter_parser.add_subparsers(dest="adapter_command", help="Adapter subcommands")
 
     validate_parser = adapter_subparsers.add_parser(
         "validate", help="Validate a community adapter against the FrameworkAdapter contract"
@@ -34,7 +30,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _handle_adapter_validate(args: argparse.Namespace) -> int:
     """Run adapter validation and return an exit code."""
-    from agent_assembly.cli.adapter_validator import load_adapter_class, validate_adapter
+    from agent_assembly.cli.adapter_validator import (
+        load_adapter_class,
+        validate_adapter,
+    )
     from agent_assembly.cli.output import format_results
 
     try:
