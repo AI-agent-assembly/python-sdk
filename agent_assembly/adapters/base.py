@@ -136,7 +136,7 @@ class FrameworkAdapter(ABC):
         a no-op for adapters that do not use an agent ID.
         """
         if hasattr(self, "process_agent_id"):
-            self.process_agent_id = agent_id  # type: ignore[attr-defined]
+            self.process_agent_id = agent_id
 
     def get_active_version(self) -> str | None:
         """Return framework `__version__` when present, otherwise `None`.

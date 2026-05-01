@@ -16,7 +16,6 @@ Type Hierarchy:
 
 from __future__ import annotations
 
-
 __all__ = [
     "AgentId",
     "PolicyId",

@@ -30,11 +30,11 @@ def test_auto_inject_callback_handler_is_idempotent() -> None:
     assert get_active_callback_handler() is first
 
 
-def test_init_assembly_auto_injects_callback_handler(monkeypatch) -> None:
+def test_init_assembly_auto_injects_callback_handler(monkeypatch: pytest.MonkeyPatch) -> None:
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
 
-    def fake_register_adapters(**kwargs):  # type: ignore[no-untyped-def]
+    def fake_register_adapters(**kwargs: object) -> list[object]:
         auto_inject_callback_handler(kwargs["client"])
         return []
 
@@ -56,11 +56,11 @@ def test_init_assembly_auto_injects_callback_handler(monkeypatch) -> None:
         context.shutdown()
 
 
-def test_init_assembly_reuses_existing_callback_handler(monkeypatch) -> None:
+def test_init_assembly_reuses_existing_callback_handler(monkeypatch: pytest.MonkeyPatch) -> None:
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
 
-    def fake_register_adapters(**kwargs):  # type: ignore[no-untyped-def]
+    def fake_register_adapters(**kwargs: object) -> list[object]:
         auto_inject_callback_handler(kwargs["client"])
         return []
 
