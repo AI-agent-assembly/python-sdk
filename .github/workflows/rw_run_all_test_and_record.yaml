@@ -132,6 +132,7 @@ jobs:
   sonarcloud_finish:
 #    name: SonarCloud Scan
     if: ${{
+        github.actor != 'dependabot[bot]' &&
         !contains(github.event.pull_request.labels.*.name, 'dependencies') &&
         (
             contains(fromJSON('["pull_request","workflow_dispatch","schedule"]'), github.event_name) ||
@@ -162,7 +163,6 @@ jobs:
           fi
 
       - name: SonarCloud Scan
-        if: ${{ secrets.sonar_token != '' }}
         uses: SonarSource/sonarqube-scan-action@v7.1.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
