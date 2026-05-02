@@ -17,7 +17,7 @@ on:
         required: false
       sonar_token:
         description: "The API token for uploading testing coverage report to Coveralls."
-        required: true
+        required: false
 
 jobs:
   build-and-test:
