@@ -162,6 +162,7 @@ jobs:
           fi
 
       - name: SonarCloud Scan
+        if: ${{ secrets.sonar_token != '' }}
         uses: SonarSource/sonarqube-scan-action@v7.1.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
