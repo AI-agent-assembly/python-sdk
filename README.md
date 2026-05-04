@@ -1,6 +1,14 @@
 # Agent Assembly Python SDK
 
-Python SDK for AI Agent Assembly, providing a simple client for connecting agents to a governance gateway.
+Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agents. One `init_assembly()` call wires your agent into the policy gateway, applies pre-execution allow/deny on tool calls, and emits audit events without changing how the agent itself is written.
+
+## Why use it
+
+- **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, and MCP servers — drop in, no SDK rewrites required.
+- **Pre-execution policy enforcement** via the `FrameworkAdapter` ABC — block disallowed tool calls before they hit the LLM.
+- **Audit trail** — every tool call, prompt, and policy decision is emitted to the gateway with full agent lineage (parent / root / team).
+- **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need sub-millisecond policy checks.
+- **Typed throughout** — Pydantic models for every gateway payload, mypy strict on adapter base and registry.
 
 ## Requirements
 
