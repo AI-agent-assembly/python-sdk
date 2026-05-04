@@ -55,31 +55,39 @@ The pure-Python SDK works without the native extension — `maturin develop` is 
 
 ## Quick Start
 
+A governed LangChain ReAct agent that runs offline against a mock LLM:
+
 ```python
-import asyncio
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain.tools import Tool
+from langchain_community.llms import FakeListLLM
+from langchain_core.prompts import PromptTemplate
 
 from agent_assembly import init_assembly
 
-
-async def main() -> None:
-    context = init_assembly(
-        gateway_url="http://localhost:8080",
-        api_key="required-api-key",
-        agent_id="my-agent-001",
-        mode="auto",
+with init_assembly(
+    gateway_url="http://localhost:8080",
+    api_key="dev-key",
+    agent_id="quickstart-agent",
+    mode="sdk-only",
+):
+    llm = FakeListLLM(responses=[
+        "Thought: I should look up the user.\nAction: whoami\nAction Input: alice\n",
+        "Thought: I have the answer.\nFinal Answer: alice is in engineering\n",
+    ])
+    tools = [Tool(name="whoami", func=lambda name: f"{name} is in engineering", description="who")]
+    prompt = PromptTemplate.from_template(
+        "Use the tools.\n{tools}\nTool names: {tool_names}\nQ: {input}\n{agent_scratchpad}"
     )
-
-    try:
-        registration = await context.client.register_agent()
-        decision = await context.client.check_policy_compliance("tool.call")
-        print(registration)
-        print(decision)
-    finally:
-        context.shutdown()
-
-
-asyncio.run(main())
+    executor = AgentExecutor(agent=create_react_agent(llm, tools, prompt), tools=tools, max_iterations=2)
+    print(executor.invoke({"input": "Which team is alice on?"})["output"])
 ```
+
+What this does:
+
+1. `init_assembly()` registers the agent with the gateway and auto-loads the LangChain adapter — every tool call from now on goes through the policy gate.
+2. The `FakeListLLM` replays canned responses so the example runs **offline** with no real LLM.
+3. The `with` block tears down the gateway connection and unwinds adapter hooks on exit.
 
 ## Public API
 
