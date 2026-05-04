@@ -68,3 +68,28 @@ flowchart LR
 ```
 
 Solid arrows are install-time; dashed arrows fire on every framework call after hooks are installed. The interceptor → gateway hop is the only network boundary in the data path.
+
+## PyO3 FFI layer
+
+The pure-Python adapters described above are sufficient for governing most agent frameworks. For deployments where every microsecond of policy-check latency matters — typically gateways under heavy multi-tenant load — the SDK ships an **optional** native runtime client written in Rust and exposed to Python via [PyO3](https://pyo3.rs/).
+
+### What ships in the wheel
+
+The native crate lives at `rust/aa-ffi-python/` in the repository and is built with [`maturin`](https://www.maturin.rs/). When installed, it exposes a private `agent_assembly._core` module with three symbols:
+
+- `RuntimeClient` — a Rust-backed gateway client implementing the same protocol as `agent_assembly.client.GatewayClient`. Sub-millisecond policy checks under load.
+- `GovernanceEvent` — Rust-side dataclass for events emitted on the audit channel.
+- `PolicyResult` — Rust-side enum-like value returned from `RuntimeClient.evaluate(...)`.
+- `PolicyTimeoutError` — raised when a policy check exceeds the configured deadline.
+
+`agent_assembly/__init__.py` imports these symbols inside a `try / except ImportError` block. **If the native extension was never built, the SDK still works** — pure-Python `GatewayClient` is the fallback, and the `RuntimeClient` symbol simply is not present in `agent_assembly.__all__`.
+
+### When to build it
+
+Run the maturin build only if you need the native fast path:
+
+```bash
+uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+```
+
+For most contributors, this is unnecessary — the pure-Python SDK is the default development path, and CI exercises both with and without the native extension via the `AAASM_RUN_NATIVE_CORE_TESTS` and `AAASM_RUN_MATURIN_TESTS` environment-variable gates documented in [CONTRIBUTING.md](https://github.com/AI-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md).
