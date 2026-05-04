@@ -137,3 +137,28 @@ uv run pre-commit run --all-files    # full pre-commit suite (isort + black + au
 
 Pre-commit hooks block commits that fail any of the above. Do not bypass with `--no-verify`; fix the underlying issue.
 
+## Branch naming and commit style
+
+- **Branch**: `<release-or-phase>/<ticket>/<short_summary>` — e.g. `v0.0.0/AAASM-1122/author_readme_contributing`. Type slug optional but recommended (`feat`, `fix`, `refactor`, `test`, `docs`, `config`, `deps`, `remove`, `lint`).
+- **Base branch**: always `master`. Never branch from another feature branch.
+- **Push remote**: `remote` (= `https://github.com/AI-agent-assembly/python-sdk`). Never push feature branches to `origin` (the personal fork).
+- **Commit message format**: `<gitemoji> (<scope>): <imperative summary under 72 chars>` — e.g. `📝 (readme): Add badge strip`. See [gitmoji.dev](https://gitmoji.dev/) for the full emoji table.
+- **One concern per commit.** Each commit must be bisectable: tests pass, build succeeds. Prefer many small commits over one large commit.
+
+## Pull request checklist
+
+Before requesting review, confirm every item below.
+
+- [ ] PR title is `[AAASM-XXXX] <emoji> (<scope>): <imperative summary>` (matches the commit style)
+- [ ] PR body filled in from `.github/PULL_REQUEST_TEMPLATE.md` (Description, Type of Change, Breaking Changes, Related Issues, Testing, Checklist)
+- [ ] Branch is up to date with `master` (rebased, not merged)
+- [ ] `uv run pytest` is green locally (full suite, not just impacted tests)
+- [ ] `uv run pre-commit run --all-files` is green
+- [ ] `uv run mypy agent_assembly` is green
+- [ ] If adapters or runtime changed: added/updated tests under `test/unit/` and `test/integration/`
+- [ ] If public API changed: docstrings updated (mkdocstrings will pick them up automatically)
+- [ ] If user-facing behaviour changed: README.md / docs/ updated
+- [ ] No `print()` / `breakpoint()` / commented-out dead code left in the diff
+- [ ] No `.env`, secrets, or large binaries staged
+
+After opening: address all reviewer comments, keep CI green. Squash-merge is the project default.
