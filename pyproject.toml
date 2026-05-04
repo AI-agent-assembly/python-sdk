@@ -55,6 +55,8 @@ pre-commit-ci = [
 docs = [
     "mkdocs>=1.6.0,<2",
     "mkdocs-material>=9.5.0,<10",
+    "mkdocstrings>=0.24.0,<1",
+    "mkdocstrings-python>=1.10.0,<2",
 ]
 
 [tool.uv]
