@@ -134,3 +134,17 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
+
+# Additional configuration
+extra:
+  # Versioning documentation
+  version:
+    provider: mike
+    default: stable
+    alias: true
+  # Social info
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/AI-agent-assembly/python-sdk
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/agent-assembly/
