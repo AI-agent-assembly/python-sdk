@@ -55,7 +55,11 @@ The pure-Python SDK works without the native extension — `maturin develop` is 
 
 ## Quick Start
 
-A governed LangChain ReAct agent that runs offline against a mock LLM:
+A governed LangChain ReAct agent that runs offline against a mock LLM. The example imports LangChain in addition to the SDK, so install both:
+
+```bash
+pip install agent-assembly langchain langchain-community
+```
 
 ```python
 from langchain.agents import AgentExecutor, create_react_agent
