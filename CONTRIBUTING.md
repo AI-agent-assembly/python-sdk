@@ -100,3 +100,40 @@ Each adapter must have:
 - A unit test under `test/unit/adapters/<framework_name>/` covering the patch install/revert lifecycle (mock the framework's classes).
 - An integration test under `test/integration/adapters/<framework_name>/` that exercises a minimal end-to-end flow with the real framework imported.
 
+## Running tests and lints
+
+All commands run inside the project venv via `uv run`. CI runs the same commands — green CI is required before merge.
+
+### Tests
+
+```bash
+uv run pytest                                 # full Python suite (auto-detects pytest.ini)
+uv run pytest test/unit/cli/test_loader.py    # one file
+uv run pytest -m integration                  # integration markers only
+uv run pytest --benchmark-only test/bench/    # performance benchmarks
+```
+
+If you have built the native extension, two opt-in suites exercise the PyO3 layer:
+
+```bash
+AAASM_RUN_NATIVE_CORE_TESTS=1 uv run pytest test/integration/test_native_core_runtime.py
+AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturin.py
+```
+
+The Rust crate has its own test suite:
+
+```bash
+cargo test --manifest-path rust/aa-ffi-python/Cargo.toml
+```
+
+### Lint and format
+
+```bash
+uv run ruff check .                  # lint (config: ruff.toml; line length 120, target py312)
+uv run ruff format .                 # auto-format
+uv run mypy agent_assembly           # type check (mypy.ini; strict on adapters.base/registry)
+uv run pre-commit run --all-files    # full pre-commit suite (isort + black + autoflake + mypy)
+```
+
+Pre-commit hooks block commits that fail any of the above. Do not bypass with `--no-verify`; fix the underlying issue.
+
