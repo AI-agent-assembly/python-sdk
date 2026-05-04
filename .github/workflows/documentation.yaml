@@ -65,6 +65,7 @@ jobs:
       - name: Build and deploy latest documentation
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Activate the uv-managed venv so the deploy script's `mkdocs` and
           # `mike` commands resolve without the `uv run` prefix.
@@ -103,6 +104,7 @@ jobs:
       - name: Build and deploy stable documentation
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
         run: |
           source .venv/bin/activate
           bash ./scripts/ci/deploy-stable-version-documentation.sh
