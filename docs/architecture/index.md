@@ -44,3 +44,27 @@ Each adapter's `register_hooks()` delegates to one or more `RuntimePatch` object
 - `agent_assembly.adapters.crewai.patch.CrewAIPatch` — analogous wrappers for CrewAI's tool invocation entry points.
 
 This three-layer split keeps the public API stable (the ABC) while letting per-framework patch code change freely as those frameworks evolve. ADR-0001 captures the rationale.
+
+### Visual
+
+```mermaid
+flowchart LR
+    User["User code<br/>(LangChain / CrewAI / …)"]
+    InitAssembly["init_assembly()"]
+    Registry["AdapterRegistry<br/>get_available_adapters_by_priority()"]
+    Adapter["FrameworkAdapter<br/>(LangChainAdapter, CrewAIAdapter, …)"]
+    Patch["RuntimePatch<br/>(LangChainPatch, CrewAIPatch, …)"]
+    Framework["Third-party framework<br/>(BaseTool._run, StateGraph.compile, …)"]
+    Interceptor["GovernanceInterceptor"]
+    Gateway["Gateway / policy engine"]
+
+    User --> InitAssembly
+    InitAssembly --> Registry
+    Registry -->|enumerate available| Adapter
+    Adapter -->|register_hooks(interceptor)| Patch
+    Patch -->|monkey-patch| Framework
+    Framework -.->|every tool call| Interceptor
+    Interceptor -.->|allow/deny + audit| Gateway
+```
+
+Solid arrows are install-time; dashed arrows fire on every framework call after hooks are installed. The interceptor → gateway hop is the only network boundary in the data path.
