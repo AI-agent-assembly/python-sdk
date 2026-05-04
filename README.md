@@ -1,5 +1,10 @@
 # Agent Assembly Python SDK
 
+[![PyPI version](https://img.shields.io/pypi/v/agent-assembly.svg)](https://pypi.org/project/agent-assembly/)
+[![Python versions](https://img.shields.io/pypi/pyversions/agent-assembly.svg)](https://pypi.org/project/agent-assembly/)
+[![CI](https://github.com/AI-agent-assembly/python-sdk/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/AI-agent-assembly/python-sdk/actions/workflows/ci.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agents. One `init_assembly()` call wires your agent into the policy gateway, applies pre-execution allow/deny on tool calls, and emits audit events without changing how the agent itself is written.
 
 ## Why use it
