@@ -79,3 +79,12 @@ plugins:
       version_selector: true
       css_dir: css
       javascript_dir: js
+  # Documentation modification info — per-page "last updated" timestamp.
+  - git-revision-date-localized:
+      type: timeago
+      timezone: Asia/Taipei
+      fallback_to_build_date: false
+      enable_creation_date: true
+      enable_git_follow: true
+      enabled: true
+      strict: true
