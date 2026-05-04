@@ -23,17 +23,35 @@ Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agen
 
 ## Installation
 
-From source:
+### Use the SDK in your project
+
+```bash
+pip install agent-assembly
+```
+
+(Once published to PyPI. Until then, install directly from GitHub:)
 
 ```bash
 pip install git+https://github.com/AI-agent-assembly/python-sdk.git
 ```
 
-For local development:
+### Develop on the SDK
+
+Clone the repo and sync the dev environment with `uv`:
 
 ```bash
+git clone https://github.com/AI-agent-assembly/python-sdk.git
+cd python-sdk
 uv sync
 ```
+
+To build the optional PyO3 extension locally (requires Rust):
+
+```bash
+uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+```
+
+The pure-Python SDK works without the native extension — `maturin develop` is only needed if you want the sub-millisecond `RuntimeClient` fast path.
 
 ## Quick Start
 
