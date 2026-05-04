@@ -93,3 +93,32 @@ uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --rele
 ```
 
 For most contributors, this is unnecessary — the pure-Python SDK is the default development path, and CI exercises both with and without the native extension via the `AAASM_RUN_NATIVE_CORE_TESTS` and `AAASM_RUN_MATURIN_TESTS` environment-variable gates documented in [CONTRIBUTING.md](https://github.com/AI-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md).
+
+## `init_assembly()` lifecycle
+
+`agent_assembly.init_assembly()` is the single entry point. Its job is to wire the SDK into the host process atomically — either everything succeeds and the agent is governed, or nothing was changed and the user sees an exception. It must never leave the process in a partially-patched state.
+
+### Bootstrap order
+
+1. **Validate inputs** (`gateway_url`, `api_key`, `mode`). Invalid arguments raise `ConfigurationError` *before* any side-effect runs, so retry logic in user code is safe.
+2. **Create the gateway client** — pure-Python `GatewayClient` by default. If `mode != "sdk-only"` and the native extension is available, the assembly may switch to the Rust `RuntimeClient` (transparent to the caller).
+3. **Discover adapters** via `AdapterRegistry.get_available_adapters_by_priority()`. Adapters whose underlying framework is not importable are silently skipped — no warning noise.
+4. **Install hooks** by calling `adapter.register_hooks(interceptor)` for each available adapter, in priority order. Each adapter records the patches it owns so they can be reverted in step 9.
+5. **Start the network layer** (the side-channel that streams audit events to the gateway). For `mode="ebpf"` and `mode="proxy"`, this is where the network sidecar handshake happens.
+6. **Register the active context** in a process-global slot under a lock — `init_assembly()` is idempotent within a process: a second call returns the active context unchanged rather than double-installing hooks.
+7. Return the [`AssemblyContext`](../api-reference/index.md) to the caller.
+
+### Shutdown order (reverse)
+
+The returned `AssemblyContext` doubles as a context manager (`__enter__` / `__exit__`). On `shutdown()`:
+
+8. **Stop the network layer** — flush in-flight audit events.
+9. **`unregister_hooks()` on every adapter, in reverse install order** — guarantees that nested patches (e.g. LangGraph wrapping LangChain) come off in the order opposite to install.
+10. **Close the gateway client** — drain the HTTP keep-alive pool.
+11. **Clear the process-global active-context slot** — the next `init_assembly()` call starts clean.
+
+If any of steps 8–10 raises, the others still run; the exceptions are aggregated into a single `AssemblyError` raised at the end of `shutdown()`. This guarantees no patch is left installed even when teardown is messy.
+
+### Why a single entry point
+
+The SDK deliberately exposes only one bootstrap function. There is no "init the gateway client without installing hooks" or "install hooks only for adapter X" public API — those would let user code drift into a partially-patched state where some tool calls are governed and others are not. The single-entry-point design makes the trust boundary uniform: either `init_assembly()` succeeded and **every** registered framework is governed, or it raised and **none** of them are.
