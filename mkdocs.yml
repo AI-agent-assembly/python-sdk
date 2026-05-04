@@ -88,3 +88,7 @@ plugins:
       enable_git_follow: true
       enabled: true
       strict: true
+  # Documentation modification info — per-page contributor list.
+  - git-committers:
+      repository: AI-agent-assembly/python-sdk
+      branch: master
