@@ -158,8 +158,8 @@ AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturi
 ## Documentation
 
 - **Project docs (rendered)** — https://ai-agent-assembly.github.io/python-sdk/ *(versioned via `mike`; pick `latest` or `stable` from the version selector)*
-- **Architecture** — [`docs/architecture/`](./docs/architecture/) (adapter pattern, PyO3 FFI, `init_assembly()` lifecycle)
-- **API reference** — [`docs/api-reference/`](./docs/api-reference/) (auto-generated from docstrings via `mkdocstrings`)
+- **Architecture** — [rendered](https://ai-agent-assembly.github.io/python-sdk/latest/architecture/) / [source](./docs/architecture/index.md) — adapter pattern, PyO3 FFI, `init_assembly()` lifecycle, with a Mermaid flow diagram.
+- **API reference** — [rendered](https://ai-agent-assembly.github.io/python-sdk/latest/api-reference/) / [source](./docs/api-reference/index.md) — auto-generated from package docstrings via `mkdocstrings`. Per-module pages: [Client](./docs/api-reference/client.md), [Exceptions](./docs/api-reference/exceptions.md), [Models](./docs/api-reference/models.md).
 - **ADRs** — [`docs/development/adr/`](./docs/development/adr/) (architecture decision records)
 
 ## Contributing
