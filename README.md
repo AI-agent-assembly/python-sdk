@@ -153,7 +153,14 @@ AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturi
 
 ## Documentation
 
-- Project docs source: `docs/`
+- **Project docs (rendered)** — https://ai-agent-assembly.github.io/python-sdk/ *(versioned via `mike`; pick `latest` or `stable` from the version selector)*
+- **Architecture** — [`docs/architecture/`](./docs/architecture/) (adapter pattern, PyO3 FFI, `init_assembly()` lifecycle)
+- **API reference** — [`docs/api-reference/`](./docs/api-reference/) (auto-generated from docstrings via `mkdocstrings`)
+- **ADRs** — [`docs/development/adr/`](./docs/development/adr/) (architecture decision records)
+
+## Contributing
+
+Please read [**CONTRIBUTING.md**](./CONTRIBUTING.md) before opening a PR — it covers dev environment setup, framework adapter authoring, the test/lint command list, branch naming, and the PR checklist.
 
 ## License
 
