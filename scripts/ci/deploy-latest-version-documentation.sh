@@ -1,51 +1,51 @@
 #!/usr/bin/env bash
-
-#####################################################################################################################
 #
-# Target:
-# Automate to deploy the latest version content of documentation.
+# Build and deploy the docs site under the "latest" alias on every push to master.
 #
-# Description:
-# It doesn't care about project version. It will use the latest version content to deploy in documentation.
+# Behaviour:
+#   - Reads the project version from pyproject.toml.
+#   - Runs `mkdocs build --strict` first as a guard so a broken build never
+#     reaches gh-pages.
+#   - Calls `mike deploy --push --update-aliases <version> latest` to publish
+#     under both the concrete version (e.g. 0.0.0) and the "latest" alias.
 #
-# Allowable options:
-#  -d [Run mode]                  Running mode. Set 'dry-run' or 'debug' to let it only show log message without exactly working. [options: general, dry-run, debug]
-#  -h [Argument]                  Show this help. You could set a specific argument naming to show the option usage. Empty or 'all' would show all arguments usage. [options: r, p, v, i, d, h]
-#
-#####################################################################################################################
+# Required environment:
+#   - GH_TOKEN (or GITHUB_TOKEN) — push access to the gh-pages branch.
+#   - Working directory must be the repo root with checked-out master.
 
-Running_Mode="false"
-#Running_Mode="dry-run"    # dry run for testing
+set -euo pipefail
 
-sync_code() {
-    # note: https://github.com/jimporter/mike?tab=readme-ov-file#deploying-via-ci
-    git fetch origin gh-pages --depth=1
-}
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "${PROJECT_ROOT}"
 
-set_git_config() {
-    git config --global user.name github-actions[bot]
-    git config --global user.email chi10211201@cycu.org.tw
-}
+VERSION=$(python3 - <<'PY'
+import re
+import sys
+from pathlib import Path
 
-declare Latest_Version_Alias_Name="latest"
+text = Path("pyproject.toml").read_text(encoding="utf-8")
+match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+if not match:
+    sys.exit("ERROR: could not find version = \"...\" in pyproject.toml")
+print(match.group(1))
+PY
+)
 
-push_new_version_to_document_server() {
-    if [ "$Running_Mode" == "dry-run" ] || [ "$Running_Mode" == "debug" ]; then
-        echo "👨‍💻 This is debug mode, doesn't really deploy the new version to document."
-        echo "👨‍💻 Under running command line: poetry run mike deploy --push $Latest_Version_Alias_Name"
-    else
-#        poetry run mike deploy --message "[bot] Deploy a new version documentation." --push --update-aliases "$New_Release_Version" latest
-        poetry run mike deploy --push $Latest_Version_Alias_Name
-    fi
+echo "👷  Deploying docs for version=${VERSION} under alias=latest"
 
-    echo "🍻 Push new version documentation successfully!"
-}
+# Configure git author for the gh-pages commit mike creates.
+git config --global user.name "github-actions[bot]"
+git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-# The process what the shell script want to do truly start here
-echo "👷  Start to push new version documentation ..."
+# Make sure the gh-pages branch is locally available — mike pushes to it.
+# See https://github.com/jimporter/mike?tab=readme-ov-file#deploying-via-ci
+git fetch remote gh-pages --depth=1 2>/dev/null || \
+    git fetch origin gh-pages --depth=1 2>/dev/null || true
 
-sync_code
-set_git_config
-push_new_version_to_document_server
+# Pre-flight: fail fast if the build itself is broken.
+mkdocs build --strict
 
-echo "👷  Deploy new version documentation successfully!"
+# Push the version + retarget the "latest" alias atomically.
+mike deploy --push --update-aliases "${VERSION}" latest
+
+echo "🍻 Latest documentation deployed for ${VERSION}."
