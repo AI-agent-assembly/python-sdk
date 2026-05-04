@@ -3,30 +3,22 @@ name: documentation
 on:
   push:
     branches:
-#      - "develop/**"    # For development and testing
       - "master"
     paths:
-#     Documentation
-#     Doc - CI workflow
+      # Doc — CI workflow + deploy scripts
       - ".github/workflows/documentation.yaml"
-      - "scripts/ci/**documentation**.sh"
-#     Doc - Font-End config
-      - "docs_with_docusarus/package.json"
-      - "docs_with_docusarus/pnpm-lock.yaml"
-#     Doc - Docusaurus config
-      - "docs_with_docusarus/docusaurus.config.ts"
-#     Doc - Content
-      - "docs_with_docusarus/**/*.md"
-      - "docs_with_docusarus/**/*.mdx"
-      - "docs_with_docusarus/**/*.ts"
-      - "docs_with_docusarus/**/*.tsx"
-      - "docs_with_docusarus/**/*.js"
-      - "docs_with_docusarus/**/*.jsx"
-      - "docs_with_docusarus/**/*.css"
-#     Doc - versioning (Docusaurus versioned content)
-      - "docs_with_docusarus/*_versions.json"
-      - "docs_with_docusarus/*_versioned_docs/**"
-      - "docs_with_docusarus/*_versioned_sidebars/**"
+      - "scripts/ci/deploy-latest-version-documentation.sh"
+      - "scripts/ci/deploy-stable-version-documentation.sh"
+      # Doc — MkDocs config
+      - "mkdocs.yml"
+      # Doc — Markdown content
+      - "docs/**/*.md"
+      # Doc — theme overrides
+      - "docs/_overrides/**"
+      # Python source code (mkdocstrings reads docstrings from agent_assembly/)
+      - "agent_assembly/**/*.py"
+      # Python project metadata (version is read from pyproject.toml)
+      - "pyproject.toml"
   workflow_run:
     workflows: ["release"]
     types: [completed]
@@ -37,96 +29,91 @@ permissions:
   id-token: write
   pages: write
 
-# Allow one concurrent deployment
+# Allow one concurrent deployment so a fast-follow push doesn't race the
+# previous deploy on gh-pages.
 concurrency:
-  group: "pages"
+  group: "pages-mkdocs"
   cancel-in-progress: true
 
 jobs:
-  # Guard job: Check if documentation files changed and if release workflow succeeded
-  check_docs_changes:
+  deploy_latest_documentation:
+    name: Deploy latest documentation
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    outputs:
-      should_deploy: ${{ steps.check_changes.outputs.should_deploy || steps.set_push_deploy.outputs.should_deploy }}
     steps:
-      - name: Set deployment flag for push events
-        id: set_push_deploy
-        if: github.event_name == 'push'
-        run: |
-          echo "Direct push event detected, proceeding with deployment"
-          echo "should_deploy=true" >> $GITHUB_OUTPUT
-
-      - name: Download docs update flag from release workflow
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v8
+      - name: Checkout (full history for mike + git-revision-date plugins)
+        uses: actions/checkout@v4
         with:
-          name: release-docs-flag
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          fetch-depth: 0
 
-      - name: Check release workflow success and docs update flag
-        id: check_changes
-        if: github.event_name == 'workflow_run'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install docs dependency group
+        run: uv sync --group docs
+
+      - name: Print tool versions
         run: |
-          set -euo pipefail
-          
-          # Verify release workflow succeeded
-          if [[ "${{ github.event.workflow_run.conclusion }}" != "success" ]]; then
-            echo "Release workflow failed, skipping documentation deployment"
-            echo "should_deploy=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # Read docs update flag from artifact
-          DOCS_UPDATED=$(cat docs_updated.txt)
-          
-          echo "Documentation updated flag: $DOCS_UPDATED"
-          
-          if [[ "$DOCS_UPDATED" == "true" ]]; then
-            echo "Documentation was updated during release, proceeding with deployment"
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-          else
-            echo "No documentation files were updated, skipping deployment"
-            echo "should_deploy=false" >> $GITHUB_OUTPUT
-          fi
+          uv run mkdocs --version
+          uv run mike --version
 
-  build_documentation:
-    name: Build Documentation
-    if: needs.check_docs_changes.outputs.should_deploy == 'true'
-    needs: [check_docs_changes]
-    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_docusaurus_operations.yaml@master
-    with:
-      operation: build
-      node-version: '24'
-      working-directory: docs_with_docusarus
-      upload-artifacts: true
+      - name: Build and deploy latest documentation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Activate the uv-managed venv so the deploy script's `mkdocs` and
+          # `mike` commands resolve without the `uv run` prefix.
+          source .venv/bin/activate
+          bash ./scripts/ci/deploy-latest-version-documentation.sh
 
-  deploy_to_github_pages:
-    name: Deploy to GitHub Pages
+  deploy_stable_documentation:
+    name: Deploy stable documentation (release)
+    if: |
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    if: needs.check_docs_changes.outputs.should_deploy == 'true'
-    needs: [check_docs_changes, build_documentation]
     steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v8
+      - name: Checkout (full history for mike + git-revision-date plugins)
+        uses: actions/checkout@v4
         with:
-          name: documentation-build
-          path: ./docs_with_docusarus/build
+          fetch-depth: 0
+          ref: master
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          path: ./docs_with_docusarus/build
+          enable-cache: true
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install docs dependency group
+        run: uv sync --group docs
+
+      - name: Print tool versions
+        run: |
+          uv run mkdocs --version
+          uv run mike --version
+
+      - name: Build and deploy stable documentation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          source .venv/bin/activate
+          bash ./scripts/ci/deploy-stable-version-documentation.sh
 
       - name: Deployment summary
+        env:
+          STABLE_URL: "https://ai-agent-assembly.github.io/python-sdk/stable/"
         run: |
-          echo "## 📚 Documentation Deployment" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Successfully deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 **URL**: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 📚 Stable documentation deployed"
+            echo "🔗 ${STABLE_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"
