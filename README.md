@@ -17,7 +17,9 @@ Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agen
 
 ## Requirements
 
-- Python `>=3.12,<4.0`
+- **Python** `>=3.12,<4.0` (3.12, 3.13, 3.14 are tested in CI)
+- **Rust toolchain** (stable channel) — only required for building the optional native extension via `maturin develop`. Pure-Python users do not need Rust.
+- **uv** ≥ 0.4 — recommended for managing the dev environment. (`pip` works for plain installs.)
 
 ## Installation
 
