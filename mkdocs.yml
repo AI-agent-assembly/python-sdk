@@ -148,3 +148,17 @@ extra:
       link: https://github.com/AI-agent-assembly/python-sdk
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/agent-assembly/
+
+# Page tree
+nav:
+  - Home: index.md
+  - Architecture:
+      - architecture/index.md
+  - API reference:
+      - api-reference/index.md
+  - Development:
+      - development/index.md
+      - ADR:
+          - 0001 — Hook architecture: development/adr/0001-hook-architecture.md
+  - Release notes:
+      - release-notes/index.md
