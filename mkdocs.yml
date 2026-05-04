@@ -156,6 +156,9 @@ nav:
       - architecture/index.md
   - API reference:
       - api-reference/index.md
+      - Client: api-reference/client.md
+      - Exceptions: api-reference/exceptions.md
+      - Models: api-reference/models.md
   - Development:
       - development/index.md
       - ADR:
