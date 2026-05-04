@@ -53,3 +53,20 @@ theme:
     code: Roboto Mono
   icon:
     logo: material/library
+
+# Plugins
+plugins:
+  # Doc-as-Code — render Python API reference inline from package docstrings.
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: sphinx
+            docstring_section_style: spacy
+            docstring_options:
+              ignore_init_summary: true
+            merge_init_into_class: true
+            relative_crossrefs: true
+            show_source: true
+            show_signature_annotations: true
+            separate_signature: true
