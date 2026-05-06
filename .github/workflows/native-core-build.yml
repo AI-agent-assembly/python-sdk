@@ -26,6 +26,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Create virtual environment
+        run: uv venv
+
       - name: Build native module with maturin
         env:
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
