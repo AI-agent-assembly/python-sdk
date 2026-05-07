@@ -18,6 +18,10 @@ class GatewayClient:
         agent_id: str,
         api_key: Optional[str] = None,
         timeout: int = 30,
+        *,
+        parent_agent_id: Optional[str] = None,
+        team_id: Optional[str] = None,
+        delegation_reason: Optional[str] = None,
     ) -> None:
         """
         Initialize the GatewayClient.
@@ -27,11 +31,17 @@ class GatewayClient:
             agent_id: Unique identifier for the agent
             api_key: Optional API key for authentication
             timeout: Request timeout in seconds
+            parent_agent_id: Parent agent ID for topology tracking
+            team_id: Team ID this agent belongs to
+            delegation_reason: Human-readable reason for delegation
         """
         self.gateway_url = gateway_url.rstrip("/")
         self.agent_id = agent_id
         self.api_key = api_key
         self.timeout = timeout
+        self.parent_agent_id = parent_agent_id
+        self.team_id = team_id
+        self.delegation_reason = delegation_reason
         self._client: Optional[httpx.Client] = None
 
     @property
@@ -72,9 +82,17 @@ class GatewayClient:
         Raises:
             GatewayError: If registration fails
         """
+        body: dict[str, str] = {}
+        if self.parent_agent_id is not None:
+            body["parent_agent_id"] = self.parent_agent_id
+        if self.team_id is not None:
+            body["team_id"] = self.team_id
+        if self.delegation_reason is not None:
+            body["delegation_reason"] = self.delegation_reason
         try:
             response = self.client.post(
                 f"/agents/{self.agent_id}/register",
+                json=body if body else None,
             )
             response.raise_for_status()
             return response.json()
