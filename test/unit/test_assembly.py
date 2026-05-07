@@ -299,3 +299,49 @@ def test_init_assembly_is_thread_safe_and_idempotent(
         assert register_call_count == 1
     finally:
         context_a.shutdown()
+
+
+def test_init_assembly_topology_params_forwarded_to_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://localhost:8080",
+        api_key="test-api-key",
+        agent_id="child-agent",
+        parent_agent_id="parent-agent",
+        team_id="team-1",
+        delegation_reason="delegated sub-task",
+    )
+
+    try:
+        assert context.client.parent_agent_id == "parent-agent"
+        assert context.client.team_id == "team-1"
+        assert context.client.delegation_reason == "delegated sub-task"
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_without_topology_params_is_backward_compatible(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://localhost:8080",
+        api_key="test-api-key",
+    )
+
+    try:
+        assert context.client.parent_agent_id is None
+        assert context.client.team_id is None
+        assert context.client.delegation_reason is None
+    finally:
+        context.shutdown()
