@@ -107,14 +107,16 @@ def init_assembly(
     api_key: str,
     agent_id: str | None = None,
     mode: RuntimeMode = "auto",
-    **kwargs: Any,
+    *,
+    parent_agent_id: str | None = None,
+    team_id: str | None = None,
+    delegation_reason: str | None = None,
 ) -> AssemblyContext:
     """Initialize the Agent Assembly SDK runtime for this process.
 
     Uses ``AdapterRegistry.get_available_adapters_by_priority()`` as the
     single detection path for framework adapters (see ADR-0001).
     """
-    del kwargs
     _validate_inputs(gateway_url=gateway_url, api_key=api_key, mode=mode)
     resolved_agent_id = agent_id or _DEFAULT_AGENT_ID
 
@@ -133,6 +135,9 @@ def init_assembly(
             gateway_url=gateway_url,
             agent_id=resolved_agent_id,
             api_key=api_key,
+            parent_agent_id=parent_agent_id,
+            team_id=team_id,
+            delegation_reason=delegation_reason,
         )
 
         registered_adapters: list[FrameworkAdapter] = []
@@ -143,11 +148,15 @@ def init_assembly(
                 client=client,
                 process_agent_id=resolved_agent_id,
             )
-            network_mode, network_shutdown = _start_network_layer(client=client, mode=mode)
+            network_mode, network_shutdown = _start_network_layer(
+                client=client, mode=mode
+            )
         except Exception as error:
             _unregister_adapters(registered_adapters)
             client.close()
-            raise ConfigurationError(f"Failed to initialize assembly runtime: {error}") from error
+            raise ConfigurationError(
+                f"Failed to initialize assembly runtime: {error}"
+            ) from error
 
         context = AssemblyContext(
             client=client,
@@ -212,7 +221,9 @@ def _unregister_adapters(adapters: list[FrameworkAdapter]) -> None:
             continue
 
 
-def _start_network_layer(*, client: GatewayClient, mode: RuntimeMode) -> tuple[NetworkMode, Callable[[], None]]:
+def _start_network_layer(
+    *, client: GatewayClient, mode: RuntimeMode
+) -> tuple[NetworkMode, Callable[[], None]]:
     if mode == "sdk-only":
         return "sdk-only", _noop_shutdown
 
@@ -262,8 +273,14 @@ def _validate_active_context_compatibility(
     agent_id: str,
 ) -> None:
     if context.client.gateway_url != gateway_url.rstrip("/"):
-        raise ConfigurationError("init_assembly already initialized with a different gateway_url.")
+        raise ConfigurationError(
+            "init_assembly already initialized with a different gateway_url."
+        )
     if context.client.api_key != api_key:
-        raise ConfigurationError("init_assembly already initialized with a different api_key.")
+        raise ConfigurationError(
+            "init_assembly already initialized with a different api_key."
+        )
     if context.client.agent_id != agent_id:
-        raise ConfigurationError("init_assembly already initialized with a different agent_id.")
+        raise ConfigurationError(
+            "init_assembly already initialized with a different agent_id."
+        )
