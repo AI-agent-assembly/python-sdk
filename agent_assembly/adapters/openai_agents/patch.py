@@ -15,9 +15,12 @@ from agent_assembly.adapters.crewai.patch import (
 from agent_assembly.adapters.crewai.patch import (
     _normalize_decision as _normalize_governance_decision,
 )
+from agent_assembly.core.spawn import SpawnContext, _SPAWN_CTX, spawn_context_scope
 
 _ORIGINAL_FUNCTION_TOOL_CALL = "_agent_assembly_original_openai_agents_function_tool_call"
 _PATCHED_FLAG = "_agent_assembly_openai_agents_function_tool_patched"
+_ORIGINAL_RUNNER_RUN = "_agent_assembly_original_openai_agents_runner_run"
+_RUNNER_PATCHED_FLAG = "_agent_assembly_openai_agents_runner_patched"
 _PROCESS_AGENT_ID: str | None = None
 _MAX_AUDIT_RESULT_CHARS = 2000
 
@@ -35,9 +38,15 @@ class OpenAIAgentsPatch:
         if function_tool_cls is None:
             return False
         _apply_function_tool_call_patch(function_tool_cls, self.callback_handler)
+        runner_cls = _load_openai_agents_runner_class()
+        if runner_cls is not None:
+            _apply_runner_run_patch(runner_cls, self.process_agent_id)
         return True
 
     def revert(self) -> None:
+        runner_cls = _load_openai_agents_runner_class()
+        if runner_cls is not None:
+            _revert_runner_run_patch(runner_cls)
         function_tool_cls = _load_openai_agents_function_tool_class()
         if function_tool_cls is not None:
             _revert_function_tool_call_patch(function_tool_cls)
@@ -69,6 +78,83 @@ def _load_openai_agents_function_tool_class() -> type[Any] | None:
     function_tool_cls = getattr(module, "FunctionTool", None)
     if isinstance(function_tool_cls, type):
         return function_tool_cls
+    return None
+
+
+def _load_openai_agents_runner_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("openai.agents")
+    except ImportError:
+        return None
+    runner_cls = getattr(module, "Runner", None)
+    if isinstance(runner_cls, type):
+        return runner_cls
+    return None
+
+
+def _current_spawn_depth() -> int:
+    current = _SPAWN_CTX.get()
+    return (current.depth + 1) if current is not None else 1
+
+
+def _call_original_run(
+    runner_cls: type[Any],
+    original_run: Any,
+    agent: Any,
+    input: Any,
+    kwargs: dict[str, Any],
+) -> Any:
+    """Invoke original_run correctly regardless of whether its __func__ declares cls."""
+    func = getattr(original_run, "__func__", None)
+    if func is None:
+        # Not a classmethod descriptor — call directly.
+        return original_run(agent, input=input, **kwargs)
+    params = list(inspect.signature(func).parameters.keys())
+    if params and params[0] in ("cls", "klass", "mcs"):
+        # Real classmethod: __func__(cls, agent, input=...)
+        return func(runner_cls, agent, input=input, **kwargs)
+    # Test-style function used as classmethod without cls param.
+    return func(agent, input=input, **kwargs)
+
+
+def _apply_runner_run_patch(runner_cls: type[Any], process_agent_id: str | None) -> None:
+    if getattr(runner_cls, _RUNNER_PATCHED_FLAG, False):
+        return None
+
+    # Capture the bound method descriptor before patching.
+    original_run = runner_cls.run
+
+    @wraps(original_run)
+    async def patched_run(agent: Any, *, input: Any, **kwargs: Any) -> Any:
+        spawn_ctx = SpawnContext(
+            parent_agent_id=process_agent_id or "",
+            depth=_current_spawn_depth(),
+            spawned_by_tool="openai_agents_runner",
+        )
+        with spawn_context_scope(spawn_ctx):
+            result = _call_original_run(runner_cls, original_run, agent, input, kwargs)
+            if inspect.isawaitable(result):
+                return await result
+            return result
+
+    # Store the original bound method for revert.  Set patched_run as a plain
+    # function — when called as Runner.run(agent, input=...) Python does not
+    # inject cls, so the signature (agent, *, input, **kwargs) is correct.
+    setattr(runner_cls, _ORIGINAL_RUNNER_RUN, original_run)
+    setattr(runner_cls, "run", patched_run)
+    setattr(runner_cls, _RUNNER_PATCHED_FLAG, True)
+    return None
+
+
+def _revert_runner_run_patch(runner_cls: type[Any]) -> None:
+    if not getattr(runner_cls, _RUNNER_PATCHED_FLAG, False):
+        return None
+    original_run = getattr(runner_cls, _ORIGINAL_RUNNER_RUN, None)
+    if callable(original_run):
+        setattr(runner_cls, "run", original_run)
+    for attr in (_ORIGINAL_RUNNER_RUN, _RUNNER_PATCHED_FLAG):
+        if hasattr(runner_cls, attr):
+            delattr(runner_cls, attr)
     return None
 
 
