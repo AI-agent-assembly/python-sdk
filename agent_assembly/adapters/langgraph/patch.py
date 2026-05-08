@@ -7,6 +7,8 @@ import inspect
 from dataclasses import dataclass
 from typing import Any
 
+from agent_assembly.core.spawn import SpawnContext, _SPAWN_CTX, spawn_context_scope
+
 _PATCHED_FLAG = "_agent_assembly_compile_patched"
 _ORIGINAL_COMPILE = "_agent_assembly_original_compile"
 _NODE_WRAPPED_FLAG = "_agent_assembly_node_wrapped"
@@ -197,10 +199,7 @@ def _is_compiled_subgraph(node_executor: Any) -> bool:
 
 def _current_spawn_depth() -> int:
     """Return depth for a new spawn context: current depth + 1, or 1 if root."""
-    import importlib as _importlib
-
-    _spawn_mod = _importlib.import_module("agent_assembly.core.spawn")
-    current = _spawn_mod._SPAWN_CTX.get()
+    current = _SPAWN_CTX.get()
     return (current.depth + 1) if current is not None else 1
 
 
@@ -217,40 +216,28 @@ def _make_subgraph_spawn_wrapper(
     if async_:
 
         async def async_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
-            import importlib as _importlib
-
-            _spawn_mod = _importlib.import_module("agent_assembly.core.spawn")
-            _SpawnContext = _spawn_mod.SpawnContext
-            _spawn_context_scope = _spawn_mod.spawn_context_scope
-            _SPAWN_CTX = _spawn_mod._SPAWN_CTX
             current = _SPAWN_CTX.get()
             depth = (current.depth + 1) if current is not None else 1
-            spawn_ctx = _SpawnContext(
+            spawn_ctx = SpawnContext(
                 parent_agent_id=process_agent_id or "",
                 depth=depth,
                 spawned_by_tool=spawned_by_tool,
             )
-            with _spawn_context_scope(spawn_ctx):
+            with spawn_context_scope(spawn_ctx):
                 return await subgraph.ainvoke(*args, **kwargs)
 
         return async_subgraph_wrapper
     else:
 
         def sync_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
-            import importlib as _importlib
-
-            _spawn_mod = _importlib.import_module("agent_assembly.core.spawn")
-            _SpawnContext = _spawn_mod.SpawnContext
-            _spawn_context_scope = _spawn_mod.spawn_context_scope
-            _SPAWN_CTX = _spawn_mod._SPAWN_CTX
             current = _SPAWN_CTX.get()
             depth = (current.depth + 1) if current is not None else 1
-            spawn_ctx = _SpawnContext(
+            spawn_ctx = SpawnContext(
                 parent_agent_id=process_agent_id or "",
                 depth=depth,
                 spawned_by_tool=spawned_by_tool,
             )
-            with _spawn_context_scope(spawn_ctx):
+            with spawn_context_scope(spawn_ctx):
                 return subgraph.invoke(*args, **kwargs)
 
         return sync_subgraph_wrapper
