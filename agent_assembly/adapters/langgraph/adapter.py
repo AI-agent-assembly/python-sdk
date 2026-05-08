@@ -10,7 +10,16 @@ class LangGraphAdapter(FrameworkAdapter):
     """Adapter for LangGraph framework governance hook installation."""
 
     def __init__(self) -> None:
+        self._process_agent_id: str | None = None
         self._patch: LangGraphPatch | None = None
+
+    @property
+    def process_agent_id(self) -> str | None:
+        return self._process_agent_id
+
+    @process_agent_id.setter
+    def process_agent_id(self, value: str | None) -> None:
+        self._process_agent_id = value
 
     def get_framework_name(self) -> str:
         return "langgraph"
@@ -19,7 +28,10 @@ class LangGraphAdapter(FrameworkAdapter):
         return [">=0.1.0"]
 
     def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
-        self._patch = LangGraphPatch(interceptor)
+        self._patch = LangGraphPatch(
+            callback_handler=interceptor,
+            process_agent_id=self._process_agent_id,
+        )
         self._patch.apply()
 
     def unregister_hooks(self) -> None:
