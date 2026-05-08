@@ -8,6 +8,7 @@ from threading import Lock
 from typing import Any, Callable, Literal, Protocol
 
 from agent_assembly.adapters.base import FrameworkAdapter
+from agent_assembly.core.spawn import _SPAWN_CTX
 from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langchain.runtime import get_active_callback_handler
 from agent_assembly.adapters.registry import AdapterRegistry
@@ -112,6 +113,7 @@ def init_assembly(
     team_id: str | None = None,
     delegation_reason: str | None = None,
     spawned_by_tool: str | None = None,
+    depth: int | None = None,
 ) -> AssemblyContext:
     """Initialize the Agent Assembly SDK runtime for this process.
 
@@ -121,6 +123,17 @@ def init_assembly(
     _validate_inputs(gateway_url=gateway_url, api_key=api_key, mode=mode)
     if delegation_reason is not None and len(delegation_reason) > 256:
         raise ValueError("delegation_reason must be <= 256 characters")
+
+    # Auto-fill lineage from ambient spawn context when not passed explicitly.
+    _spawn = _SPAWN_CTX.get()
+    if _spawn is not None:
+        if parent_agent_id is None:
+            parent_agent_id = _spawn.parent_agent_id
+        if depth is None:
+            depth = _spawn.depth
+        if spawned_by_tool is None:
+            spawned_by_tool = _spawn.spawned_by_tool
+
     resolved_agent_id = agent_id or _DEFAULT_AGENT_ID
 
     global _ACTIVE_CONTEXT
@@ -142,6 +155,7 @@ def init_assembly(
             team_id=team_id,
             delegation_reason=delegation_reason,
             spawned_by_tool=spawned_by_tool,
+            depth=depth,
         )
 
         registered_adapters: list[FrameworkAdapter] = []
