@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import pytest
 
 from agent_assembly.adapters.openai_agents.patch import (
@@ -32,14 +31,17 @@ class FakeRunner:
         return f"ran:{agent}"
 
 
+_FAKE_RUNNER_ORIGINAL_RUN = FakeRunner.__dict__["run"]
+
+
 class TestApplyRunnerRunPatch:
     def setup_method(self):
         set_process_agent_id("process-agent-001")
         for attr in (_RUNNER_PATCHED_FLAG, _ORIGINAL_RUNNER_RUN):
             if hasattr(FakeRunner, attr):
                 delattr(FakeRunner, attr)
-        # Reset to original classmethod
-        FakeRunner.run = classmethod(FakeRunner.run.__func__ if hasattr(FakeRunner.run, '__func__') else FakeRunner.run)
+        # Restore to the original classmethod captured at class-definition time
+        FakeRunner.run = _FAKE_RUNNER_ORIGINAL_RUN
 
     def teardown_method(self):
         _revert_runner_run_patch(FakeRunner)
@@ -103,3 +105,8 @@ class TestApplyRunnerRunPatch:
         _revert_runner_run_patch(FakeRunner)
         assert not hasattr(FakeRunner, _RUNNER_PATCHED_FLAG)
         assert not hasattr(FakeRunner, _ORIGINAL_RUNNER_RUN)
+        import asyncio as _asyncio
+        result = _asyncio.get_event_loop().run_until_complete(
+            FakeRunner.run(MagicMock(), input="x")
+        )
+        assert isinstance(result, str) and result.startswith("ran:")
