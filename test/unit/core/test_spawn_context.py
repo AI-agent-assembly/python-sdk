@@ -111,6 +111,8 @@ class TestInitAssemblySpawnContextAutoRead:
                         ctx.shutdown()
 
         assert captured["parent_agent_id"] == "explicit-parent"
+        assert captured["depth"] == 2  # ctx-provided depth was still used
+        assert captured.get("spawned_by_tool") is None  # ctx had no spawned_by_tool
 
     def test_no_spawn_ctx_leaves_parent_agent_id_none(self, monkeypatch):
         from unittest.mock import MagicMock, patch

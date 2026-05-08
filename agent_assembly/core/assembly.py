@@ -8,11 +8,11 @@ from threading import Lock
 from typing import Any, Callable, Literal, Protocol
 
 from agent_assembly.adapters.base import FrameworkAdapter
-from agent_assembly.core.spawn import _SPAWN_CTX
 from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langchain.runtime import get_active_callback_handler
 from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
+from agent_assembly.core.spawn import _SPAWN_CTX
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
 RuntimeMode = Literal["auto", "ebpf", "proxy", "sdk-only"]
