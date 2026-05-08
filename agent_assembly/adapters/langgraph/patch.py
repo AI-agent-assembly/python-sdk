@@ -216,11 +216,9 @@ def _make_subgraph_spawn_wrapper(
     if async_:
 
         async def async_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
-            current = _SPAWN_CTX.get()
-            depth = (current.depth + 1) if current is not None else 1
             spawn_ctx = SpawnContext(
                 parent_agent_id=process_agent_id or "",
-                depth=depth,
+                depth=_current_spawn_depth(),
                 spawned_by_tool=spawned_by_tool,
             )
             with spawn_context_scope(spawn_ctx):
@@ -230,11 +228,9 @@ def _make_subgraph_spawn_wrapper(
     else:
 
         def sync_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
-            current = _SPAWN_CTX.get()
-            depth = (current.depth + 1) if current is not None else 1
             spawn_ctx = SpawnContext(
                 parent_agent_id=process_agent_id or "",
-                depth=depth,
+                depth=_current_spawn_depth(),
                 spawned_by_tool=spawned_by_tool,
             )
             with spawn_context_scope(spawn_ctx):
@@ -269,10 +265,14 @@ def _wrap_node_map(node_map: Any, callback_handler: Any, process_agent_id: str |
             except Exception:
                 pass
             if hasattr(node_executor, "ainvoke"):
-                async_wrapper = _make_subgraph_spawn_wrapper(
-                    str(node_name), node_executor, process_agent_id, async_=True
-                )
-                setattr(node_executor, "ainvoke", async_wrapper)
+                # Mutates the subgraph object; safe when each subgraph instance
+                # appears in only one parent graph — the typical LangGraph pattern.
+                if not getattr(node_executor, "_agent_assembly_ainvoke_spawned", False):
+                    async_wrapper = _make_subgraph_spawn_wrapper(
+                        str(node_name), node_executor, process_agent_id, async_=True
+                    )
+                    setattr(node_executor, "ainvoke", async_wrapper)
+                    setattr(node_executor, "_agent_assembly_ainvoke_spawned", True)
             wrapped_any = True
             continue
 
