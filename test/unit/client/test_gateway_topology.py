@@ -84,3 +84,25 @@ async def test_register_agent_omits_body_when_no_topology() -> None:
 
     _, kwargs = mock_post.call_args
     assert kwargs.get("json") is None
+
+
+@pytest.mark.asyncio
+async def test_register_agent_includes_depth_when_set() -> None:
+    client = GatewayClient(
+        gateway_url="http://gw.test",
+        agent_id="child",
+        api_key="key",
+        parent_agent_id="parent",
+        depth=3,
+    )
+    mock_post = MagicMock(return_value=_make_ok_response())
+    with patch.object(
+        type(client),
+        "client",
+        new_callable=lambda: property(lambda self: MagicMock(post=mock_post)),
+    ):
+        await client.register_agent()
+
+    _, call_kwargs = mock_post.call_args
+    body = call_kwargs.get("json") or {}
+    assert body["depth"] == 3

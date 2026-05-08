@@ -7,6 +7,7 @@ import pytest
 from agent_assembly.adapters.langgraph.patch import (
     _is_compiled_subgraph,
     _make_subgraph_spawn_wrapper,
+    _wrap_node_map,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
 
@@ -93,3 +94,42 @@ class TestMakeSubgraphSpawnWrapper:
             wrapper({})
         # Token must still be reset
         assert _SPAWN_CTX.get() is None
+
+
+class _FakeSubgraph:
+    """Non-callable compiled subgraph stub — satisfies _is_compiled_subgraph check."""
+
+    def __init__(self, *, with_ainvoke: bool = False) -> None:
+        self.nodes = {"a": object()}
+        self.invoke = MagicMock(return_value="r")
+        if with_ainvoke:
+            self.ainvoke = MagicMock()
+
+
+class TestWrapNodeMapSubgraph:
+    def test_wrap_node_map_wraps_compiled_subgraph_sync(self):
+        """_wrap_node_map replaces a compiled subgraph node with a sync spawn wrapper."""
+        subgraph = _FakeSubgraph(with_ainvoke=False)
+        original_subgraph = subgraph
+        node_map = {"subnode": subgraph}
+
+        result = _wrap_node_map(node_map, callback_handler=MagicMock(), process_agent_id="p-001")
+
+        assert result is True
+        assert node_map["subnode"] is not original_subgraph
+
+    def test_wrap_node_map_wraps_compiled_subgraph_with_ainvoke(self):
+        """_wrap_node_map patches both sync and async paths on a compiled subgraph."""
+        subgraph = _FakeSubgraph(with_ainvoke=True)
+        original_ainvoke = subgraph.ainvoke
+        original_subgraph = subgraph
+        node_map = {"subnode": subgraph}
+
+        result = _wrap_node_map(node_map, callback_handler=MagicMock(), process_agent_id="p-001")
+
+        assert result is True
+        # sync wrapper installed in map
+        assert node_map["subnode"] is not original_subgraph
+        # async wrapper patched onto subgraph object
+        assert getattr(subgraph, "_agent_assembly_ainvoke_spawned", False) is True
+        assert subgraph.ainvoke is not original_ainvoke
