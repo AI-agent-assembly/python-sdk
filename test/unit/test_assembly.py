@@ -40,7 +40,9 @@ def cleanup_active_context() -> None:
     core_assembly._ACTIVE_CONTEXT = None
 
 
-def test_init_assembly_with_valid_config_returns_context(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_init_assembly_with_valid_config_returns_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
     monkeypatch.setattr(
         core_assembly,
@@ -88,7 +90,9 @@ def test_init_assembly_with_invalid_config() -> None:
 
 
 def test_mode_sdk_only_skips_network_layer() -> None:
-    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="sdk-only")
+    network_mode, shutdown = core_assembly._start_network_layer(
+        client=object(), mode="sdk-only"
+    )
     assert network_mode == "sdk-only"
     assert callable(shutdown)
 
@@ -99,7 +103,9 @@ def test_mode_auto_uses_proxy_when_ebpf_is_not_supported(
     monkeypatch.setattr(core_assembly, "_platform_supports_ebpf", lambda: False)
     monkeypatch.setattr(core_assembly, "_start_mitm_proxy", lambda client: lambda: None)
 
-    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="auto")
+    network_mode, shutdown = core_assembly._start_network_layer(
+        client=object(), mode="auto"
+    )
 
     assert network_mode == "proxy"
     assert callable(shutdown)
@@ -109,9 +115,13 @@ def test_mode_auto_uses_ebpf_when_supported(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(core_assembly, "_platform_supports_ebpf", lambda: True)
-    monkeypatch.setattr(core_assembly, "_start_ebpf_probes", lambda client: lambda: None)
+    monkeypatch.setattr(
+        core_assembly, "_start_ebpf_probes", lambda client: lambda: None
+    )
 
-    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="auto")
+    network_mode, shutdown = core_assembly._start_network_layer(
+        client=object(), mode="auto"
+    )
     assert network_mode == "ebpf"
     assert callable(shutdown)
 
@@ -120,7 +130,9 @@ def test_mode_proxy_forces_proxy_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(core_assembly, "_start_mitm_proxy", lambda client: lambda: None)
-    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="proxy")
+    network_mode, shutdown = core_assembly._start_network_layer(
+        client=object(), mode="proxy"
+    )
     assert network_mode == "proxy"
     assert callable(shutdown)
 
@@ -242,7 +254,9 @@ def test_context_shutdown_aggregates_errors() -> None:
         client=_FailingClient(),  # type: ignore[arg-type]
         adapters=[_FailingAdapter("fail")],
         network_mode="sdk-only",
-        _network_shutdown=lambda: (_ for _ in ()).throw(RuntimeError("network failure")),
+        _network_shutdown=lambda: (_ for _ in ()).throw(
+            RuntimeError("network failure")
+        ),
     )
 
     with pytest.raises(AssemblyError, match="network shutdown failed"):
@@ -258,7 +272,9 @@ def test_unregister_adapters_ignores_unregister_failures() -> None:
         def unregister_hooks(self) -> None:
             raise RuntimeError("boom")
 
-    core_assembly._unregister_adapters([_AdapterOk("ok1"), _AdapterFails("fail"), _AdapterOk("ok2")])  # no raise
+    core_assembly._unregister_adapters(
+        [_AdapterOk("ok1"), _AdapterFails("fail"), _AdapterOk("ok2")]
+    )  # no raise
 
 
 def test_init_assembly_is_thread_safe_and_idempotent(
@@ -283,7 +299,9 @@ def test_init_assembly_is_thread_safe_and_idempotent(
     )
 
     def initialize() -> core_assembly.AssemblyContext:
-        return init_assembly(gateway_url="http://localhost:8080", api_key="test-api-key")
+        return init_assembly(
+            gateway_url="http://localhost:8080", api_key="test-api-key"
+        )
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         future_a = executor.submit(initialize)
@@ -301,7 +319,23 @@ def test_init_assembly_is_thread_safe_and_idempotent(
         context_a.shutdown()
 
 
-def test_init_assembly_topology_params_forwarded_to_client(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("parent_agent_id", "team_id", "delegation_reason", "spawned_by_tool"),
+    [
+        ("parent-agent", "team-1", "delegated sub-task", "search_tool"),
+        ("parent-agent", None, None, None),
+        (None, "team-1", None, None),
+        (None, None, "delegated sub-task", None),
+        (None, None, None, "search_tool"),
+    ],
+)
+def test_init_assembly_topology_params_forwarded_to_client(
+    monkeypatch: pytest.MonkeyPatch,
+    parent_agent_id: str | None,
+    team_id: str | None,
+    delegation_reason: str | None,
+    spawned_by_tool: str | None,
+) -> None:
     monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
     monkeypatch.setattr(
         core_assembly,
@@ -313,20 +347,24 @@ def test_init_assembly_topology_params_forwarded_to_client(monkeypatch: pytest.M
         gateway_url="http://localhost:8080",
         api_key="test-api-key",
         agent_id="child-agent",
-        parent_agent_id="parent-agent",
-        team_id="team-1",
-        delegation_reason="delegated sub-task",
+        parent_agent_id=parent_agent_id,
+        team_id=team_id,
+        delegation_reason=delegation_reason,
+        spawned_by_tool=spawned_by_tool,
     )
 
     try:
-        assert context.client.parent_agent_id == "parent-agent"
-        assert context.client.team_id == "team-1"
-        assert context.client.delegation_reason == "delegated sub-task"
+        assert context.client.parent_agent_id == parent_agent_id
+        assert context.client.team_id == team_id
+        assert context.client.delegation_reason == delegation_reason
+        assert context.client.spawned_by_tool == spawned_by_tool
     finally:
         context.shutdown()
 
 
-def test_init_assembly_without_topology_params_is_backward_compatible(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_init_assembly_without_topology_params_is_backward_compatible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
     monkeypatch.setattr(
         core_assembly,
@@ -343,5 +381,24 @@ def test_init_assembly_without_topology_params_is_backward_compatible(monkeypatc
         assert context.client.parent_agent_id is None
         assert context.client.team_id is None
         assert context.client.delegation_reason is None
+        assert context.client.spawned_by_tool is None
     finally:
         context.shutdown()
+
+
+def test_init_assembly_delegation_reason_too_long_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    with pytest.raises(ValueError, match="delegation_reason must be <= 256 characters"):
+        init_assembly(
+            gateway_url="http://localhost:8080",
+            api_key="test-api-key",
+            delegation_reason="x" * 257,
+        )

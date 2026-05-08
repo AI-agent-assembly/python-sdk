@@ -24,10 +24,12 @@ def test_gateway_client_stores_topology_fields() -> None:
         parent_agent_id="p",
         team_id="t",
         delegation_reason="r",
+        spawned_by_tool="search_tool",
     )
     assert client.parent_agent_id == "p"
     assert client.team_id == "t"
     assert client.delegation_reason == "r"
+    assert client.spawned_by_tool == "search_tool"
 
 
 def test_gateway_client_topology_defaults_to_none() -> None:
@@ -35,6 +37,7 @@ def test_gateway_client_topology_defaults_to_none() -> None:
     assert client.parent_agent_id is None
     assert client.team_id is None
     assert client.delegation_reason is None
+    assert client.spawned_by_tool is None
 
 
 @pytest.mark.asyncio
@@ -46,6 +49,7 @@ async def test_register_agent_sends_topology_fields() -> None:
         parent_agent_id="agent-parent",
         team_id="team-alpha",
         delegation_reason="sub-task delegation",
+        spawned_by_tool="search_tool",
     )
     mock_post = MagicMock(return_value=_make_ok_response())
     with patch.object(
@@ -60,6 +64,7 @@ async def test_register_agent_sends_topology_fields() -> None:
     assert body["parent_agent_id"] == "agent-parent"
     assert body["team_id"] == "team-alpha"
     assert body["delegation_reason"] == "sub-task delegation"
+    assert body["spawned_by_tool"] == "search_tool"
 
 
 @pytest.mark.asyncio
