@@ -225,6 +225,7 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> None:
     setattr(tool_cls, _ORIGINAL_TOOL_RUN, original_run)
     setattr(tool_cls, "_run", patched_run)
     setattr(tool_cls, _TOOLS_PATCHED_FLAG, True)
+    return None
 
 
 def _revert_tool_run_patch(tool_cls: type[Any]) -> None:

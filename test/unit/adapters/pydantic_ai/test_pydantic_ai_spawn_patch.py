@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -9,7 +10,7 @@ from agent_assembly.adapters.pydantic_ai.patch import (
     _revert_agent_run_patch,
     set_process_agent_id,
 )
-from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 
 _AGENT_PATCHED_FLAG = "_agent_assembly_pydantic_ai_agent_patched"
@@ -119,6 +120,38 @@ class TestApplyAgentRunPatch:
             await FakeAgent().run("x")
         assert _SPAWN_CTX.get() is None
 
+    def test_spawn_ctx_reset_on_exception_sync(self):
+        def failing_run_sync(self, *args, **kwargs):
+            raise RuntimeError("sync agent error")
+
+        FakeAgent.run_sync = failing_run_sync
+        _apply_agent_run_patch(FakeAgent, "pydantic-parent")
+
+        with pytest.raises(RuntimeError):
+            FakeAgent().run_sync("x")
+        assert _SPAWN_CTX.get() is None
+
+    @pytest.mark.asyncio
+    async def test_nested_depth_propagation(self):
+        captured: list[SpawnContext | None] = []
+
+        async def capturing_run(self, *args, **kwargs):
+            captured.append(_SPAWN_CTX.get())
+            return "ok"
+
+        FakeAgent.run = capturing_run
+        _apply_agent_run_patch(FakeAgent, "process-agent")
+
+        outer_ctx = SpawnContext(parent_agent_id="grandparent", depth=2, spawned_by_tool="outer")
+        token = _SPAWN_CTX.set(outer_ctx)
+        try:
+            await FakeAgent().run("x")
+        finally:
+            _SPAWN_CTX.reset(token)
+
+        assert captured[0] is not None
+        assert captured[0].depth == 3
+
     def test_idempotent_apply(self):
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
         first_original = getattr(FakeAgent, _ORIGINAL_AGENT_RUN, None)
@@ -132,7 +165,6 @@ class TestApplyAgentRunPatch:
         assert not hasattr(FakeAgent, _ORIGINAL_AGENT_RUN)
         assert not hasattr(FakeAgent, _ORIGINAL_AGENT_RUN_SYNC)
         # Verify functional restoration
-        import asyncio as _asyncio
-        result = _asyncio.get_event_loop().run_until_complete(FakeAgent().run("x"))
+        result = asyncio.run(FakeAgent().run("x"))
         assert result == "agent-result"
         assert FakeAgent().run_sync("x") == "sync-result"
