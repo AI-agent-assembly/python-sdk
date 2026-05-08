@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from agent_assembly.core.spawn import SpawnContext, _SPAWN_CTX, spawn_context_scope
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 
 class TestSpawnContext:
@@ -46,8 +46,12 @@ class TestInitAssemblySpawnContextAutoRead:
 
     def test_auto_reads_parent_agent_id_from_spawn_ctx(self, monkeypatch):
         from unittest.mock import MagicMock, patch
+
         from agent_assembly.core import assembly
-        from agent_assembly.core.spawn import SpawnContext, spawn_context_scope, _SPAWN_CTX
+        from agent_assembly.core.spawn import (
+            SpawnContext,
+            spawn_context_scope,
+        )
 
         monkeypatch.setattr(assembly, "_ACTIVE_CONTEXT", None)
 
@@ -65,7 +69,9 @@ class TestInitAssemblySpawnContextAutoRead:
 
         with patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client):
             with patch("agent_assembly.core.assembly._register_adapters", return_value=[]):
-                with patch("agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)):
+                with patch(
+                    "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
+                ):
                     with spawn_context_scope(spawn_ctx):
                         ctx = assembly.init_assembly(
                             gateway_url="http://gw",
@@ -81,6 +87,7 @@ class TestInitAssemblySpawnContextAutoRead:
 
     def test_explicit_parent_agent_id_overrides_spawn_ctx(self, monkeypatch):
         from unittest.mock import MagicMock, patch
+
         from agent_assembly.core import assembly
         from agent_assembly.core.spawn import SpawnContext, spawn_context_scope
 
@@ -99,7 +106,9 @@ class TestInitAssemblySpawnContextAutoRead:
 
         with patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client):
             with patch("agent_assembly.core.assembly._register_adapters", return_value=[]):
-                with patch("agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)):
+                with patch(
+                    "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
+                ):
                     with spawn_context_scope(spawn_ctx):
                         ctx = assembly.init_assembly(
                             gateway_url="http://gw",
@@ -116,6 +125,7 @@ class TestInitAssemblySpawnContextAutoRead:
 
     def test_no_spawn_ctx_leaves_parent_agent_id_none(self, monkeypatch):
         from unittest.mock import MagicMock, patch
+
         from agent_assembly.core import assembly
 
         monkeypatch.setattr(assembly, "_ACTIVE_CONTEXT", None)
@@ -131,7 +141,9 @@ class TestInitAssemblySpawnContextAutoRead:
 
         with patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client):
             with patch("agent_assembly.core.assembly._register_adapters", return_value=[]):
-                with patch("agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)):
+                with patch(
+                    "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
+                ):
                     ctx = assembly.init_assembly(
                         gateway_url="http://gw",
                         api_key="key",

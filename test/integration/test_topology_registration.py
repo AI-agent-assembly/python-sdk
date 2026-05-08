@@ -48,6 +48,7 @@ async def test_register_agent_topology_fields_reach_gateway() -> None:
     assert len(captured) == 1, f"expected 1 request, got {len(captured)}"
     body = captured[0].read()
     import json
+
     payload = json.loads(body)
 
     assert payload["parent_agent_id"] == "agent-parent-001"
@@ -80,9 +81,7 @@ async def test_register_agent_no_topology_omits_body() -> None:
     assert len(captured) == 1
     body = captured[0].read()
     # No topology fields → httpx sends null body (no Content-Type: application/json)
-    assert body == b"" or body == b"null", (
-        f"expected empty body when no topology, got {body!r}"
-    )
+    assert body == b"" or body == b"null", f"expected empty body when no topology, got {body!r}"
 
 
 @pytest.mark.asyncio
@@ -108,6 +107,7 @@ async def test_register_agent_partial_topology_only_sends_set_fields() -> None:
     context.shutdown()
 
     import json
+
     assert len(captured) == 1
     payload = json.loads(captured[0].read())
 

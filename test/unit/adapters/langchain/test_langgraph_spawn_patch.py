@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+
 import pytest
 
 from agent_assembly.adapters.langgraph.patch import (
     _is_compiled_subgraph,
     _make_subgraph_spawn_wrapper,
-    _wrap_node_map,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
 
