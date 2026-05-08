@@ -22,6 +22,7 @@ class GatewayClient:
         parent_agent_id: Optional[str] = None,
         team_id: Optional[str] = None,
         delegation_reason: Optional[str] = None,
+        spawned_by_tool: Optional[str] = None,
     ) -> None:
         """
         Initialize the GatewayClient.
@@ -34,6 +35,7 @@ class GatewayClient:
             parent_agent_id: Parent agent ID for topology tracking
             team_id: Team ID this agent belongs to
             delegation_reason: Human-readable reason for delegation
+            spawned_by_tool: Name of the tool that spawned this agent
         """
         self.gateway_url = gateway_url.rstrip("/")
         self.agent_id = agent_id
@@ -42,6 +44,7 @@ class GatewayClient:
         self.parent_agent_id = parent_agent_id
         self.team_id = team_id
         self.delegation_reason = delegation_reason
+        self.spawned_by_tool = spawned_by_tool
         self._client: Optional[httpx.Client] = None
 
     @property
@@ -89,6 +92,8 @@ class GatewayClient:
             body["team_id"] = self.team_id
         if self.delegation_reason is not None:
             body["delegation_reason"] = self.delegation_reason
+        if self.spawned_by_tool is not None:
+            body["spawned_by_tool"] = self.spawned_by_tool
         try:
             response = self.client.post(
                 f"/agents/{self.agent_id}/register",

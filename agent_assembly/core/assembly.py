@@ -111,6 +111,7 @@ def init_assembly(
     parent_agent_id: str | None = None,
     team_id: str | None = None,
     delegation_reason: str | None = None,
+    spawned_by_tool: str | None = None,
 ) -> AssemblyContext:
     """Initialize the Agent Assembly SDK runtime for this process.
 
@@ -118,6 +119,8 @@ def init_assembly(
     single detection path for framework adapters (see ADR-0001).
     """
     _validate_inputs(gateway_url=gateway_url, api_key=api_key, mode=mode)
+    if delegation_reason is not None and len(delegation_reason) > 256:
+        raise ValueError("delegation_reason must be <= 256 characters")
     resolved_agent_id = agent_id or _DEFAULT_AGENT_ID
 
     global _ACTIVE_CONTEXT
@@ -138,6 +141,7 @@ def init_assembly(
             parent_agent_id=parent_agent_id,
             team_id=team_id,
             delegation_reason=delegation_reason,
+            spawned_by_tool=spawned_by_tool,
         )
 
         registered_adapters: list[FrameworkAdapter] = []
