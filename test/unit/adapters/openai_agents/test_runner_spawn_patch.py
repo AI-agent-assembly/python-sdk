@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from agent_assembly.adapters.openai_agents.patch import (
@@ -10,7 +11,6 @@ from agent_assembly.adapters.openai_agents.patch import (
     set_process_agent_id,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
-
 
 _RUNNER_PATCHED_FLAG = "_agent_assembly_openai_agents_runner_patched"
 _ORIGINAL_RUNNER_RUN = "_agent_assembly_original_openai_agents_runner_run"
@@ -106,7 +106,6 @@ class TestApplyRunnerRunPatch:
         assert not hasattr(FakeRunner, _RUNNER_PATCHED_FLAG)
         assert not hasattr(FakeRunner, _ORIGINAL_RUNNER_RUN)
         import asyncio as _asyncio
-        result = _asyncio.get_event_loop().run_until_complete(
-            FakeRunner.run(MagicMock(), input="x")
-        )
+
+        result = _asyncio.run(FakeRunner.run(MagicMock(), input="x"))
         assert isinstance(result, str) and result.startswith("ran:")
