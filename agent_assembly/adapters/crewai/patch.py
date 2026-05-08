@@ -8,7 +8,7 @@ from functools import wraps
 from threading import local
 from typing import Any, Literal, Mapping
 
-from agent_assembly.core.spawn import SpawnContext, _SPAWN_CTX, spawn_context_scope
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 _TOOLS_PATCHED_FLAG = "_agent_assembly_crewai_tools_patched"
 _TASK_PATCHED_FLAG = "_agent_assembly_crewai_task_patched"

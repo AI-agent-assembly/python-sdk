@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
 import pytest
 
 from agent_assembly.adapters.pydantic_ai.patch import (
@@ -10,8 +11,7 @@ from agent_assembly.adapters.pydantic_ai.patch import (
     _revert_agent_run_patch,
     set_process_agent_id,
 )
-from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
-
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
 
 _AGENT_PATCHED_FLAG = "_agent_assembly_pydantic_ai_agent_patched"
 _ORIGINAL_AGENT_RUN = "_agent_assembly_original_pydantic_ai_agent_run"

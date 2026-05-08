@@ -15,7 +15,7 @@ from agent_assembly.adapters.crewai.patch import (
 from agent_assembly.adapters.crewai.patch import (
     _normalize_decision as _normalize_governance_decision,
 )
-from agent_assembly.core.spawn import SpawnContext, _SPAWN_CTX, spawn_context_scope
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 _ORIGINAL_FUNCTION_TOOL_CALL = "_agent_assembly_original_openai_agents_function_tool_call"
 _PATCHED_FLAG = "_agent_assembly_openai_agents_function_tool_patched"

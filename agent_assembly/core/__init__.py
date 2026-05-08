@@ -12,7 +12,10 @@ __all__ = ["init_assembly", "AssemblyContext"]
 
 def __getattr__(name: str) -> Any:
     if name in ("AssemblyContext", "init_assembly"):
-        from agent_assembly.core.assembly import AssemblyContext, init_assembly  # noqa: PLC0415
+        from agent_assembly.core.assembly import (  # noqa: PLC0415
+            AssemblyContext,
+            init_assembly,
+        )
 
         globals()["AssemblyContext"] = AssemblyContext
         globals()["init_assembly"] = init_assembly

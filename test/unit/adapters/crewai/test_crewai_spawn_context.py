@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+
 import pytest
 
 from agent_assembly.adapters.crewai.patch import (
-    _extract_worker_agent_id,
-    _apply_task_execute_sync_patch,
-    _revert_task_execute_sync_patch,
     _TASK_PATCHED_FLAG,
+    _apply_task_execute_sync_patch,
+    _extract_worker_agent_id,
+    _revert_task_execute_sync_patch,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
 

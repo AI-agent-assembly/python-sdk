@@ -7,7 +7,7 @@ import inspect
 from dataclasses import dataclass
 from typing import Any
 
-from agent_assembly.core.spawn import SpawnContext, _SPAWN_CTX, spawn_context_scope
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 _PATCHED_FLAG = "_agent_assembly_compile_patched"
 _ORIGINAL_COMPILE = "_agent_assembly_original_compile"
