@@ -385,3 +385,70 @@ async def test_pydantic_ai_tool_sets_spawn_ctx() -> None:
     assert sc.parent_agent_id == "pydantic-agent-77"
     assert sc.depth == 1
     assert _SPAWN_CTX.get() is None
+
+
+# ---------------------------------------------------------------------------
+# Test 10: LineageRegistry — children_of / ancestors_of via tool spawn
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_lineage_registry_children_of_and_ancestors_of_via_tool_spawn() -> None:
+    """Tool spawn sets _SPAWN_CTX; child agent reads it and records in LineageRegistry.
+
+    This tests AC #5: cross-framework registry query returns correct lineage.
+    """
+    from agent_assembly.adapters.pydantic_ai.patch import (
+        _apply_tool_run_patch,
+        _revert_tool_run_patch,
+    )
+    from agent_assembly.core.lineage import LineageRegistry
+
+    registry = LineageRegistry()
+    registry.record("parent-007")  # root agent — no parent
+
+    class _Deps:
+        assembly_agent_id = "parent-007"
+
+    class _Ctx:
+        deps = _Deps()
+        run_id = "run-lineage"
+
+    class FakeTool:
+        name = "delegate_tool"
+
+        async def _run(self, _ctx: object, _args: object, **_kw: object) -> str:
+            # Simulates a child agent reading _SPAWN_CTX during init_assembly()
+            # and recording its lineage in the registry.
+            sc = _SPAWN_CTX.get()
+            if sc is not None:
+                registry.record("child-001", parent_agent_id=sc.parent_agent_id)
+            return "delegated"
+
+    class _AllowHandler:
+        def check_tool_start(self, **_kw: object) -> dict[str, str]:
+            return {"status": "allow"}
+
+    original_run = FakeTool.__dict__["_run"]
+    _apply_tool_run_patch(FakeTool, _AllowHandler())
+    try:
+        result = await FakeTool()._run(_Ctx(), {})
+    finally:
+        _revert_tool_run_patch(FakeTool)
+        FakeTool._run = original_run
+
+    assert result == "delegated"
+
+    # children_of: parent-007 spawned child-001 via delegate_tool
+    children = registry.children_of("parent-007")
+    assert children == ["child-001"]
+
+    # ancestors_of: child-001's ancestry chain leads back to parent-007
+    ancestors = registry.ancestors_of("child-001")
+    assert ancestors == ["parent-007"]
+
+    # root has no ancestors
+    assert registry.ancestors_of("parent-007") == []
+
+    # leaf has no children
+    assert registry.children_of("child-001") == []
