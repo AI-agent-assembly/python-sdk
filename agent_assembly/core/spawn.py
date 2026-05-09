@@ -16,6 +16,7 @@ class SpawnContext:
     depth: int
     spawned_by_tool: str | None = None
     delegation_reason: str | None = None
+    team_id: str | None = None
 
 
 _SPAWN_CTX: ContextVar[SpawnContext | None] = ContextVar("_spawn_ctx", default=None)
