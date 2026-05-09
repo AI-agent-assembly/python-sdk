@@ -21,8 +21,11 @@ _ORIGINAL_FUNCTION_TOOL_CALL = "_agent_assembly_original_openai_agents_function_
 _PATCHED_FLAG = "_agent_assembly_openai_agents_function_tool_patched"
 _ORIGINAL_RUNNER_RUN = "_agent_assembly_original_openai_agents_runner_run"
 _RUNNER_PATCHED_FLAG = "_agent_assembly_openai_agents_runner_patched"
+_ORIGINAL_HANDOFF_CALL = "_agent_assembly_original_openai_agents_handoff_call"
+_HANDOFF_PATCHED_FLAG = "_agent_assembly_openai_agents_handoff_patched"
 _PROCESS_AGENT_ID: str | None = None
 _MAX_AUDIT_RESULT_CHARS = 2000
+_MAX_DELEGATION_REASON_CHARS = 256
 
 
 @dataclass(slots=True)
@@ -41,9 +44,15 @@ class OpenAIAgentsPatch:
         runner_cls = _load_openai_agents_runner_class()
         if runner_cls is not None:
             _apply_runner_run_patch(runner_cls, self.process_agent_id)
+        handoff_cls = _load_openai_agents_handoff_class()
+        if handoff_cls is not None:
+            _apply_handoff_call_patch(handoff_cls, self.process_agent_id)
         return True
 
     def revert(self) -> None:
+        handoff_cls = _load_openai_agents_handoff_class()
+        if handoff_cls is not None:
+            _revert_handoff_call_patch(handoff_cls)
         runner_cls = _load_openai_agents_runner_class()
         if runner_cls is not None:
             _revert_runner_run_patch(runner_cls)
@@ -89,6 +98,65 @@ def _load_openai_agents_runner_class() -> type[Any] | None:
     runner_cls = getattr(module, "Runner", None)
     if isinstance(runner_cls, type):
         return runner_cls
+    return None
+
+
+def _load_openai_agents_handoff_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("openai.agents")
+    except ImportError:
+        return None
+    handoff_cls = getattr(module, "Handoff", None)
+    if isinstance(handoff_cls, type):
+        return handoff_cls
+    return None
+
+
+def _extract_handoff_delegation_reason(handoff_obj: Any) -> str:
+    for attr in ("tool_description", "description", "reason"):
+        value = getattr(handoff_obj, attr, None)
+        if isinstance(value, str) and value.strip():
+            return value.strip()[:_MAX_DELEGATION_REASON_CHARS]
+    return "handoff"
+
+
+def _apply_handoff_call_patch(handoff_cls: type[Any], process_agent_id: str | None) -> None:
+    if getattr(handoff_cls, _HANDOFF_PATCHED_FLAG, False):
+        return None
+
+    if not callable(handoff_cls):
+        return None
+    original_call = handoff_cls.__call__
+
+    @wraps(original_call)
+    async def patched_call(self: Any, *args: Any, **kwargs: Any) -> Any:
+        spawn_ctx = SpawnContext(
+            parent_agent_id=process_agent_id or "",
+            depth=_current_spawn_depth(),
+            spawned_by_tool=None,
+            delegation_reason=_extract_handoff_delegation_reason(self),
+        )
+        with spawn_context_scope(spawn_ctx):
+            result = original_call(self, *args, **kwargs)
+            if inspect.isawaitable(result):
+                return await result
+            return result
+
+    setattr(handoff_cls, _ORIGINAL_HANDOFF_CALL, original_call)
+    handoff_cls.__call__ = patched_call
+    setattr(handoff_cls, _HANDOFF_PATCHED_FLAG, True)
+    return None
+
+
+def _revert_handoff_call_patch(handoff_cls: type[Any]) -> None:
+    if not getattr(handoff_cls, _HANDOFF_PATCHED_FLAG, False):
+        return None
+    original_call = getattr(handoff_cls, _ORIGINAL_HANDOFF_CALL, None)
+    if callable(original_call):
+        handoff_cls.__call__ = original_call
+    for attr in (_ORIGINAL_HANDOFF_CALL, _HANDOFF_PATCHED_FLAG):
+        if hasattr(handoff_cls, attr):
+            delattr(handoff_cls, attr)
     return None
 
 
@@ -141,7 +209,7 @@ def _apply_runner_run_patch(runner_cls: type[Any], process_agent_id: str | None)
     # function — when called as Runner.run(agent, input=...) Python does not
     # inject cls, so the signature (agent, *, input, **kwargs) is correct.
     setattr(runner_cls, _ORIGINAL_RUNNER_RUN, original_run)
-    setattr(runner_cls, "run", patched_run)
+    runner_cls.run = patched_run
     setattr(runner_cls, _RUNNER_PATCHED_FLAG, True)
     return None
 
@@ -151,7 +219,7 @@ def _revert_runner_run_patch(runner_cls: type[Any]) -> None:
         return None
     original_run = getattr(runner_cls, _ORIGINAL_RUNNER_RUN, None)
     if callable(original_run):
-        setattr(runner_cls, "run", original_run)
+        runner_cls.run = original_run
     for attr in (_ORIGINAL_RUNNER_RUN, _RUNNER_PATCHED_FLAG):
         if hasattr(runner_cls, attr):
             delattr(runner_cls, attr)
@@ -312,9 +380,9 @@ def _apply_function_tool_call_patch(function_tool_cls: type[Any], callback_handl
     if getattr(function_tool_cls, _PATCHED_FLAG, False):
         return None
 
-    original_call = getattr(function_tool_cls, "__call__", None)
-    if not callable(original_call):
+    if not callable(function_tool_cls):
         return None
+    original_call = function_tool_cls.__call__
 
     @wraps(original_call)
     async def patched_call(self: Any, ctx: Any, tool_input: Any, *args: Any, **kwargs: Any) -> Any:
@@ -382,7 +450,7 @@ def _apply_function_tool_call_patch(function_tool_cls: type[Any], callback_handl
         return result
 
     setattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL, original_call)
-    setattr(function_tool_cls, "__call__", patched_call)
+    function_tool_cls.__call__ = patched_call
     setattr(function_tool_cls, _PATCHED_FLAG, True)
 
 
@@ -392,7 +460,7 @@ def _revert_function_tool_call_patch(function_tool_cls: type[Any]) -> None:
 
     original_call = getattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL, None)
     if callable(original_call):
-        setattr(function_tool_cls, "__call__", original_call)
+        function_tool_cls.__call__ = original_call
 
     if hasattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL):
         delattr(function_tool_cls, _ORIGINAL_FUNCTION_TOOL_CALL)
