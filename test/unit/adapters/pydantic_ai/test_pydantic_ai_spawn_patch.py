@@ -7,8 +7,10 @@ import pytest
 
 from agent_assembly.adapters.pydantic_ai.patch import (
     _apply_agent_run_patch,
+    _apply_tool_run_patch,
     _load_pydantic_ai_agent_class,
     _revert_agent_run_patch,
+    _revert_tool_run_patch,
     set_process_agent_id,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
@@ -16,6 +18,8 @@ from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
 _AGENT_PATCHED_FLAG = "_agent_assembly_pydantic_ai_agent_patched"
 _ORIGINAL_AGENT_RUN = "_agent_assembly_original_pydantic_ai_agent_run"
 _ORIGINAL_AGENT_RUN_SYNC = "_agent_assembly_original_pydantic_ai_agent_run_sync"
+_TOOLS_PATCHED_FLAG = "_agent_assembly_pydantic_ai_tools_patched"
+_ORIGINAL_TOOL_RUN = "_agent_assembly_original_pydantic_ai_tool_run"
 
 _FAKE_AGENT_ORIGINAL_RUN = None
 _FAKE_AGENT_ORIGINAL_RUN_SYNC = None
@@ -24,10 +28,10 @@ _FAKE_AGENT_ORIGINAL_RUN_SYNC = None
 class FakeAgent:
     model = "fake-model"
 
-    async def run(self, *args, **kwargs):
+    async def run(self, *_args: object, **_kwargs: object) -> str:
         return "agent-result"
 
-    def run_sync(self, *args, **kwargs):
+    def run_sync(self, *_args: object, **_kwargs: object) -> str:
         return "sync-result"
 
 
@@ -168,3 +172,175 @@ class TestApplyAgentRunPatch:
         result = asyncio.run(FakeAgent().run("x"))
         assert result == "agent-result"
         assert FakeAgent().run_sync("x") == "sync-result"
+
+
+# ---------------------------------------------------------------------------
+# Tool spawn-context tests
+# ---------------------------------------------------------------------------
+
+
+class _FakeDeps:
+    assembly_agent_id = "ctx-agent-99"
+
+
+class _FakeCtx:
+    deps = _FakeDeps()
+    run_id = "run-abc"
+
+
+class _FakeAllowHandler:
+    def check_tool_start(self, **_kwargs: object) -> dict[str, str]:
+        return {"status": "allow"}
+
+
+class _FakeDenyHandler:
+    def check_tool_start(self, **_kwargs: object) -> dict[str, str]:
+        return {"status": "deny", "reason": "blocked"}
+
+
+_FAKE_TOOL_ORIGINAL_RUN = None
+
+
+class FakeTool:
+    name = "search"
+
+    async def _run(self, _ctx: object, _args: object, **_kwargs: object) -> str:
+        return "tool-result"
+
+
+_FAKE_TOOL_ORIGINAL_RUN = FakeTool.__dict__["_run"]
+
+
+class TestApplyToolRunPatch:
+    def setup_method(self) -> None:
+        FakeTool._run = _FAKE_TOOL_ORIGINAL_RUN
+        for attr in (_TOOLS_PATCHED_FLAG, _ORIGINAL_TOOL_RUN):
+            if hasattr(FakeTool, attr):
+                delattr(FakeTool, attr)
+
+    def teardown_method(self) -> None:
+        _revert_tool_run_patch(FakeTool)
+        FakeTool._run = _FAKE_TOOL_ORIGINAL_RUN
+        for attr in (_TOOLS_PATCHED_FLAG, _ORIGINAL_TOOL_RUN):
+            if hasattr(FakeTool, attr):
+                delattr(FakeTool, attr)
+
+    @pytest.mark.asyncio
+    async def test_tool_run_sets_spawned_by_tool(self) -> None:
+        captured: list[SpawnContext | None] = []
+
+        async def capturing_run(self: object, ctx: object, args: object, **kw: object) -> str:
+            captured.append(_SPAWN_CTX.get())
+            return "ok"
+
+        FakeTool._run = capturing_run
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+
+        await FakeTool()._run(_FakeCtx(), {})
+
+        assert captured[0] is not None
+        assert captured[0].spawned_by_tool == "search"
+
+    @pytest.mark.asyncio
+    async def test_tool_run_sets_delegation_reason(self) -> None:
+        captured: list[SpawnContext | None] = []
+
+        async def capturing_run(self: object, ctx: object, args: object, **kw: object) -> str:
+            captured.append(_SPAWN_CTX.get())
+            return "ok"
+
+        FakeTool._run = capturing_run
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+
+        await FakeTool()._run(_FakeCtx(), {})
+
+        assert captured[0] is not None
+        assert captured[0].delegation_reason == "tool:search"
+
+    @pytest.mark.asyncio
+    async def test_tool_run_sets_parent_agent_id_from_ctx(self) -> None:
+        captured: list[SpawnContext | None] = []
+
+        async def capturing_run(self: object, ctx: object, args: object, **kw: object) -> str:
+            captured.append(_SPAWN_CTX.get())
+            return "ok"
+
+        FakeTool._run = capturing_run
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+
+        await FakeTool()._run(_FakeCtx(), {})
+
+        assert captured[0] is not None
+        assert captured[0].parent_agent_id == "ctx-agent-99"
+
+    @pytest.mark.asyncio
+    async def test_spawn_ctx_reset_after_tool_run(self) -> None:
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+        await FakeTool()._run(_FakeCtx(), {})
+        assert _SPAWN_CTX.get() is None
+
+    @pytest.mark.asyncio
+    async def test_spawn_ctx_reset_on_tool_exception(self) -> None:
+        async def failing_run(self: object, ctx: object, args: object, **kw: object) -> str:
+            raise RuntimeError("tool broke")
+
+        FakeTool._run = failing_run
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+
+        with pytest.raises(RuntimeError):
+            await FakeTool()._run(_FakeCtx(), {})
+        assert _SPAWN_CTX.get() is None
+
+    @pytest.mark.asyncio
+    async def test_denied_tool_does_not_set_spawn_ctx(self) -> None:
+        called = []
+
+        async def should_not_be_called(self: object, ctx: object, args: object, **kw: object) -> str:
+            called.append(True)
+            return "should-not-run"
+
+        FakeTool._run = should_not_be_called
+        _apply_tool_run_patch(FakeTool, _FakeDenyHandler())
+
+        from agent_assembly.exceptions import PolicyViolationError
+
+        with pytest.raises(PolicyViolationError):
+            await FakeTool()._run(_FakeCtx(), {})
+
+        assert called == []
+        assert _SPAWN_CTX.get() is None
+
+    @pytest.mark.asyncio
+    async def test_tool_run_depth_increments_with_outer_ctx(self) -> None:
+        captured: list[SpawnContext | None] = []
+
+        async def capturing_run(self: object, ctx: object, args: object, **kw: object) -> str:
+            captured.append(_SPAWN_CTX.get())
+            return "ok"
+
+        FakeTool._run = capturing_run
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+
+        outer = SpawnContext(parent_agent_id="parent", depth=3, spawned_by_tool="outer")
+        token = _SPAWN_CTX.set(outer)
+        try:
+            await FakeTool()._run(_FakeCtx(), {})
+        finally:
+            _SPAWN_CTX.reset(token)
+
+        assert captured[0] is not None
+        assert captured[0].depth == 4
+
+    def test_idempotent_tool_run_patch(self) -> None:
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+        first_original = getattr(FakeTool, _ORIGINAL_TOOL_RUN, None)
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+        assert getattr(FakeTool, _ORIGINAL_TOOL_RUN, None) is first_original
+
+    def test_revert_tool_run_patch_restores_original(self) -> None:
+        _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
+        _revert_tool_run_patch(FakeTool)
+        assert not hasattr(FakeTool, _TOOLS_PATCHED_FLAG)
+        assert not hasattr(FakeTool, _ORIGINAL_TOOL_RUN)
+        result = asyncio.run(FakeTool()._run(_FakeCtx(), {}))
+        assert result == "tool-result"
