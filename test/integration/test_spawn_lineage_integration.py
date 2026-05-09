@@ -331,3 +331,57 @@ def test_crewai_hierarchical_kickoff_sets_team_id_and_spawn_ctx() -> None:
     assert ts2.depth == 2
 
     assert _SPAWN_CTX.get() is None
+
+
+# ---------------------------------------------------------------------------
+# Test 9: Pydantic AI tool wrap — spawn ctx inside tool execution
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pydantic_ai_tool_sets_spawn_ctx() -> None:
+    """patched Tool._run wraps execution in spawn_context_scope with tool lineage."""
+    from agent_assembly.adapters.pydantic_ai.patch import (
+        _apply_tool_run_patch,
+        _revert_tool_run_patch,
+    )
+
+    captured: list[SpawnContext] = []
+
+    class _Deps:
+        assembly_agent_id = "pydantic-agent-77"
+
+    class _Ctx:
+        deps = _Deps()
+        run_id = "run-42"
+
+    class FakeTool:
+        name = "web_search"
+
+        async def _run(self, _ctx: object, _args: object, **_kw: object) -> str:
+            sc = _SPAWN_CTX.get()
+            if sc is not None:
+                captured.append(sc)
+            return "search-result"
+
+    class _AllowHandler:
+        def check_tool_start(self, **_kw: object) -> dict[str, str]:
+            return {"status": "allow"}
+
+    original_run = FakeTool.__dict__["_run"]
+    _apply_tool_run_patch(FakeTool, _AllowHandler())
+    try:
+        tool = FakeTool()
+        result = await tool._run(_Ctx(), {})
+    finally:
+        _revert_tool_run_patch(FakeTool)
+        FakeTool._run = original_run
+
+    assert result == "search-result"
+    assert len(captured) == 1
+    sc = captured[0]
+    assert sc.spawned_by_tool == "web_search"
+    assert sc.delegation_reason == "tool:web_search"
+    assert sc.parent_agent_id == "pydantic-agent-77"
+    assert sc.depth == 1
+    assert _SPAWN_CTX.get() is None
