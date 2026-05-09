@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import inspect
 from dataclasses import dataclass
@@ -119,7 +120,7 @@ def _extract_agent_id(config: object) -> str | None:
 def _summarize_state_keys(state: object) -> list[str]:
     if not isinstance(state, dict):
         return []
-    return [str(key) for key in state.keys()]
+    return [str(key) for key in state]
 
 
 def _compute_state_delta(previous_state: object, next_state: object) -> dict[str, object]:
@@ -134,7 +135,7 @@ def _compute_state_delta(previous_state: object, next_state: object) -> dict[str
             changed_keys.append(key_str)
             new_values[key_str] = value
 
-    removed_keys = [str(key) for key in previous_state.keys() if key not in next_state]
+    removed_keys = [str(key) for key in previous_state if key not in next_state]
 
     return {
         "changed_keys": changed_keys,
@@ -203,16 +204,65 @@ def _current_spawn_depth() -> int:
     return (current.depth + 1) if current is not None else 1
 
 
+def _extract_agent_id_from_runnable_config(config: object) -> str | None:
+    """Read parent agent ID from LangGraph RunnableConfig configurable dict."""
+    if not isinstance(config, dict):
+        return None
+    configurable = config.get("configurable")
+    if isinstance(configurable, dict):
+        agent_id = configurable.get("aaasm_agent_id")
+        if isinstance(agent_id, str) and agent_id:
+            return agent_id
+    return None
+
+
+def _is_tool_node(node_executor: Any) -> bool:
+    """Return True when node_executor looks like a LangGraph ToolNode."""
+    return (
+        hasattr(node_executor, "tools_by_name")
+        and isinstance(getattr(node_executor, "tools_by_name", None), dict)
+        and not hasattr(node_executor, "nodes")
+    )
+
+
+def _wrap_tool_node_subgraphs(
+    node_name: str,
+    tool_node: Any,
+    process_agent_id: str | None,
+) -> bool:
+    """Wrap compiled-subgraph tools inside a LangGraph ToolNode for lineage."""
+    tools_by_name = getattr(tool_node, "tools_by_name", {})
+    if not isinstance(tools_by_name, dict):
+        return False
+    wrapped_any = False
+    for tool_name, tool in list(tools_by_name.items()):
+        tool_func = getattr(tool, "func", None)
+        if tool_func is not None and _is_compiled_subgraph(tool_func):
+            wrapper = _make_subgraph_spawn_wrapper(
+                str(tool_name),
+                tool_func,
+                process_agent_id,
+                spawned_by_tool=str(tool_name),
+                delegation_reason=f"langgraph_tool:{tool_name}",
+            )
+            try:
+                tool.func = wrapper
+                wrapped_any = True
+            except (AttributeError, TypeError):
+                pass
+    return wrapped_any
+
+
 def _make_subgraph_spawn_wrapper(
     node_name: str,
     subgraph: Any,
     process_agent_id: str | None,
     *,
     async_: bool = False,
+    spawned_by_tool: str | None = None,
+    delegation_reason: str | None = None,
 ) -> Any:
     """Wrap a subgraph invoke/ainvoke with _SPAWN_CTX set for lineage propagation."""
-    spawned_by_tool = f"langgraph_subgraph:{node_name}"
-
     if async_:
 
         async def async_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -220,6 +270,7 @@ def _make_subgraph_spawn_wrapper(
                 parent_agent_id=process_agent_id or "",
                 depth=_current_spawn_depth(),
                 spawned_by_tool=spawned_by_tool,
+                delegation_reason=delegation_reason,
             )
             with spawn_context_scope(spawn_ctx):
                 return await subgraph.ainvoke(*args, **kwargs)
@@ -232,6 +283,7 @@ def _make_subgraph_spawn_wrapper(
                 parent_agent_id=process_agent_id or "",
                 depth=_current_spawn_depth(),
                 spawned_by_tool=spawned_by_tool,
+                delegation_reason=delegation_reason,
             )
             with spawn_context_scope(spawn_ctx):
                 return subgraph.invoke(*args, **kwargs)
@@ -246,6 +298,13 @@ def _wrap_node_map(node_map: Any, callback_handler: Any, process_agent_id: str |
 
     wrapped_any = False
     for node_name, node_executor in list(items_method()):
+        # ToolNode: intercept any compiled-subgraph tools it holds.
+        # Must come before the callable() check since ToolNode is also callable.
+        if _is_tool_node(node_executor):
+            if _wrap_tool_node_subgraphs(str(node_name), node_executor, process_agent_id):
+                wrapped_any = True
+            continue
+
         if callable(node_executor):
             wrapped_executor = _make_assembly_node_wrapper(str(node_name), node_executor, callback_handler)
             if wrapped_executor is node_executor:
@@ -259,33 +318,42 @@ def _wrap_node_map(node_map: Any, callback_handler: Any, process_agent_id: str |
 
         # Spawn point: node is itself a compiled subgraph — wrap for lineage.
         if _is_compiled_subgraph(node_executor):
-            sync_wrapper = _make_subgraph_spawn_wrapper(str(node_name), node_executor, process_agent_id)
-            try:
+            node_delegation_reason = f"langgraph_node:{node_name}"
+            sync_wrapper = _make_subgraph_spawn_wrapper(
+                str(node_name),
+                node_executor,
+                process_agent_id,
+                spawned_by_tool=None,
+                delegation_reason=node_delegation_reason,
+            )
+            with contextlib.suppress(Exception):
                 node_map[node_name] = sync_wrapper
-            except Exception:
-                pass
-            if hasattr(node_executor, "ainvoke"):
-                # Mutates the subgraph object; safe when each subgraph instance
-                # appears in only one parent graph — the typical LangGraph pattern.
-                if not getattr(node_executor, "_agent_assembly_ainvoke_spawned", False):
-                    async_wrapper = _make_subgraph_spawn_wrapper(
-                        str(node_name), node_executor, process_agent_id, async_=True
-                    )
-                    setattr(node_executor, "ainvoke", async_wrapper)
-                    setattr(node_executor, "_agent_assembly_ainvoke_spawned", True)
+            if hasattr(node_executor, "ainvoke") and not getattr(
+                node_executor, "_agent_assembly_ainvoke_spawned", False
+            ):
+                async_wrapper = _make_subgraph_spawn_wrapper(
+                    str(node_name),
+                    node_executor,
+                    process_agent_id,
+                    async_=True,
+                    spawned_by_tool=None,
+                    delegation_reason=node_delegation_reason,
+                )
+                node_executor.ainvoke = async_wrapper
+                node_executor._agent_assembly_ainvoke_spawned = True
             wrapped_any = True
             continue
 
         invoke = getattr(node_executor, "invoke", None)
         if callable(invoke):
             wrapped_invoke = _make_assembly_node_wrapper(str(node_name), invoke, callback_handler)
-            setattr(node_executor, "invoke", wrapped_invoke)
+            node_executor.invoke = wrapped_invoke
             wrapped_any = True
 
         ainvoke = getattr(node_executor, "ainvoke", None)
         if callable(ainvoke):
             wrapped_ainvoke = _make_assembly_node_wrapper(str(node_name), ainvoke, callback_handler)
-            setattr(node_executor, "ainvoke", wrapped_ainvoke)
+            node_executor.ainvoke = wrapped_ainvoke
             wrapped_any = True
 
     return wrapped_any
@@ -318,7 +386,7 @@ def _apply_stategraph_compile_patch(
         return compiled_graph
 
     setattr(state_graph_cls, _ORIGINAL_COMPILE, original_compile)
-    setattr(state_graph_cls, "compile", patched_compile)
+    state_graph_cls.compile = patched_compile
     setattr(state_graph_cls, _PATCHED_FLAG, True)
 
 
@@ -328,7 +396,7 @@ def _revert_stategraph_compile_patch(state_graph_cls: type[Any]) -> None:
 
     original_compile = getattr(state_graph_cls, _ORIGINAL_COMPILE, None)
     if callable(original_compile):
-        setattr(state_graph_cls, "compile", original_compile)
+        state_graph_cls.compile = original_compile
 
     if hasattr(state_graph_cls, _ORIGINAL_COMPILE):
         delattr(state_graph_cls, _ORIGINAL_COMPILE)
@@ -378,7 +446,7 @@ def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> N
         wrapped_invoke = wrapped_sync_invoke
 
     setattr(wrapped_invoke, _INVOKE_WRAPPED_FLAG, True)
-    setattr(compiled_graph, "invoke", wrapped_invoke)
+    compiled_graph.invoke = wrapped_invoke
 
 
 def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, config: object) -> None:

@@ -5,9 +5,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from agent_assembly.adapters.langgraph.patch import (
+    _extract_agent_id_from_runnable_config,
     _is_compiled_subgraph,
+    _is_tool_node,
     _make_subgraph_spawn_wrapper,
     _wrap_node_map,
+    _wrap_tool_node_subgraphs,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
 
@@ -31,7 +34,7 @@ class TestIsCompiledSubgraph:
 class TestMakeSubgraphSpawnWrapper:
     def test_sync_wrapper_sets_spawn_ctx_then_resets(self):
         captured: list[SpawnContext | None] = []
-        original_invoke = MagicMock(side_effect=lambda *a, **k: captured.append(_SPAWN_CTX.get()) or "result")
+        original_invoke = MagicMock(side_effect=lambda *_args, **_kwargs: captured.append(_SPAWN_CTX.get()) or "result")
         subgraph = MagicMock()
         subgraph.invoke = original_invoke
 
@@ -46,8 +49,42 @@ class TestMakeSubgraphSpawnWrapper:
         assert sc is not None
         assert sc.parent_agent_id == "parent-agent"
         assert sc.depth == 1
-        assert sc.spawned_by_tool == "langgraph_subgraph:subnode"
+        assert sc.spawned_by_tool is None  # plain graph node: no tool
+        assert sc.delegation_reason is None
         assert _SPAWN_CTX.get() is None
+
+    def test_delegation_reason_passed_through(self):
+        captured: list[SpawnContext | None] = []
+        subgraph = MagicMock()
+        subgraph.invoke = MagicMock(side_effect=lambda *_args, **_kwargs: captured.append(_SPAWN_CTX.get()) or "r")
+
+        wrapper = _make_subgraph_spawn_wrapper(
+            "mynode", subgraph, "parent",
+            delegation_reason="langgraph_node:mynode",
+        )
+        wrapper({})
+
+        sc = captured[0]
+        assert sc is not None
+        assert sc.delegation_reason == "langgraph_node:mynode"
+        assert sc.spawned_by_tool is None
+
+    def test_spawned_by_tool_passed_through_for_tool_node(self):
+        captured: list[SpawnContext | None] = []
+        subgraph = MagicMock()
+        subgraph.invoke = MagicMock(side_effect=lambda *_args, **_kwargs: captured.append(_SPAWN_CTX.get()) or "r")
+
+        wrapper = _make_subgraph_spawn_wrapper(
+            "tool_x", subgraph, "parent",
+            spawned_by_tool="tool_x",
+            delegation_reason="langgraph_tool:tool_x",
+        )
+        wrapper({})
+
+        sc = captured[0]
+        assert sc is not None
+        assert sc.spawned_by_tool == "tool_x"
+        assert sc.delegation_reason == "langgraph_tool:tool_x"
 
     @pytest.mark.asyncio
     async def test_async_wrapper_sets_spawn_ctx(self):
@@ -71,7 +108,7 @@ class TestMakeSubgraphSpawnWrapper:
 
     def test_spawn_ctx_depth_increments_when_already_in_ctx(self):
         captured: list[SpawnContext | None] = []
-        original_invoke = MagicMock(side_effect=lambda *a, **k: captured.append(_SPAWN_CTX.get()) or "r")
+        original_invoke = MagicMock(side_effect=lambda *_args, **_kwargs: captured.append(_SPAWN_CTX.get()) or "r")
         subgraph = MagicMock()
         subgraph.invoke = original_invoke
 
@@ -133,3 +170,121 @@ class TestWrapNodeMapSubgraph:
         # async wrapper patched onto subgraph object
         assert getattr(subgraph, "_agent_assembly_ainvoke_spawned", False) is True
         assert subgraph.ainvoke is not original_ainvoke
+
+
+class TestExtractAgentIdFromRunnableConfig:
+    def test_reads_aaasm_agent_id_from_configurable(self):
+        config = {"configurable": {"aaasm_agent_id": "parent-123"}}
+        assert _extract_agent_id_from_runnable_config(config) == "parent-123"
+
+    def test_returns_none_when_key_absent(self):
+        config = {"configurable": {"other_key": "value"}}
+        assert _extract_agent_id_from_runnable_config(config) is None
+
+    def test_returns_none_for_empty_string(self):
+        config = {"configurable": {"aaasm_agent_id": ""}}
+        assert _extract_agent_id_from_runnable_config(config) is None
+
+    def test_returns_none_when_configurable_missing(self):
+        config = {"metadata": {"aaasm_agent_id": "parent-xyz"}}
+        assert _extract_agent_id_from_runnable_config(config) is None
+
+    def test_returns_none_for_non_dict_config(self):
+        assert _extract_agent_id_from_runnable_config(None) is None
+        assert _extract_agent_id_from_runnable_config("string") is None
+
+
+class TestIsToolNode:
+    def test_detects_tool_node_by_duck_typing(self):
+        fake_tool_node = MagicMock(spec=["tools_by_name"])
+        fake_tool_node.tools_by_name = {"tool_a": MagicMock()}
+        assert _is_tool_node(fake_tool_node) is True
+
+    def test_returns_false_for_compiled_subgraph(self):
+        subgraph = _FakeSubgraph()
+        assert _is_tool_node(subgraph) is False
+
+    def test_returns_false_for_plain_callable(self):
+        assert _is_tool_node(lambda x: x) is False
+
+    def test_returns_false_when_tools_by_name_not_dict(self):
+        obj = MagicMock()
+        obj.tools_by_name = "not-a-dict"
+        assert _is_tool_node(obj) is False
+
+
+class TestWrapToolNodeSubgraphs:
+    def test_wraps_compiled_subgraph_tool_inside_tool_node(self):
+        subgraph = _FakeSubgraph()
+        tool = MagicMock()
+        tool.func = subgraph
+
+        tool_node = MagicMock(spec=["tools_by_name"])
+        tool_node.tools_by_name = {"search": tool}
+
+        result = _wrap_tool_node_subgraphs("tool_node", tool_node, "parent-agent")
+
+        assert result is True
+        assert tool.func is not subgraph
+
+    def test_returns_false_when_no_compiled_subgraph_tools(self):
+        plain_func = lambda x: x  # noqa: E731 — real function, not a compiled subgraph
+
+        tool = MagicMock()
+        tool.func = plain_func  # not a compiled subgraph
+
+        tool_node = MagicMock(spec=["tools_by_name"])
+        tool_node.tools_by_name = {"search": tool}
+
+        result = _wrap_tool_node_subgraphs("tool_node", tool_node, "parent-agent")
+
+        assert result is False
+
+    def test_spawned_by_tool_and_delegation_reason_set_for_tool_node_path(self):
+        captured: list[SpawnContext | None] = []
+        subgraph = _FakeSubgraph()
+        subgraph.invoke = MagicMock(side_effect=lambda *_args, **_kwargs: captured.append(_SPAWN_CTX.get()) or "r")
+
+        tool = MagicMock()
+        tool.func = subgraph
+
+        tool_node = MagicMock(spec=["tools_by_name"])
+        tool_node.tools_by_name = {"retriever": tool}
+
+        _wrap_tool_node_subgraphs("tool_node", tool_node, "parent-agent")
+
+        # Invoke the wrapped function to verify spawn context values
+        tool.func({})
+        assert captured[0] is not None
+        assert captured[0].spawned_by_tool == "retriever"
+        assert captured[0].delegation_reason == "langgraph_tool:retriever"
+
+
+class TestWrapNodeMapDelegationReason:
+    def test_plain_subgraph_node_sets_delegation_reason(self):
+        captured: list[SpawnContext | None] = []
+        subgraph = _FakeSubgraph()
+        subgraph.invoke = MagicMock(side_effect=lambda *_args, **_kwargs: captured.append(_SPAWN_CTX.get()) or "r")
+        node_map = {"my_subgraph": subgraph}
+
+        _wrap_node_map(node_map, callback_handler=MagicMock(), process_agent_id="p")
+        node_map["my_subgraph"]({})
+
+        sc = captured[0]
+        assert sc is not None
+        assert sc.spawned_by_tool is None
+        assert sc.delegation_reason == "langgraph_node:my_subgraph"
+
+    def test_tool_node_in_map_triggers_tool_node_handling(self):
+        subgraph = _FakeSubgraph()
+        tool = MagicMock()
+        tool.func = subgraph
+
+        fake_tool_node = MagicMock(spec=["tools_by_name"])
+        fake_tool_node.tools_by_name = {"search": tool}
+
+        node_map = {"tools": fake_tool_node}
+        result = _wrap_node_map(node_map, callback_handler=MagicMock(), process_agent_id="p")
+
+        assert result is True
+        assert tool.func is not subgraph

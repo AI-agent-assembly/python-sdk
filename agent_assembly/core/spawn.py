@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Generator
 
 
 @dataclass(slots=True)
@@ -15,6 +15,7 @@ class SpawnContext:
     parent_agent_id: str
     depth: int
     spawned_by_tool: str | None = None
+    delegation_reason: str | None = None
 
 
 _SPAWN_CTX: ContextVar[SpawnContext | None] = ContextVar("_spawn_ctx", default=None)

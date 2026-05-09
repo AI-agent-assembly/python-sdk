@@ -16,6 +16,14 @@ class TestSpawnContext:
         ctx = SpawnContext(parent_agent_id="parent-1", depth=1)
         assert ctx.spawned_by_tool is None
 
+    def test_delegation_reason_defaults_to_none(self):
+        ctx = SpawnContext(parent_agent_id="parent-1", depth=1)
+        assert ctx.delegation_reason is None
+
+    def test_delegation_reason_stored(self):
+        ctx = SpawnContext(parent_agent_id="p", depth=1, delegation_reason="langgraph_node:call_llm")
+        assert ctx.delegation_reason == "langgraph_node:call_llm"
+
     def test_spawn_context_scope_sets_and_resets(self):
         assert _SPAWN_CTX.get() is None
         ctx = SpawnContext(parent_agent_id="p", depth=1)
@@ -26,9 +34,8 @@ class TestSpawnContext:
     def test_spawn_context_scope_resets_on_exception(self):
         assert _SPAWN_CTX.get() is None
         ctx = SpawnContext(parent_agent_id="p", depth=1)
-        with pytest.raises(RuntimeError):
-            with spawn_context_scope(ctx):
-                raise RuntimeError("boom")
+        with pytest.raises(RuntimeError), spawn_context_scope(ctx):
+            raise RuntimeError("boom")
         assert _SPAWN_CTX.get() is None
 
     def test_spawn_context_scope_nested(self):
@@ -67,19 +74,21 @@ class TestInitAssemblySpawnContextAutoRead:
 
         spawn_ctx = SpawnContext(parent_agent_id="parent-agent", depth=1, spawned_by_tool="runner")
 
-        with patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client):
-            with patch("agent_assembly.core.assembly._register_adapters", return_value=[]):
-                with patch(
-                    "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
-                ):
-                    with spawn_context_scope(spawn_ctx):
-                        ctx = assembly.init_assembly(
-                            gateway_url="http://gw",
-                            api_key="key",
-                            agent_id="child-agent",
-                            mode="sdk-only",
-                        )
-                        ctx.shutdown()
+        with (
+            patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client),
+            patch("agent_assembly.core.assembly._register_adapters", return_value=[]),
+            patch(
+                "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
+            ),
+            spawn_context_scope(spawn_ctx),
+        ):
+            ctx = assembly.init_assembly(
+                gateway_url="http://gw",
+                api_key="key",
+                agent_id="child-agent",
+                mode="sdk-only",
+            )
+            ctx.shutdown()
 
         assert captured["parent_agent_id"] == "parent-agent"
         assert captured["depth"] == 1
@@ -104,20 +113,22 @@ class TestInitAssemblySpawnContextAutoRead:
 
         spawn_ctx = SpawnContext(parent_agent_id="ctx-parent", depth=2)
 
-        with patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client):
-            with patch("agent_assembly.core.assembly._register_adapters", return_value=[]):
-                with patch(
-                    "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
-                ):
-                    with spawn_context_scope(spawn_ctx):
-                        ctx = assembly.init_assembly(
-                            gateway_url="http://gw",
-                            api_key="key",
-                            agent_id="child",
-                            mode="sdk-only",
-                            parent_agent_id="explicit-parent",
-                        )
-                        ctx.shutdown()
+        with (
+            patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client),
+            patch("agent_assembly.core.assembly._register_adapters", return_value=[]),
+            patch(
+                "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
+            ),
+            spawn_context_scope(spawn_ctx),
+        ):
+            ctx = assembly.init_assembly(
+                gateway_url="http://gw",
+                api_key="key",
+                agent_id="child",
+                mode="sdk-only",
+                parent_agent_id="explicit-parent",
+            )
+            ctx.shutdown()
 
         assert captured["parent_agent_id"] == "explicit-parent"
         assert captured["depth"] == 2  # ctx-provided depth was still used
@@ -139,18 +150,20 @@ class TestInitAssemblySpawnContextAutoRead:
             m.api_key = kwargs["api_key"]
             return m
 
-        with patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client):
-            with patch("agent_assembly.core.assembly._register_adapters", return_value=[]):
-                with patch(
-                    "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
-                ):
-                    ctx = assembly.init_assembly(
-                        gateway_url="http://gw",
-                        api_key="key",
-                        agent_id="solo-agent",
-                        mode="sdk-only",
-                    )
-                    ctx.shutdown()
+        with (
+            patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client),
+            patch("agent_assembly.core.assembly._register_adapters", return_value=[]),
+            patch(
+                "agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)
+            ),
+        ):
+            ctx = assembly.init_assembly(
+                gateway_url="http://gw",
+                api_key="key",
+                agent_id="solo-agent",
+                mode="sdk-only",
+            )
+            ctx.shutdown()
 
         assert captured.get("parent_agent_id") is None
         assert captured.get("depth") is None
