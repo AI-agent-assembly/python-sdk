@@ -247,3 +247,87 @@ async def test_chained_handoff_abc_depth_and_parent_agent_id() -> None:
     assert sc_c.delegation_reason == "Transfer to agent C"
 
     assert _SPAWN_CTX.get() is None
+
+
+# ---------------------------------------------------------------------------
+# Test 8: CrewAI hierarchical kickoff — team_id and spawn ctx at each task
+# ---------------------------------------------------------------------------
+
+
+def test_crewai_hierarchical_kickoff_sets_team_id_and_spawn_ctx() -> None:
+    """Crew.kickoff with hierarchical process sets _SPAWN_CTX with team_id."""
+    from unittest.mock import patch
+
+    from agent_assembly.adapters.crewai.patch import (
+        _apply_crew_kickoff_patch,
+        _apply_task_execute_sync_patch,
+        _revert_crew_kickoff_patch,
+        _revert_task_execute_sync_patch,
+    )
+
+    captured_kickoff: list[SpawnContext] = []
+    captured_tasks: list[SpawnContext] = []
+
+    class FakeCrew:
+        def __init__(self) -> None:
+            self.id = "crew-team-42"
+            self.manager_agent = type("Mgr", (), {"id": "manager-007"})()
+            self.process = "hierarchical"
+
+        def kickoff(self, *_args: object, **_kwargs: object) -> str:
+            sc = _SPAWN_CTX.get()
+            if sc is not None:
+                captured_kickoff.append(sc)
+            # Simulate manager delegating two tasks during hierarchical kickoff
+            task1 = FakeTask(description="Summarize reports", worker_id="worker-A", crew=self)
+            task2 = FakeTask(description="Write conclusions", worker_id="worker-B", crew=self)
+            task1.execute_sync()
+            task2.execute_sync()
+            return "crew-done"
+
+    class FakeTask:
+        def __init__(self, *, description: str, worker_id: str, crew: object) -> None:
+            self.description = description
+            self.agent = type("Agent", (), {"id": worker_id, "crew": crew})()
+
+        def execute_sync(self, *_args: object, **_kwargs: object) -> str:
+            sc = _SPAWN_CTX.get()
+            if sc is not None:
+                captured_tasks.append(sc)
+            return "task-done"
+
+    _apply_crew_kickoff_patch(FakeCrew)
+    _apply_task_execute_sync_patch(FakeTask, type("CB", (), {})())
+    try:
+        crew = FakeCrew()
+        with patch(
+            "agent_assembly.adapters.crewai.patch._is_hierarchical_process",
+            return_value=True,
+        ):
+            crew.kickoff()
+    finally:
+        _revert_task_execute_sync_patch(FakeTask)
+        _revert_crew_kickoff_patch(FakeCrew)
+
+    # kickoff body sees the outer hierarchical spawn context
+    assert len(captured_kickoff) == 1
+    ks = captured_kickoff[0]
+    assert ks.parent_agent_id == "manager-007"
+    assert ks.team_id == "crew-team-42"
+    assert ks.spawned_by_tool == "crewai_kickoff_hierarchical"
+    assert ks.depth == 1
+
+    # each delegated task sees its own spawn context (depth 2 inside the kickoff scope)
+    assert len(captured_tasks) == 2
+    ts1, ts2 = captured_tasks
+    assert ts1.parent_agent_id == "worker-A"
+    assert ts1.team_id == "crew-team-42"
+    assert ts1.spawned_by_tool == "crewai_task"
+    assert ts1.delegation_reason == "Summarize reports"
+    assert ts1.depth == 2  # incremented from kickoff's depth=1
+
+    assert ts2.parent_agent_id == "worker-B"
+    assert ts2.delegation_reason == "Write conclusions"
+    assert ts2.depth == 2
+
+    assert _SPAWN_CTX.get() is None
