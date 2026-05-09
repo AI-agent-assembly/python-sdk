@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import wraps
 from threading import local
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
 
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
@@ -14,8 +15,11 @@ _TOOLS_PATCHED_FLAG = "_agent_assembly_crewai_tools_patched"
 _TASK_PATCHED_FLAG = "_agent_assembly_crewai_task_patched"
 _ORIGINAL_TOOL_RUN = "_agent_assembly_original_crewai_tool_run"
 _ORIGINAL_TASK_EXECUTE_SYNC = "_agent_assembly_original_crewai_task_execute_sync"
+_ORIGINAL_CREW_KICKOFF = "_agent_assembly_original_crewai_crew_kickoff"
+_CREW_KICKOFF_PATCHED_FLAG = "_agent_assembly_crewai_crew_kickoff_patched"
 _AGENT_CONTEXT = local()
 _DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS = 300
+_MAX_DELEGATION_REASON_CHARS = 256
 
 
 @dataclass(slots=True)
@@ -34,14 +38,19 @@ class CrewAIPatch:
         task_cls = _load_crewai_task_class()
         if task_cls is not None:
             _apply_task_execute_sync_patch(task_cls, self.callback_handler)
+        crew_cls = _load_crewai_crew_class()
+        if crew_cls is not None:
+            _apply_crew_kickoff_patch(crew_cls)
         return True
 
     def revert(self) -> None:
         """Revert CrewAI runtime monkey patches when available."""
+        crew_cls = _load_crewai_crew_class()
+        if crew_cls is not None:
+            _revert_crew_kickoff_patch(crew_cls)
         base_tool_cls = _load_crewai_basetool_class()
         if base_tool_cls is not None:
             _revert_basetool_run_patch(base_tool_cls)
-
         task_cls = _load_crewai_task_class()
         if task_cls is not None:
             _revert_task_execute_sync_patch(task_cls)
@@ -70,6 +79,49 @@ def _load_crewai_task_class() -> type[Any] | None:
     if isinstance(task_cls, type):
         return task_cls
     return None
+
+
+def _load_crewai_crew_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("crewai")
+    except ImportError:
+        return None
+
+    crew_cls = getattr(module, "Crew", None)
+    if isinstance(crew_cls, type):
+        return crew_cls
+    return None
+
+
+def _extract_crew_team_id(crew: Any) -> str | None:
+    if crew is None:
+        return None
+    crew_id = getattr(crew, "id", None)
+    if crew_id is not None:
+        return str(crew_id)
+    return None
+
+
+def _extract_manager_agent_id(crew: Any) -> str | None:
+    manager = getattr(crew, "manager_agent", None)
+    if manager is None:
+        return None
+    agent_id = getattr(manager, "id", None)
+    if isinstance(agent_id, str) and agent_id:
+        return agent_id
+    return None
+
+
+def _is_hierarchical_process(crew: Any) -> bool:
+    try:
+        module = importlib.import_module("crewai")
+        process_cls = getattr(module, "Process", None)
+        if process_cls is None:
+            return False
+        hierarchical = getattr(process_cls, "hierarchical", None)
+        return getattr(crew, "process", None) == hierarchical
+    except Exception:
+        return False
 
 
 def _set_thread_local_agent_id(agent_id: str | None) -> None:
@@ -290,7 +342,7 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
         return result
 
     setattr(base_tool_cls, _ORIGINAL_TOOL_RUN, original_run)
-    setattr(base_tool_cls, "run", patched_run)
+    base_tool_cls.run = patched_run
     setattr(base_tool_cls, _TOOLS_PATCHED_FLAG, True)
 
 
@@ -300,7 +352,7 @@ def _revert_basetool_run_patch(base_tool_cls: type[Any]) -> None:
 
     original_run = getattr(base_tool_cls, _ORIGINAL_TOOL_RUN, None)
     if callable(original_run):
-        setattr(base_tool_cls, "run", original_run)
+        base_tool_cls.run = original_run
 
     if hasattr(base_tool_cls, _ORIGINAL_TOOL_RUN):
         delattr(base_tool_cls, _ORIGINAL_TOOL_RUN)
@@ -352,10 +404,14 @@ def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -
 
         spawn_ctx: SpawnContext | None = None
         if worker_id:
+            crew = getattr(getattr(self, "agent", None), "crew", None)
+            raw_reason = str(getattr(self, "description", "") or "")[:_MAX_DELEGATION_REASON_CHARS]
             spawn_ctx = SpawnContext(
                 parent_agent_id=worker_id,
                 depth=_current_spawn_depth(),
                 spawned_by_tool="crewai_task",
+                team_id=_extract_crew_team_id(crew),
+                delegation_reason=raw_reason or None,
             )
 
         try:
@@ -371,7 +427,7 @@ def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -
         return result
 
     setattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC, original_execute_sync)
-    setattr(task_cls, "execute_sync", patched_execute_sync)
+    task_cls.execute_sync = patched_execute_sync
     setattr(task_cls, _TASK_PATCHED_FLAG, True)
 
 
@@ -381,10 +437,48 @@ def _revert_task_execute_sync_patch(task_cls: type[Any]) -> None:
 
     original_execute_sync = getattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC, None)
     if callable(original_execute_sync):
-        setattr(task_cls, "execute_sync", original_execute_sync)
+        task_cls.execute_sync = original_execute_sync
 
     if hasattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC):
         delattr(task_cls, _ORIGINAL_TASK_EXECUTE_SYNC)
     if hasattr(task_cls, _TASK_PATCHED_FLAG):
         delattr(task_cls, _TASK_PATCHED_FLAG)
+    return None
+
+
+def _apply_crew_kickoff_patch(crew_cls: type[Any]) -> None:
+    if getattr(crew_cls, _CREW_KICKOFF_PATCHED_FLAG, False):
+        return None
+
+    original_kickoff = crew_cls.kickoff
+
+    @wraps(original_kickoff)
+    def patched_kickoff(self: Any, *args: Any, **kwargs: Any) -> Any:
+        if not _is_hierarchical_process(self):
+            return original_kickoff(self, *args, **kwargs)
+
+        spawn_ctx = SpawnContext(
+            parent_agent_id=_extract_manager_agent_id(self) or "",
+            depth=_current_spawn_depth(),
+            spawned_by_tool="crewai_kickoff_hierarchical",
+            team_id=_extract_crew_team_id(self),
+        )
+        with spawn_context_scope(spawn_ctx):
+            return original_kickoff(self, *args, **kwargs)
+
+    setattr(crew_cls, _ORIGINAL_CREW_KICKOFF, original_kickoff)
+    crew_cls.kickoff = patched_kickoff
+    setattr(crew_cls, _CREW_KICKOFF_PATCHED_FLAG, True)
+    return None
+
+
+def _revert_crew_kickoff_patch(crew_cls: type[Any]) -> None:
+    if not getattr(crew_cls, _CREW_KICKOFF_PATCHED_FLAG, False):
+        return None
+    original_kickoff = getattr(crew_cls, _ORIGINAL_CREW_KICKOFF, None)
+    if callable(original_kickoff):
+        crew_cls.kickoff = original_kickoff
+    for attr in (_ORIGINAL_CREW_KICKOFF, _CREW_KICKOFF_PATCHED_FLAG):
+        if hasattr(crew_cls, attr):
+            delattr(crew_cls, attr)
     return None
