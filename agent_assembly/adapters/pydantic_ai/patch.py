@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import importlib
 import inspect
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
 
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
@@ -144,8 +145,8 @@ def _apply_agent_run_patch(agent_cls: type[Any], process_agent_id: str | None) -
 
     setattr(agent_cls, _ORIGINAL_AGENT_RUN, original_run)
     setattr(agent_cls, _ORIGINAL_AGENT_RUN_SYNC, original_run_sync)
-    setattr(agent_cls, "run", patched_run)
-    setattr(agent_cls, "run_sync", patched_run_sync)
+    agent_cls.run = patched_run
+    agent_cls.run_sync = patched_run_sync
     setattr(agent_cls, _AGENT_PATCHED_FLAG, True)
     return None
 
@@ -209,9 +210,16 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> None:
                 raise _build_pending_rejected_error(tool_name, reason)
             raise _build_denied_error(tool_name, reason)
 
-        result = original_run(self, ctx, args, **kwargs)
-        if inspect.isawaitable(result):
-            result = await result
+        spawn_ctx = SpawnContext(
+            parent_agent_id=agent_id or "",
+            depth=_current_spawn_depth(),
+            spawned_by_tool=tool_name,
+            delegation_reason=f"tool:{tool_name}",
+        )
+        with spawn_context_scope(spawn_ctx):
+            result = original_run(self, ctx, args, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
 
         await _record_async_tool_result(
             callback_handler,
@@ -223,7 +231,7 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> None:
         return result
 
     setattr(tool_cls, _ORIGINAL_TOOL_RUN, original_run)
-    setattr(tool_cls, "_run", patched_run)
+    tool_cls._run = patched_run
     setattr(tool_cls, _TOOLS_PATCHED_FLAG, True)
     return None
 
@@ -234,7 +242,7 @@ def _revert_tool_run_patch(tool_cls: type[Any]) -> None:
 
     original_run = getattr(tool_cls, _ORIGINAL_TOOL_RUN, None)
     if callable(original_run):
-        setattr(tool_cls, "_run", original_run)
+        tool_cls._run = original_run
 
     if hasattr(tool_cls, _ORIGINAL_TOOL_RUN):
         delattr(tool_cls, _ORIGINAL_TOOL_RUN)
@@ -271,7 +279,7 @@ def _resolve_run_id(ctx: Any) -> str | None:
 
 def _serialize_tool_args(args: Any) -> dict[str, Any]:
     if hasattr(args, "model_dump"):
-        model_dump = getattr(args, "model_dump")
+        model_dump = args.model_dump
         if callable(model_dump):
             dumped = model_dump()
             if isinstance(dumped, dict):
