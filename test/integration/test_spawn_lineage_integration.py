@@ -183,3 +183,67 @@ def test_exception_in_scope_still_resets_ctx() -> None:
         raise RuntimeError("intentional")
 
     assert _SPAWN_CTX.get() is None
+
+
+# ---------------------------------------------------------------------------
+# Test 7: chained A→B→C handoffs — depth 1→2→3, parent_agent_id correct
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_chained_handoff_abc_depth_and_parent_agent_id() -> None:
+    """Chained A→B→C handoffs: depth increments 1→2→3; spawned_by_tool is None."""
+    from agent_assembly.adapters.openai_agents.patch import (
+        _apply_handoff_call_patch,
+        _revert_handoff_call_patch,
+    )
+
+    captured: list[SpawnContext] = []
+
+    class FakeHandoff:
+        def __init__(self, tool_description: str = "") -> None:
+            self.tool_description = tool_description
+
+        async def __call__(self, *_args: object, **_kwargs: object) -> str:
+            sc = _SPAWN_CTX.get()
+            if sc is not None:
+                captured.append(sc)
+            return "result"
+
+    _apply_handoff_call_patch(FakeHandoff, "process-agent")
+    try:
+        # Simulate Runner.run establishing depth=1 context for Agent A
+        ctx_a = SpawnContext(
+            parent_agent_id="process-agent",
+            depth=1,
+            spawned_by_tool="openai_agents_runner",
+        )
+        with spawn_context_scope(ctx_a):
+            # Agent A hands off to B — patch creates depth=2 spawn context
+            handoff_b = FakeHandoff(tool_description="Transfer to agent B")
+            await handoff_b()
+
+        # Simulate Runner establishing depth=2 context for Agent B
+        ctx_b = SpawnContext(parent_agent_id="process-agent", depth=2, spawned_by_tool=None)
+        with spawn_context_scope(ctx_b):
+            # Agent B hands off to C — patch creates depth=3 spawn context
+            handoff_c = FakeHandoff(tool_description="Transfer to agent C")
+            await handoff_c()
+    finally:
+        _revert_handoff_call_patch(FakeHandoff)
+
+    assert len(captured) == 2
+
+    sc_b = captured[0]  # spawn context seen by B's handoff call body
+    assert sc_b.depth == 2
+    assert sc_b.parent_agent_id == "process-agent"
+    assert sc_b.spawned_by_tool is None
+    assert sc_b.delegation_reason == "Transfer to agent B"
+
+    sc_c = captured[1]  # spawn context seen by C's handoff call body
+    assert sc_c.depth == 3
+    assert sc_c.parent_agent_id == "process-agent"
+    assert sc_c.spawned_by_tool is None
+    assert sc_c.delegation_reason == "Transfer to agent C"
+
+    assert _SPAWN_CTX.get() is None
