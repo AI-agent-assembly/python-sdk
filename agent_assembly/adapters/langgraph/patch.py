@@ -7,6 +7,8 @@ import inspect
 from dataclasses import dataclass
 from typing import Any
 
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
+
 _PATCHED_FLAG = "_agent_assembly_compile_patched"
 _ORIGINAL_COMPILE = "_agent_assembly_original_compile"
 _NODE_WRAPPED_FLAG = "_agent_assembly_node_wrapped"
@@ -18,6 +20,7 @@ class LangGraphPatch:
     """Applies LangGraph runtime monkey-patching for node-level governance hooks."""
 
     callback_handler: Any
+    process_agent_id: str | None = None
 
     def apply(self) -> bool:
         """Apply patching once and return whether patch wiring is active."""
@@ -26,7 +29,7 @@ class LangGraphPatch:
             return False
         if getattr(state_graph_cls, _PATCHED_FLAG, False):
             return True
-        _apply_stategraph_compile_patch(state_graph_cls, self.callback_handler)
+        _apply_stategraph_compile_patch(state_graph_cls, self.callback_handler, self.process_agent_id)
         return True
 
     def revert(self) -> None:
@@ -40,7 +43,7 @@ class LangGraphPatch:
 
 def patch_stategraph_compile(callback_handler: Any) -> bool:
     """Backward-compatible helper used by existing runtime wiring."""
-    return LangGraphPatch(callback_handler=callback_handler).apply()
+    return LangGraphPatch(callback_handler=callback_handler, process_agent_id=None).apply()
 
 
 def _invoke_pre_node_hook(callback_handler: Any, node_name: str, state: object) -> None:
@@ -189,7 +192,54 @@ def _make_assembly_node_wrapper(node_name: str, original_func: Any, callback_han
     return wrapped
 
 
-def _wrap_node_map(node_map: Any, callback_handler: Any) -> bool:
+def _is_compiled_subgraph(node_executor: Any) -> bool:
+    """Return True when node_executor looks like a compiled StateGraph (subgraph spawn point)."""
+    return hasattr(node_executor, "nodes") and hasattr(node_executor, "invoke")
+
+
+def _current_spawn_depth() -> int:
+    """Return depth for a new spawn context: current depth + 1, or 1 if root."""
+    current = _SPAWN_CTX.get()
+    return (current.depth + 1) if current is not None else 1
+
+
+def _make_subgraph_spawn_wrapper(
+    node_name: str,
+    subgraph: Any,
+    process_agent_id: str | None,
+    *,
+    async_: bool = False,
+) -> Any:
+    """Wrap a subgraph invoke/ainvoke with _SPAWN_CTX set for lineage propagation."""
+    spawned_by_tool = f"langgraph_subgraph:{node_name}"
+
+    if async_:
+
+        async def async_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
+            spawn_ctx = SpawnContext(
+                parent_agent_id=process_agent_id or "",
+                depth=_current_spawn_depth(),
+                spawned_by_tool=spawned_by_tool,
+            )
+            with spawn_context_scope(spawn_ctx):
+                return await subgraph.ainvoke(*args, **kwargs)
+
+        return async_subgraph_wrapper
+    else:
+
+        def sync_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
+            spawn_ctx = SpawnContext(
+                parent_agent_id=process_agent_id or "",
+                depth=_current_spawn_depth(),
+                spawned_by_tool=spawned_by_tool,
+            )
+            with spawn_context_scope(spawn_ctx):
+                return subgraph.invoke(*args, **kwargs)
+
+        return sync_subgraph_wrapper
+
+
+def _wrap_node_map(node_map: Any, callback_handler: Any, process_agent_id: str | None = None) -> bool:
     items_method = getattr(node_map, "items", None)
     if not callable(items_method):
         return False
@@ -204,6 +254,25 @@ def _wrap_node_map(node_map: Any, callback_handler: Any) -> bool:
                 node_map[node_name] = wrapped_executor
             except Exception:
                 continue
+            wrapped_any = True
+            continue
+
+        # Spawn point: node is itself a compiled subgraph — wrap for lineage.
+        if _is_compiled_subgraph(node_executor):
+            sync_wrapper = _make_subgraph_spawn_wrapper(str(node_name), node_executor, process_agent_id)
+            try:
+                node_map[node_name] = sync_wrapper
+            except Exception:
+                pass
+            if hasattr(node_executor, "ainvoke"):
+                # Mutates the subgraph object; safe when each subgraph instance
+                # appears in only one parent graph — the typical LangGraph pattern.
+                if not getattr(node_executor, "_agent_assembly_ainvoke_spawned", False):
+                    async_wrapper = _make_subgraph_spawn_wrapper(
+                        str(node_name), node_executor, process_agent_id, async_=True
+                    )
+                    setattr(node_executor, "ainvoke", async_wrapper)
+                    setattr(node_executor, "_agent_assembly_ainvoke_spawned", True)
             wrapped_any = True
             continue
 
@@ -222,20 +291,28 @@ def _wrap_node_map(node_map: Any, callback_handler: Any) -> bool:
     return wrapped_any
 
 
-def _wrap_compiled_graph_nodes(compiled_graph: Any, callback_handler: Any) -> bool:
+def _wrap_compiled_graph_nodes(
+    compiled_graph: Any,
+    callback_handler: Any,
+    process_agent_id: str | None = None,
+) -> bool:
     wrapped_any = False
     for node_map in _discover_compiled_graph_node_maps(compiled_graph):
-        if _wrap_node_map(node_map, callback_handler):
+        if _wrap_node_map(node_map, callback_handler, process_agent_id):
             wrapped_any = True
     return wrapped_any
 
 
-def _apply_stategraph_compile_patch(state_graph_cls: type[Any], callback_handler: Any) -> None:
+def _apply_stategraph_compile_patch(
+    state_graph_cls: type[Any],
+    callback_handler: Any,
+    process_agent_id: str | None = None,
+) -> None:
     original_compile = state_graph_cls.compile
 
     def patched_compile(self: Any, *args: Any, **kwargs: Any) -> Any:
         compiled_graph = original_compile(self, *args, **kwargs)
-        nodes_wrapped = _wrap_compiled_graph_nodes(compiled_graph, callback_handler)
+        nodes_wrapped = _wrap_compiled_graph_nodes(compiled_graph, callback_handler, process_agent_id)
         if not nodes_wrapped:
             _wrap_graph_invoke_fallback(compiled_graph, callback_handler)
         return compiled_graph

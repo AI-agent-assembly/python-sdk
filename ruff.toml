@@ -1,19 +1,20 @@
-[exclude]
-".ai/"
-".github/"
-".git/"
-".idea/"
-"__pycache__"
-"*.egg-info"
-".mypy_cache"
-".pytest_cache"
-".tox"
-".venv"
-"venv"
-"build"
-"dist"
-"docs_with_docusarus"
-"docs"
+exclude = [
+    ".ai/",
+    ".github/",
+    ".git/",
+    ".idea/",
+    "__pycache__",
+    "*.egg-info",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "docs_with_docusarus",
+    "docs",
+]
 
 line-length = 120
 indent-width = 4
@@ -52,5 +53,5 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-[pydocstyle]
+[lint.pydocstyle]
 convention = "google"

@@ -8,6 +8,8 @@ from functools import wraps
 from threading import local
 from typing import Any, Literal, Mapping
 
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
+
 _TOOLS_PATCHED_FLAG = "_agent_assembly_crewai_tools_patched"
 _TASK_PATCHED_FLAG = "_agent_assembly_crewai_task_patched"
 _ORIGINAL_TOOL_RUN = "_agent_assembly_original_crewai_tool_run"
@@ -106,6 +108,25 @@ def _extract_agent_id_from_inputs(args: tuple[Any, ...], kwargs: dict[str, Any])
             return state_agent_id
 
     return None
+
+
+def _extract_worker_agent_id(task: Any) -> str | None:
+    """Extract the worker agent's ID from a CrewAI Task's .agent attribute."""
+    agent = getattr(task, "agent", None)
+    if agent is None:
+        return None
+    agent_id = getattr(agent, "id", None)
+    if isinstance(agent_id, str) and agent_id:
+        return agent_id
+    agent_id = getattr(agent, "agent_id", None)
+    if isinstance(agent_id, str) and agent_id:
+        return agent_id
+    return None
+
+
+def _current_spawn_depth() -> int:
+    current = _SPAWN_CTX.get()
+    return (current.depth + 1) if current is not None else 1
 
 
 def _format_blocked_message(reason: str | None) -> str:
@@ -325,10 +346,24 @@ def _apply_task_execute_sync_patch(task_cls: type[Any], callback_handler: Any) -
     @wraps(original_execute_sync)
     def patched_execute_sync(self: Any, *args: Any, **kwargs: Any) -> Any:
         previous_agent_id = _get_thread_local_agent_id()
-        _set_thread_local_agent_id(_extract_agent_id_from_inputs(args, kwargs))
+        worker_id = _extract_worker_agent_id(self)
+        _set_thread_local_agent_id(worker_id or _extract_agent_id_from_inputs(args, kwargs))
         _record_task_start(callback_handler, self)
+
+        spawn_ctx: SpawnContext | None = None
+        if worker_id:
+            spawn_ctx = SpawnContext(
+                parent_agent_id=worker_id,
+                depth=_current_spawn_depth(),
+                spawned_by_tool="crewai_task",
+            )
+
         try:
-            result = original_execute_sync(self, *args, **kwargs)
+            if spawn_ctx is not None:
+                with spawn_context_scope(spawn_ctx):
+                    result = original_execute_sync(self, *args, **kwargs)
+            else:
+                result = original_execute_sync(self, *args, **kwargs)
         finally:
             _set_thread_local_agent_id(previous_agent_id)
 

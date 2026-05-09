@@ -12,6 +12,7 @@ from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langchain.runtime import get_active_callback_handler
 from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
+from agent_assembly.core.spawn import _SPAWN_CTX
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
 RuntimeMode = Literal["auto", "ebpf", "proxy", "sdk-only"]
@@ -112,6 +113,7 @@ def init_assembly(
     team_id: str | None = None,
     delegation_reason: str | None = None,
     spawned_by_tool: str | None = None,
+    depth: int | None = None,
 ) -> AssemblyContext:
     """Initialize the Agent Assembly SDK runtime for this process.
 
@@ -121,6 +123,17 @@ def init_assembly(
     _validate_inputs(gateway_url=gateway_url, api_key=api_key, mode=mode)
     if delegation_reason is not None and len(delegation_reason) > 256:
         raise ValueError("delegation_reason must be <= 256 characters")
+
+    # Auto-fill lineage from ambient spawn context when not passed explicitly.
+    _spawn = _SPAWN_CTX.get()
+    if _spawn is not None:
+        if parent_agent_id is None:
+            parent_agent_id = _spawn.parent_agent_id
+        if depth is None:
+            depth = _spawn.depth
+        if spawned_by_tool is None:
+            spawned_by_tool = _spawn.spawned_by_tool
+
     resolved_agent_id = agent_id or _DEFAULT_AGENT_ID
 
     global _ACTIVE_CONTEXT
@@ -142,6 +155,7 @@ def init_assembly(
             team_id=team_id,
             delegation_reason=delegation_reason,
             spawned_by_tool=spawned_by_tool,
+            depth=depth,
         )
 
         registered_adapters: list[FrameworkAdapter] = []
@@ -152,15 +166,11 @@ def init_assembly(
                 client=client,
                 process_agent_id=resolved_agent_id,
             )
-            network_mode, network_shutdown = _start_network_layer(
-                client=client, mode=mode
-            )
+            network_mode, network_shutdown = _start_network_layer(client=client, mode=mode)
         except Exception as error:
             _unregister_adapters(registered_adapters)
             client.close()
-            raise ConfigurationError(
-                f"Failed to initialize assembly runtime: {error}"
-            ) from error
+            raise ConfigurationError(f"Failed to initialize assembly runtime: {error}") from error
 
         context = AssemblyContext(
             client=client,
@@ -225,9 +235,7 @@ def _unregister_adapters(adapters: list[FrameworkAdapter]) -> None:
             continue
 
 
-def _start_network_layer(
-    *, client: GatewayClient, mode: RuntimeMode
-) -> tuple[NetworkMode, Callable[[], None]]:
+def _start_network_layer(*, client: GatewayClient, mode: RuntimeMode) -> tuple[NetworkMode, Callable[[], None]]:
     if mode == "sdk-only":
         return "sdk-only", _noop_shutdown
 
@@ -277,14 +285,8 @@ def _validate_active_context_compatibility(
     agent_id: str,
 ) -> None:
     if context.client.gateway_url != gateway_url.rstrip("/"):
-        raise ConfigurationError(
-            "init_assembly already initialized with a different gateway_url."
-        )
+        raise ConfigurationError("init_assembly already initialized with a different gateway_url.")
     if context.client.api_key != api_key:
-        raise ConfigurationError(
-            "init_assembly already initialized with a different api_key."
-        )
+        raise ConfigurationError("init_assembly already initialized with a different api_key.")
     if context.client.agent_id != agent_id:
-        raise ConfigurationError(
-            "init_assembly already initialized with a different agent_id."
-        )
+        raise ConfigurationError("init_assembly already initialized with a different agent_id.")

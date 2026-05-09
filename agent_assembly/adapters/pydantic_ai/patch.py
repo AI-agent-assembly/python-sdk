@@ -14,9 +14,13 @@ from agent_assembly.adapters.crewai.patch import (
 from agent_assembly.adapters.crewai.patch import (
     _normalize_decision as _normalize_governance_decision,
 )
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 _ORIGINAL_TOOL_RUN = "_agent_assembly_original_pydantic_ai_tool_run"
 _TOOLS_PATCHED_FLAG = "_agent_assembly_pydantic_ai_tools_patched"
+_ORIGINAL_AGENT_RUN = "_agent_assembly_original_pydantic_ai_agent_run"
+_ORIGINAL_AGENT_RUN_SYNC = "_agent_assembly_original_pydantic_ai_agent_run_sync"
+_AGENT_PATCHED_FLAG = "_agent_assembly_pydantic_ai_agent_patched"
 _PROCESS_AGENT_ID: str | None = None
 _MAX_AUDIT_RESULT_CHARS = 2000
 
@@ -26,17 +30,25 @@ class PydanticAIPatch:
     """Applies Pydantic AI runtime monkey-patching hooks."""
 
     callback_handler: Any
+    process_agent_id: str | None = None
 
     def apply(self) -> bool:
         """Apply patch wiring and return whether Pydantic AI is available."""
+        set_process_agent_id(self.process_agent_id)
         tool_cls = _load_pydantic_ai_tool_class()
         if tool_cls is None:
             return False
         _apply_tool_run_patch(tool_cls, self.callback_handler)
+        agent_cls = _load_pydantic_ai_agent_class()
+        if agent_cls is not None:
+            _apply_agent_run_patch(agent_cls, self.process_agent_id)
         return True
 
     def revert(self) -> None:
-        """Revert Pydantic AI tool patch when available."""
+        """Revert Pydantic AI tool and agent patches when available."""
+        agent_cls = _load_pydantic_ai_agent_class()
+        if agent_cls is not None:
+            _revert_agent_run_patch(agent_cls)
         tool_cls = _load_pydantic_ai_tool_class()
         if tool_cls is not None:
             _revert_tool_run_patch(tool_cls)
@@ -80,6 +92,80 @@ def _load_pydantic_ai_tool_class() -> type[Any] | None:
     tool_cls = getattr(module, "Tool", None)
     if isinstance(tool_cls, type):
         return tool_cls
+    return None
+
+
+def _load_pydantic_ai_agent_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("pydantic_ai")
+    except ImportError:
+        return None
+
+    agent_cls = getattr(module, "Agent", None)
+    if isinstance(agent_cls, type):
+        return agent_cls
+    return None
+
+
+def _current_spawn_depth() -> int:
+    current = _SPAWN_CTX.get()
+    return (current.depth + 1) if current is not None else 1
+
+
+def _apply_agent_run_patch(agent_cls: type[Any], process_agent_id: str | None) -> None:
+    if getattr(agent_cls, _AGENT_PATCHED_FLAG, False):
+        return None
+
+    original_run = agent_cls.run
+    original_run_sync = agent_cls.run_sync
+
+    @wraps(original_run)
+    async def patched_run(self: Any, *args: Any, **kwargs: Any) -> Any:
+        spawn_ctx = SpawnContext(
+            parent_agent_id=process_agent_id or "",
+            depth=_current_spawn_depth(),
+            spawned_by_tool="pydantic_ai_agent",
+        )
+        with spawn_context_scope(spawn_ctx):
+            result = original_run(self, *args, **kwargs)
+            if inspect.isawaitable(result):
+                return await result
+            return result
+
+    @wraps(original_run_sync)
+    def patched_run_sync(self: Any, *args: Any, **kwargs: Any) -> Any:
+        spawn_ctx = SpawnContext(
+            parent_agent_id=process_agent_id or "",
+            depth=_current_spawn_depth(),
+            spawned_by_tool="pydantic_ai_agent",
+        )
+        with spawn_context_scope(spawn_ctx):
+            return original_run_sync(self, *args, **kwargs)
+
+    setattr(agent_cls, _ORIGINAL_AGENT_RUN, original_run)
+    setattr(agent_cls, _ORIGINAL_AGENT_RUN_SYNC, original_run_sync)
+    setattr(agent_cls, "run", patched_run)
+    setattr(agent_cls, "run_sync", patched_run_sync)
+    setattr(agent_cls, _AGENT_PATCHED_FLAG, True)
+    return None
+
+
+def _revert_agent_run_patch(agent_cls: type[Any]) -> None:
+    if not getattr(agent_cls, _AGENT_PATCHED_FLAG, False):
+        return None
+
+    for orig_attr, method_name in (
+        (_ORIGINAL_AGENT_RUN, "run"),
+        (_ORIGINAL_AGENT_RUN_SYNC, "run_sync"),
+    ):
+        original = getattr(agent_cls, orig_attr, None)
+        if callable(original):
+            setattr(agent_cls, method_name, original)
+        if hasattr(agent_cls, orig_attr):
+            delattr(agent_cls, orig_attr)
+
+    if hasattr(agent_cls, _AGENT_PATCHED_FLAG):
+        delattr(agent_cls, _AGENT_PATCHED_FLAG)
     return None
 
 
@@ -139,6 +225,7 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> None:
     setattr(tool_cls, _ORIGINAL_TOOL_RUN, original_run)
     setattr(tool_cls, "_run", patched_run)
     setattr(tool_cls, _TOOLS_PATCHED_FLAG, True)
+    return None
 
 
 def _revert_tool_run_patch(tool_cls: type[Any]) -> None:

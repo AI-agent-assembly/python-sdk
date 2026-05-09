@@ -23,6 +23,7 @@ class GatewayClient:
         team_id: Optional[str] = None,
         delegation_reason: Optional[str] = None,
         spawned_by_tool: Optional[str] = None,
+        depth: Optional[int] = None,
     ) -> None:
         """
         Initialize the GatewayClient.
@@ -36,6 +37,7 @@ class GatewayClient:
             team_id: Team ID this agent belongs to
             delegation_reason: Human-readable reason for delegation
             spawned_by_tool: Name of the tool that spawned this agent
+            depth: Spawn depth in the agent lineage tree
         """
         self.gateway_url = gateway_url.rstrip("/")
         self.agent_id = agent_id
@@ -45,6 +47,7 @@ class GatewayClient:
         self.team_id = team_id
         self.delegation_reason = delegation_reason
         self.spawned_by_tool = spawned_by_tool
+        self.depth = depth
         self._client: Optional[httpx.Client] = None
 
     @property
@@ -85,7 +88,7 @@ class GatewayClient:
         Raises:
             GatewayError: If registration fails
         """
-        body: dict[str, str] = {}
+        body: dict[str, str | int] = {}
         if self.parent_agent_id is not None:
             body["parent_agent_id"] = self.parent_agent_id
         if self.team_id is not None:
@@ -94,6 +97,8 @@ class GatewayClient:
             body["delegation_reason"] = self.delegation_reason
         if self.spawned_by_tool is not None:
             body["spawned_by_tool"] = self.spawned_by_tool
+        if self.depth is not None:
+            body["depth"] = self.depth
         try:
             response = self.client.post(
                 f"/agents/{self.agent_id}/register",

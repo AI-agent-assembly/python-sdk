@@ -90,9 +90,7 @@ def test_init_assembly_with_invalid_config() -> None:
 
 
 def test_mode_sdk_only_skips_network_layer() -> None:
-    network_mode, shutdown = core_assembly._start_network_layer(
-        client=object(), mode="sdk-only"
-    )
+    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="sdk-only")
     assert network_mode == "sdk-only"
     assert callable(shutdown)
 
@@ -103,9 +101,7 @@ def test_mode_auto_uses_proxy_when_ebpf_is_not_supported(
     monkeypatch.setattr(core_assembly, "_platform_supports_ebpf", lambda: False)
     monkeypatch.setattr(core_assembly, "_start_mitm_proxy", lambda client: lambda: None)
 
-    network_mode, shutdown = core_assembly._start_network_layer(
-        client=object(), mode="auto"
-    )
+    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="auto")
 
     assert network_mode == "proxy"
     assert callable(shutdown)
@@ -115,13 +111,9 @@ def test_mode_auto_uses_ebpf_when_supported(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(core_assembly, "_platform_supports_ebpf", lambda: True)
-    monkeypatch.setattr(
-        core_assembly, "_start_ebpf_probes", lambda client: lambda: None
-    )
+    monkeypatch.setattr(core_assembly, "_start_ebpf_probes", lambda client: lambda: None)
 
-    network_mode, shutdown = core_assembly._start_network_layer(
-        client=object(), mode="auto"
-    )
+    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="auto")
     assert network_mode == "ebpf"
     assert callable(shutdown)
 
@@ -130,9 +122,7 @@ def test_mode_proxy_forces_proxy_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(core_assembly, "_start_mitm_proxy", lambda client: lambda: None)
-    network_mode, shutdown = core_assembly._start_network_layer(
-        client=object(), mode="proxy"
-    )
+    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="proxy")
     assert network_mode == "proxy"
     assert callable(shutdown)
 
@@ -254,9 +244,7 @@ def test_context_shutdown_aggregates_errors() -> None:
         client=_FailingClient(),  # type: ignore[arg-type]
         adapters=[_FailingAdapter("fail")],
         network_mode="sdk-only",
-        _network_shutdown=lambda: (_ for _ in ()).throw(
-            RuntimeError("network failure")
-        ),
+        _network_shutdown=lambda: (_ for _ in ()).throw(RuntimeError("network failure")),
     )
 
     with pytest.raises(AssemblyError, match="network shutdown failed"):
@@ -272,9 +260,7 @@ def test_unregister_adapters_ignores_unregister_failures() -> None:
         def unregister_hooks(self) -> None:
             raise RuntimeError("boom")
 
-    core_assembly._unregister_adapters(
-        [_AdapterOk("ok1"), _AdapterFails("fail"), _AdapterOk("ok2")]
-    )  # no raise
+    core_assembly._unregister_adapters([_AdapterOk("ok1"), _AdapterFails("fail"), _AdapterOk("ok2")])  # no raise
 
 
 def test_init_assembly_is_thread_safe_and_idempotent(
@@ -299,9 +285,7 @@ def test_init_assembly_is_thread_safe_and_idempotent(
     )
 
     def initialize() -> core_assembly.AssemblyContext:
-        return init_assembly(
-            gateway_url="http://localhost:8080", api_key="test-api-key"
-        )
+        return init_assembly(gateway_url="http://localhost:8080", api_key="test-api-key")
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         future_a = executor.submit(initialize)
