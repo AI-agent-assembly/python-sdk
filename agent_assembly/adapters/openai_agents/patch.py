@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import inspect
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
 from typing import Any, Literal
 
@@ -24,8 +24,15 @@ _RUNNER_PATCHED_FLAG = "_agent_assembly_openai_agents_runner_patched"
 _ORIGINAL_HANDOFF_CALL = "_agent_assembly_original_openai_agents_handoff_call"
 _HANDOFF_PATCHED_FLAG = "_agent_assembly_openai_agents_handoff_patched"
 _PROCESS_AGENT_ID: str | None = None
+_EDGE_EMITTER: Any = None
 _MAX_AUDIT_RESULT_CHARS = 2000
 _MAX_DELEGATION_REASON_CHARS = 256
+
+
+def set_edge_emitter(emitter: Any) -> None:
+    """Register the EdgeEmitter used for fire-and-forget topology edge reporting."""
+    global _EDGE_EMITTER
+    _EDGE_EMITTER = emitter
 
 
 @dataclass(slots=True)
@@ -34,9 +41,12 @@ class OpenAIAgentsPatch:
 
     callback_handler: Any
     process_agent_id: str | None = None
+    edge_emitter: Any = field(default=None)
 
     def apply(self) -> bool:
         set_process_agent_id(self.process_agent_id)
+        if self.edge_emitter is not None:
+            set_edge_emitter(self.edge_emitter)
         function_tool_cls = _load_openai_agents_function_tool_class()
         if function_tool_cls is None:
             return False
@@ -139,8 +149,20 @@ def _apply_handoff_call_patch(handoff_cls: type[Any], process_agent_id: str | No
         with spawn_context_scope(spawn_ctx):
             result = original_call(self, *args, **kwargs)
             if inspect.isawaitable(result):
-                return await result
-            return result
+                result = await result
+
+        # Emit a DelegatesTo edge from the delegating agent to the handoff target.
+        if _EDGE_EMITTER is not None and process_agent_id:
+            target_id = (
+                getattr(self, "agent_name", None)
+                or getattr(self, "name", None)
+                or "unknown"
+            )
+            emit = getattr(_EDGE_EMITTER, "emit", None)
+            if callable(emit):
+                emit(process_agent_id, str(target_id), "delegates_to")
+
+        return result
 
     setattr(handoff_cls, _ORIGINAL_HANDOFF_CALL, original_call)
     handoff_cls.__call__ = patched_call
