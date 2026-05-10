@@ -11,10 +11,10 @@ class RecordingEdgeEmitter:
     """Synchronous test double that records emitted edges."""
 
     def __init__(self) -> None:
-        self.edges: list[tuple[str, str, str]] = []
+        self.edges: list[tuple[str, str, str, dict | None]] = []
 
-    def emit(self, source: str, target: str, edge_type: str) -> None:
-        self.edges.append((source, target, edge_type))
+    def emit(self, source: str, target: str, edge_type: str, metadata: dict | None = None) -> None:
+        self.edges.append((source, target, edge_type, metadata))
 
 
 class _NullCallbackHandler:
@@ -31,7 +31,6 @@ def _make_node_map(*node_names: str, handler: Any) -> dict[str, Any]:
     """Build a fake compiled-graph node map with simple callables."""
     node_map: dict[str, Any] = {}
     for name in node_names:
-        # Use a closure to bind the name for later assertions.
         def make_func(n: str) -> Any:
             def node_fn(state: Any) -> dict[str, Any]:
                 return {"node": n, **state}
@@ -46,6 +45,7 @@ def _run_two_node_graph(
     node_a: str,
     node_b: str,
     emitter: RecordingEdgeEmitter,
+    initial_state: dict[str, Any] | None = None,
 ) -> None:
     """Simulate a 2-node sequential graph execution with patched wrappers."""
     handler = _NullCallbackHandler()
@@ -55,12 +55,10 @@ def _run_two_node_graph(
     try:
         lg_patch._wrap_node_map(node_map, handler)
 
-        state: dict[str, Any] = {}
-        # Execute node A then node B (sequential, same thread).
+        state: dict[str, Any] = initial_state or {}
         state = node_map[node_a](state)
         state = node_map[node_b](state)
     finally:
-        # Reset module globals so tests are isolated.
         lg_patch.set_edge_emitter(None)
         lg_patch._NODE_TRANSITION.name = None
 
@@ -70,10 +68,23 @@ def test_messages_edge_emitted_between_two_sequential_nodes() -> None:
     _run_two_node_graph("node_a", "node_b", emitter)
 
     assert len(emitter.edges) == 1
-    src, tgt, etype = emitter.edges[0]
+    src, tgt, etype, meta = emitter.edges[0]
     assert src == "node_a"
     assert tgt == "node_b"
     assert etype == "messages"
+    assert isinstance(meta, dict)
+    assert "transition_input_keys" in meta
+
+
+def test_transition_input_keys_contains_state_keys() -> None:
+    emitter = RecordingEdgeEmitter()
+    _run_two_node_graph("node_a", "node_b", emitter, initial_state={"msg": "hi", "count": 0})
+
+    assert len(emitter.edges) == 1
+    meta = emitter.edges[0][3]
+    assert meta is not None
+    # transition_input_keys reflects the state keys seen when node_a completed
+    assert set(meta["transition_input_keys"]) >= {"msg", "count"}
 
 
 def test_no_edge_emitted_for_first_node_in_graph() -> None:
@@ -108,8 +119,8 @@ def test_three_node_graph_emits_two_edges() -> None:
         lg_patch._NODE_TRANSITION.name = None
 
     assert len(emitter.edges) == 2
-    assert emitter.edges[0] == ("a", "b", "messages")
-    assert emitter.edges[1] == ("b", "c", "messages")
+    assert emitter.edges[0][:3] == ("a", "b", "messages")
+    assert emitter.edges[1][:3] == ("b", "c", "messages")
 
 
 def test_no_edge_emitted_when_emitter_is_none() -> None:

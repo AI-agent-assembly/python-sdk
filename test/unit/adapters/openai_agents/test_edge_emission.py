@@ -21,17 +21,18 @@ class RecordingEdgeEmitter:
     """Synchronous test double that records emitted edges."""
 
     def __init__(self) -> None:
-        self.edges: list[tuple[str, str, str]] = []
+        self.edges: list[tuple[str, str, str, dict | None]] = []
 
-    def emit(self, source: str, target: str, edge_type: str) -> None:
-        self.edges.append((source, target, edge_type))
+    def emit(self, source: str, target: str, edge_type: str, metadata: dict | None = None) -> None:
+        self.edges.append((source, target, edge_type, metadata))
 
 
 class FakeHandoff:
     """Minimal Handoff stand-in."""
 
-    def __init__(self, agent_name: str = "agent_b") -> None:
+    def __init__(self, agent_name: str = "agent_b", tool_description: str = "Transfer to B") -> None:
         self.agent_name = agent_name
+        self.tool_description = tool_description
 
     async def __call__(self, *_args: Any, **_kwargs: Any) -> str:
         return "handoff-result"
@@ -58,14 +59,16 @@ class TestHandoffEdgeEmission:
         set_edge_emitter(emitter)
         _apply_handoff_call_patch(FakeHandoff, "agent-a")
 
-        h = FakeHandoff(agent_name="agent_b")
+        h = FakeHandoff(agent_name="agent_b", tool_description="Transfer to B")
         await h()
 
         assert len(emitter.edges) == 1
-        src, tgt, etype = emitter.edges[0]
+        src, tgt, etype, meta = emitter.edges[0]
         assert src == "agent-a"
         assert tgt == "agent_b"
         assert etype == "delegates_to"
+        assert isinstance(meta, dict)
+        assert meta.get("reason") == "Transfer to B"
 
     @pytest.mark.asyncio
     async def test_no_edge_emitted_when_emitter_is_none(self) -> None:

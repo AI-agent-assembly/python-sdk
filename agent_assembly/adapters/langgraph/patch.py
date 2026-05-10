@@ -472,7 +472,8 @@ def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, 
     if prev_name is not None and _EDGE_EMITTER is not None:
         emit = getattr(_EDGE_EMITTER, "emit", None)
         if callable(emit):
-            emit(prev_name, node_name, "messages")
+            transition_input_keys = list(state.keys()) if isinstance(state, dict) else []
+            emit(prev_name, node_name, "messages", {"transition_input_keys": transition_input_keys})
         _NODE_TRANSITION.name = None
 
     method = getattr(callback_handler, "on_graph_node_start", None)
