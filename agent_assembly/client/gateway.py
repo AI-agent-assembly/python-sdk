@@ -131,3 +131,41 @@ class GatewayClient:
             return response.json()
         except httpx.HTTPError as e:
             raise GatewayError(f"Failed to check policy compliance: {e}") from e
+
+    def report_edge(
+        self,
+        source_agent_id: str,
+        target_agent_id: str,
+        edge_type: str,
+        metadata: Optional[dict] = None,
+    ) -> dict:
+        """
+        Report a directed edge between two agents to the topology store.
+
+        Args:
+            source_agent_id: ID of the source agent
+            target_agent_id: ID of the target agent
+            edge_type: Semantic type of the edge (e.g. "messages", "delegates_to")
+            metadata: Optional freeform metadata to attach to the edge
+
+        Returns:
+            Response data containing the assigned edge id
+
+        Raises:
+            GatewayError: If the request fails
+        """
+        import json as _json
+
+        body: dict = {
+            "source_agent_id": source_agent_id,
+            "target_agent_id": target_agent_id,
+            "edge_type": edge_type,
+        }
+        if metadata is not None:
+            body["metadata_json"] = _json.dumps(metadata)
+        try:
+            response = self.client.post("/topology/edges", json=body)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            raise GatewayError(f"Failed to report edge: {e}") from e
