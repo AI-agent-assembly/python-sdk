@@ -153,11 +153,7 @@ def _apply_handoff_call_patch(handoff_cls: type[Any], process_agent_id: str | No
 
         # Emit a DelegatesTo edge from the delegating agent to the handoff target.
         if _EDGE_EMITTER is not None and process_agent_id:
-            target_id = (
-                getattr(self, "agent_name", None)
-                or getattr(self, "name", None)
-                or "unknown"
-            )
+            target_id = getattr(self, "agent_name", None) or getattr(self, "name", None) or "unknown"
             emit = getattr(_EDGE_EMITTER, "emit", None)
             if callable(emit):
                 emit(process_agent_id, str(target_id), "delegates_to")

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import httpx
 
 from agent_assembly.exceptions import GatewayError
@@ -16,14 +14,14 @@ class GatewayClient:
         self,
         gateway_url: str,
         agent_id: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         timeout: int = 30,
         *,
-        parent_agent_id: Optional[str] = None,
-        team_id: Optional[str] = None,
-        delegation_reason: Optional[str] = None,
-        spawned_by_tool: Optional[str] = None,
-        depth: Optional[int] = None,
+        parent_agent_id: str | None = None,
+        team_id: str | None = None,
+        delegation_reason: str | None = None,
+        spawned_by_tool: str | None = None,
+        depth: int | None = None,
     ) -> None:
         """
         Initialize the GatewayClient.
@@ -48,7 +46,7 @@ class GatewayClient:
         self.delegation_reason = delegation_reason
         self.spawned_by_tool = spawned_by_tool
         self.depth = depth
-        self._client: Optional[httpx.Client] = None
+        self._client: httpx.Client | None = None
 
     @property
     def client(self) -> httpx.Client:
@@ -137,7 +135,7 @@ class GatewayClient:
         source_agent_id: str,
         target_agent_id: str,
         edge_type: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> dict:
         """
         Report a directed edge between two agents to the topology store.

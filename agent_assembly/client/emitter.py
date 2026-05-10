@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Optional
 
 from agent_assembly.client.gateway import GatewayClient
 
@@ -22,7 +21,7 @@ class EdgeEmitter:
         source_agent_id: str,
         target_agent_id: str,
         edge_type: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> None:
         """Schedule a fire-and-forget edge report on a daemon thread."""
         t = threading.Thread(
@@ -37,7 +36,7 @@ class EdgeEmitter:
         source_agent_id: str,
         target_agent_id: str,
         edge_type: str,
-        metadata: Optional[dict],
+        metadata: dict | None,
     ) -> None:
         try:
             self._client.report_edge(source_agent_id, target_agent_id, edge_type, metadata)
