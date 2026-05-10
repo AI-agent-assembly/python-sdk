@@ -5,7 +5,8 @@ from __future__ import annotations
 import contextlib
 import importlib
 import inspect
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, field
 from typing import Any
 
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
@@ -15,6 +16,19 @@ _ORIGINAL_COMPILE = "_agent_assembly_original_compile"
 _NODE_WRAPPED_FLAG = "_agent_assembly_node_wrapped"
 _INVOKE_WRAPPED_FLAG = "_agent_assembly_invoke_wrapped"
 
+# Thread-local storage for the name of the most-recently-completed node so that
+# the next _record_node_enter can emit a directed Messages edge between them.
+_NODE_TRANSITION: threading.local = threading.local()
+
+# Module-level edge emitter instance; set via set_edge_emitter().
+_EDGE_EMITTER: Any = None
+
+
+def set_edge_emitter(emitter: Any) -> None:
+    """Register the EdgeEmitter used for fire-and-forget topology edge reporting."""
+    global _EDGE_EMITTER
+    _EDGE_EMITTER = emitter
+
 
 @dataclass(slots=True)
 class LangGraphPatch:
@@ -22,9 +36,12 @@ class LangGraphPatch:
 
     callback_handler: Any
     process_agent_id: str | None = None
+    edge_emitter: Any = field(default=None)
 
     def apply(self) -> bool:
         """Apply patching once and return whether patch wiring is active."""
+        if self.edge_emitter is not None:
+            set_edge_emitter(self.edge_emitter)
         state_graph_cls = _load_stategraph_class()
         if state_graph_cls is None:
             return False
@@ -450,6 +467,14 @@ def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> N
 
 
 def _record_node_enter(callback_handler: Any, *, node_name: str, state: object, config: object) -> None:
+    # Emit a Messages edge when a previous node has been recorded on this thread.
+    prev_name: str | None = getattr(_NODE_TRANSITION, "name", None)
+    if prev_name is not None and _EDGE_EMITTER is not None:
+        emit = getattr(_EDGE_EMITTER, "emit", None)
+        if callable(emit):
+            emit(prev_name, node_name, "messages")
+        _NODE_TRANSITION.name = None
+
     method = getattr(callback_handler, "on_graph_node_start", None)
     if not callable(method):
         return None
@@ -478,6 +503,9 @@ def _record_node_exit(
     next_state: object,
     config: object,
 ) -> None:
+    # Record which node just finished so the next enter can emit a directed edge.
+    _NODE_TRANSITION.name = node_name
+
     method = getattr(callback_handler, "on_graph_node_end", None)
     if not callable(method):
         return None
