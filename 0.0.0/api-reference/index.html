@@ -892,6 +892,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#agent_assembly.CallStackNodeKind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CallStackNodeKind
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#agent_assembly.FrameworkAdapter" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1118,6 +1129,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#agent_assembly.AuditEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AuditEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent_assembly.CallStackNode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CallStackNode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#agent_assembly.init_assembly" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1198,6 +1231,32 @@
 
 
 
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="agent_assembly.CallStackNodeKind" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">CallStackNodeKind</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#agent_assembly.CallStackNodeKind" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">CallStackNodeKind</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;llm&#39;</span><span class="p">,</span> <span class="s1">&#39;tool&#39;</span><span class="p">,</span> <span class="s1">&#39;result&#39;</span><span class="p">]</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Discriminator for a [<code>CallStackNode</code>] — open-ended on the wire (proto uses
+<code>string kind</code>) but typed here as a <code>Literal</code> for the three values the
+dashboard currently renders.</p>
+
+    </div>
+
+</div>
 
 
 
@@ -2156,6 +2215,385 @@ a no-op for adapters that do not use an agent ID.</p>
 
 
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="agent_assembly.AuditEvent" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AuditEvent</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#agent_assembly.AuditEvent" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">AuditEvent</span><span class="p">(</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">event_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">agent_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">action_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">decision</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">trace_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">span_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">parent_span_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">labels</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(),</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">call_stack</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CallStackNode</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(),</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A single governance-relevant occurrence in the gateway audit trail.</p>
+<p>Python-friendly subset of the proto <code>assembly.audit.v1.AuditEvent</code>
+message. Field names match the wire-protocol's snake_case so the
+dataclass can be constructed directly from a decoded payload.</p>
+<p>Out of scope today (tracked under separate follow-up Tasks):
+  * The <code>detail</code> oneof (<code>LLMCallDetail</code> / <code>ToolCallDetail</code> /
+    <code>FileOpDetail</code> / <code>NetworkCallDetail</code> / <code>ProcessExecDetail</code> /
+    <code>PolicyViolation</code> / <code>ApprovalEvent</code>).
+  * The lineage block (<code>root_agent_id</code>, <code>parent_agent_id</code>, <code>team_id</code>,
+    <code>session_id</code>, <code>delegation_reason</code>, <code>spawned_by_tool</code>, <code>depth</code>).</p>
+<p>This class exists today to surface the new <code>call_stack</code> field added
+by AAASM-1419 to SDK consumers. Round-tripping into the gateway via the
+wire encoder remains the Rust FFI layer's responsibility.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">ATTRIBUTE</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.event_id">event_id</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Unique identifier for this audit record (UUID v7).</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.agent_id">agent_id</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Identity string of the agent that produced this event.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.action_type">action_type</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>High-level action category (e.g. <code>"llm_call"</code>,
+<code>"tool_call"</code>, <code>"file_op"</code>). Open-ended on the wire.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.decision">decision</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Policy engine verdict (e.g. <code>"allow"</code>, <code>"deny"</code>,
+<code>"redact"</code>).</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.trace_id">trace_id</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Distributed tracing run-level identifier. Empty when
+unset.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.span_id">span_id</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Distributed tracing action-level identifier. Empty when
+unset.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.parent_span_id">parent_span_id</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Distributed tracing parent span identifier. Empty
+when this is a root span.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.labels">labels</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Arbitrary key/value labels attached at event creation.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="str">str</span>]</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.AuditEvent.call_stack">call_stack</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Hierarchical record of LLM / tool / result steps that
+led to this event. Empty list (default) when the producer did
+not record a stack. Renders inline beneath an expanded Live
+Ops row in the dashboard.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="list">list</span>[<a class="autorefs autorefs-internal" title="&lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CallStackNode&lt;/span&gt;
+
+
+  &lt;span class=&quot;doc doc-labels&quot;&gt;
+      &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
+  &lt;/span&gt; (&lt;code&gt;agent_assembly.types.CallStackNode&lt;/code&gt;)" href="#agent_assembly.CallStackNode">CallStackNode</a>]</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="agent_assembly.CallStackNode" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CallStackNode</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#agent_assembly.CallStackNode" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">CallStackNode</span><span class="p">(</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">kind</span><span class="p">:</span> <span class="n">CallStackNodeKind</span><span class="p">,</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">latency_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">children</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CallStackNode</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(),</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
+</span></code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>One node in the hierarchical call stack attached to an [<code>AuditEvent</code>].</p>
+<p>Mirrors the proto <code>assembly.audit.v1.CallStackNode</code> message added in
+AAASM-1419. Field names match the wire-protocol's snake_case so the
+dataclass can be constructed directly from a decoded payload without an
+intermediate naming transform.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">ATTRIBUTE</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.CallStackNode.id">id</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Stable identifier for this node within the call stack.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.CallStackNode.kind">kind</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Node category — one of <code>"llm"</code>, <code>"tool"</code>, or <code>"result"</code>.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><a class="autorefs autorefs-internal" title="&lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;CallStackNodeKind&lt;/span&gt;
+
+
+  &lt;span class=&quot;doc doc-labels&quot;&gt;
+      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
+  &lt;/span&gt; (&lt;code&gt;agent_assembly.types.CallStackNodeKind&lt;/code&gt;)" href="#agent_assembly.CallStackNodeKind">CallStackNodeKind</a></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.CallStackNode.label">label</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Human-readable label rendered by downstream UI.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="str">str</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.CallStackNode.latency_ms">latency_ms</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Step-local latency in milliseconds, or <code>None</code> when the
+producer did not record a duration.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="int">int</span> | None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="agent_assembly.CallStackNode.children">children</span></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                <p>Recursive descent — nested calls produced by this step.
+Empty list (default) when the node has no children.</p>
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="list">list</span>[<a class="autorefs autorefs-internal" title="&lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CallStackNode&lt;/span&gt;
+
+
+  &lt;span class=&quot;doc doc-labels&quot;&gt;
+      &lt;small class=&quot;doc doc-label doc-label-dataclass&quot;&gt;&lt;code&gt;dataclass&lt;/code&gt;&lt;/small&gt;
+  &lt;/span&gt; (&lt;code&gt;agent_assembly.types.CallStackNode&lt;/code&gt;)" href="#agent_assembly.CallStackNode">CallStackNode</a>]</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
 
     </div>
 
