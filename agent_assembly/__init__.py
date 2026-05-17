@@ -15,7 +15,7 @@ from agent_assembly.exceptions import (
 from agent_assembly.types import AuditEvent, CallStackNode, CallStackNodeKind
 
 try:
-    from agent_assembly._core import (  # type: ignore[attr-defined]
+    from agent_assembly._core import (
         GovernanceEvent,
         PolicyResult,
         PolicyTimeoutError,

@@ -24,9 +24,7 @@ def test_call_stack_node_required_fields() -> None:
 
 def test_call_stack_node_with_latency_and_children() -> None:
     child = CallStackNode(id="n1", kind="tool", label="gmail.send", latency_ms=120)
-    parent = CallStackNode(
-        id="n0", kind="llm", label="gpt-4o", latency_ms=300, children=[child]
-    )
+    parent = CallStackNode(id="n0", kind="llm", label="gpt-4o", latency_ms=300, children=[child])
     assert parent.children[0] is child
     assert parent.children[0].latency_ms == 120
 

@@ -19,7 +19,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-
 # ── Event types (AAASM-1435) ──────────────────────────────────────────────────
 
 CallStackNodeKind = Literal["llm", "tool", "result"]
