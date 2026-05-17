@@ -12,9 +12,10 @@ from agent_assembly.exceptions import (
     PolicyError,
     ToolExecutionBlockedError,
 )
+from agent_assembly.types import AuditEvent, CallStackNode, CallStackNodeKind
 
 try:
-    from agent_assembly._core import (  # type: ignore[attr-defined]
+    from agent_assembly._core import (
         GovernanceEvent,
         PolicyResult,
         PolicyTimeoutError,
@@ -39,6 +40,9 @@ __all__ = [
     "AdapterValidationError",
     "ToolExecutionBlockedError",
     "MCPToolBlockedError",
+    "AuditEvent",
+    "CallStackNode",
+    "CallStackNodeKind",
 ]
 
 if "RuntimeClient" in globals():
