@@ -2,6 +2,7 @@
 
 use aa_core::AuditEntry;
 use aa_proto::assembly::audit::v1::AuditEvent;
+use aa_proto::assembly::common::v1::ActionType;
 use aa_proto::assembly::common::v1::Decision;
 use aa_proto::assembly::policy::v1::CheckActionRequest;
 use aa_proto::assembly::policy::v1::CheckActionResponse;
@@ -401,6 +402,50 @@ fn make_event_id() -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
     format!("py-{}-{}", now.as_secs(), now.subsec_nanos())
+}
+
+fn action_type_from_str(value: &str) -> i32 {
+    match value {
+        "llm_call" => ActionType::LlmCall as i32,
+        "tool_call" => ActionType::ToolCall as i32,
+        "file_op" | "file_operation" => ActionType::FileOperation as i32,
+        "network_call" => ActionType::NetworkCall as i32,
+        "process_exec" => ActionType::ProcessExec as i32,
+        "agent_spawn" => ActionType::AgentSpawn as i32,
+        _ => ActionType::ActionUnspecified as i32,
+    }
+}
+
+fn action_type_to_str(value: i32) -> &'static str {
+    match ActionType::try_from(value).unwrap_or(ActionType::ActionUnspecified) {
+        ActionType::LlmCall => "llm_call",
+        ActionType::ToolCall => "tool_call",
+        ActionType::FileOperation => "file_op",
+        ActionType::NetworkCall => "network_call",
+        ActionType::ProcessExec => "process_exec",
+        ActionType::AgentSpawn => "agent_spawn",
+        ActionType::ActionUnspecified => "",
+    }
+}
+
+fn decision_from_str(value: &str) -> i32 {
+    match value {
+        "allow" => Decision::Allow as i32,
+        "deny" => Decision::Deny as i32,
+        "pending" => Decision::Pending as i32,
+        "redact" => Decision::Redact as i32,
+        _ => Decision::Unspecified as i32,
+    }
+}
+
+fn decision_to_str(value: i32) -> &'static str {
+    match Decision::try_from(value).unwrap_or(Decision::Unspecified) {
+        Decision::Allow => "allow",
+        Decision::Deny => "deny",
+        Decision::Pending => "pending",
+        Decision::Redact => "redact",
+        Decision::Unspecified => "",
+    }
 }
 
 fn bytes_to_hex(bytes: &[u8; 16]) -> String {
