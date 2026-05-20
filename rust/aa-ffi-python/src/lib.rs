@@ -2,6 +2,7 @@
 
 use aa_core::AuditEntry;
 use aa_proto::assembly::audit::v1::AuditEvent;
+use aa_proto::assembly::audit::v1::CallStackNode as ProtoCallStackNode;
 use aa_proto::assembly::common::v1::ActionType;
 use aa_proto::assembly::common::v1::Decision;
 use aa_proto::assembly::policy::v1::CheckActionRequest;
@@ -436,6 +437,49 @@ fn decision_from_str(value: &str) -> i32 {
         "redact" => Decision::Redact as i32,
         _ => Decision::Unspecified as i32,
     }
+}
+
+fn call_stack_node_from_py(node: &PyAny) -> PyResult<ProtoCallStackNode> {
+    let id = node.getattr("id")?.extract::<String>()?;
+    let kind = node.getattr("kind")?.extract::<String>()?;
+    let label = node.getattr("label")?.extract::<String>()?;
+    let latency_ms = node
+        .getattr("latency_ms")?
+        .extract::<Option<i64>>()?
+        .unwrap_or(0);
+    let children_py = node.getattr("children")?;
+    let mut children = Vec::new();
+    for child in children_py.iter()? {
+        children.push(call_stack_node_from_py(child?)?);
+    }
+    Ok(ProtoCallStackNode {
+        id,
+        kind,
+        label,
+        latency_ms,
+        children,
+    })
+}
+
+fn call_stack_node_to_py(py: Python<'_>, node: &ProtoCallStackNode) -> PyResult<PyObject> {
+    let types_module = PyModule::import(py, "agent_assembly.types")?;
+    let cls = types_module.getattr("CallStackNode")?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("id", &node.id)?;
+    kwargs.set_item("kind", &node.kind)?;
+    kwargs.set_item("label", &node.label)?;
+    let latency: Option<i64> = if node.latency_ms == 0 {
+        None
+    } else {
+        Some(node.latency_ms)
+    };
+    kwargs.set_item("latency_ms", latency)?;
+    let children = pyo3::types::PyList::empty(py);
+    for child in &node.children {
+        children.append(call_stack_node_to_py(py, child)?)?;
+    }
+    kwargs.set_item("children", children)?;
+    Ok(cls.call((), Some(kwargs))?.into())
 }
 
 fn decision_to_str(value: i32) -> &'static str {
