@@ -4,6 +4,7 @@ use aa_core::AuditEntry;
 use aa_proto::assembly::audit::v1::AuditEvent;
 use aa_proto::assembly::audit::v1::CallStackNode as ProtoCallStackNode;
 use aa_proto::assembly::common::v1::ActionType;
+use aa_proto::assembly::common::v1::AgentId;
 use aa_proto::assembly::common::v1::Decision;
 use aa_proto::assembly::policy::v1::CheckActionRequest;
 use aa_proto::assembly::policy::v1::CheckActionResponse;
@@ -437,6 +438,69 @@ fn decision_from_str(value: &str) -> i32 {
         "redact" => Decision::Redact as i32,
         _ => Decision::Unspecified as i32,
     }
+}
+
+fn audit_event_from_py(event: &PyAny) -> PyResult<AuditEvent> {
+    let event_id = event.getattr("event_id")?.extract::<String>()?;
+    let agent_id_str = event.getattr("agent_id")?.extract::<String>()?;
+    let action_type_str = event.getattr("action_type")?.extract::<String>()?;
+    let decision_str = event.getattr("decision")?.extract::<String>()?;
+    let trace_id = event.getattr("trace_id")?.extract::<String>()?;
+    let span_id = event.getattr("span_id")?.extract::<String>()?;
+    let parent_span_id = event.getattr("parent_span_id")?.extract::<String>()?;
+    let labels = event
+        .getattr("labels")?
+        .extract::<std::collections::HashMap<String, String>>()?;
+    let call_stack_py = event.getattr("call_stack")?;
+    let mut call_stack = Vec::new();
+    for node in call_stack_py.iter()? {
+        call_stack.push(call_stack_node_from_py(node?)?);
+    }
+    Ok(AuditEvent {
+        event_id,
+        agent_id: Some(AgentId {
+            org_id: String::new(),
+            team_id: String::new(),
+            agent_id: agent_id_str,
+        }),
+        action_type: action_type_from_str(&action_type_str),
+        decision: decision_from_str(&decision_str),
+        trace_id,
+        span_id,
+        parent_span_id,
+        labels,
+        call_stack,
+        ..Default::default()
+    })
+}
+
+fn audit_event_to_py(py: Python<'_>, event: &AuditEvent) -> PyResult<PyObject> {
+    let types_module = PyModule::import(py, "agent_assembly.types")?;
+    let cls = types_module.getattr("AuditEvent")?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("event_id", &event.event_id)?;
+    let agent_id_str = event
+        .agent_id
+        .as_ref()
+        .map(|id| id.agent_id.clone())
+        .unwrap_or_default();
+    kwargs.set_item("agent_id", agent_id_str)?;
+    kwargs.set_item("action_type", action_type_to_str(event.action_type))?;
+    kwargs.set_item("decision", decision_to_str(event.decision))?;
+    kwargs.set_item("trace_id", &event.trace_id)?;
+    kwargs.set_item("span_id", &event.span_id)?;
+    kwargs.set_item("parent_span_id", &event.parent_span_id)?;
+    let labels = PyDict::new(py);
+    for (k, v) in &event.labels {
+        labels.set_item(k, v)?;
+    }
+    kwargs.set_item("labels", labels)?;
+    let call_stack = pyo3::types::PyList::empty(py);
+    for node in &event.call_stack {
+        call_stack.append(call_stack_node_to_py(py, node)?)?;
+    }
+    kwargs.set_item("call_stack", call_stack)?;
+    Ok(cls.call((), Some(kwargs))?.into())
 }
 
 fn call_stack_node_from_py(node: &PyAny) -> PyResult<ProtoCallStackNode> {
