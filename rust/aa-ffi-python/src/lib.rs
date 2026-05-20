@@ -693,11 +693,27 @@ fn wait_for_worker_response(
         .map_err(|_| WorkerWaitError::Disconnected)
 }
 
+#[pyfunction]
+fn audit_event_to_wire_bytes(py: Python<'_>, event: &PyAny) -> PyResult<PyObject> {
+    let proto = audit_event_from_py(event)?;
+    let encoded = proto.encode_to_vec();
+    Ok(pyo3::types::PyBytes::new(py, &encoded).into())
+}
+
+#[pyfunction]
+fn audit_event_from_wire_bytes(py: Python<'_>, data: &pyo3::types::PyBytes) -> PyResult<PyObject> {
+    let proto = AuditEvent::decode(data.as_bytes())
+        .map_err(|error| PyValueError::new_err(format!("failed to decode AuditEvent wire bytes: {error}")))?;
+    audit_event_to_py(py, &proto)
+}
+
 #[pymodule]
 fn _core(py: Python<'_>, module: &PyModule) -> PyResult<()> {
     module.add("PolicyTimeoutError", py.get_type::<PolicyTimeoutError>())?;
     module.add_class::<GovernanceEvent>()?;
     module.add_class::<PolicyResult>()?;
     module.add_class::<RuntimeClient>()?;
+    module.add_function(wrap_pyfunction!(audit_event_to_wire_bytes, module)?)?;
+    module.add_function(wrap_pyfunction!(audit_event_from_wire_bytes, module)?)?;
     Ok(())
 }
