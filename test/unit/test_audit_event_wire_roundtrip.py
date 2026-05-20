@@ -59,3 +59,26 @@ def test_three_level_call_stack_round_trips_without_data_loss() -> None:
     decoded = AuditEvent.from_wire_bytes(original.to_wire_bytes())
 
     assert decoded == original
+
+
+def test_legacy_payload_without_call_stack_decodes_to_empty_list() -> None:
+    """Events emitted before AAASM-1419 added `call_stack` must still decode.
+
+    Proto3 elides default-valued repeated fields on the wire, so an
+    event with `call_stack=[]` produces bytes indistinguishable from
+    a pre-1419 event that did not set the field at all. The decoded
+    dataclass must surface this as the empty list (not None or a
+    missing attribute).
+    """
+    original = AuditEvent(
+        event_id="evt-legacy",
+        agent_id="legacy-agent",
+        action_type="tool_call",
+        decision="deny",
+    )
+
+    decoded = AuditEvent.from_wire_bytes(original.to_wire_bytes())
+
+    assert decoded.call_stack == []
+    assert decoded == original
+
