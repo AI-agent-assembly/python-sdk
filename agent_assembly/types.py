@@ -17,7 +17,7 @@ Type Hierarchy:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, cast
 
 # ── Event types (AAASM-1435) ──────────────────────────────────────────────────
 
@@ -101,6 +101,41 @@ class AuditEvent:
     parent_span_id: str = ""
     labels: dict[str, str] = field(default_factory=dict)
     call_stack: list[CallStackNode] = field(default_factory=list)
+
+    def to_wire_bytes(self) -> bytes:
+        """Encode this event to `aa_proto::AuditEvent` wire bytes.
+
+        Requires the native `agent_assembly._core` extension. Raises
+        `ImportError` when the SDK is installed without the native
+        wheel (pure-Python mode).
+        """
+        try:
+            from agent_assembly._core import audit_event_to_wire_bytes  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "AuditEvent.to_wire_bytes() requires the native "
+                "agent_assembly._core extension; reinstall with the "
+                "native wheel or run `maturin develop` in rust/aa-ffi-python/."
+            ) from exc
+        return cast(bytes, audit_event_to_wire_bytes(self))
+
+    @classmethod
+    def from_wire_bytes(cls, data: bytes) -> AuditEvent:
+        """Decode `aa_proto::AuditEvent` wire bytes into a dataclass.
+
+        Requires the native `agent_assembly._core` extension. Raises
+        `ImportError` when the SDK is installed without the native
+        wheel.
+        """
+        try:
+            from agent_assembly._core import audit_event_from_wire_bytes
+        except ImportError as exc:
+            raise ImportError(
+                "AuditEvent.from_wire_bytes() requires the native "
+                "agent_assembly._core extension; reinstall with the "
+                "native wheel or run `maturin develop` in rust/aa-ffi-python/."
+            ) from exc
+        return cast(AuditEvent, audit_event_from_wire_bytes(data))
 
 
 __all__ = [
