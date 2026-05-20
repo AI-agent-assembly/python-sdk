@@ -82,3 +82,30 @@ def test_legacy_payload_without_call_stack_decodes_to_empty_list() -> None:
     assert decoded.call_stack == []
     assert decoded == original
 
+
+def test_call_stack_node_kind_outside_literal_round_trips_unchanged() -> None:
+    """`kind` is proto `string`, not enum — the bridge accepts any value.
+
+    The Python `CallStackNodeKind` `Literal` narrows the type for
+    Python authors but does not restrict what arrives from a future
+    producer that emits a new node category. The wire layer must
+    preserve such values verbatim instead of normalising them.
+    """
+    original = AuditEvent(
+        event_id="evt-invalid-kind",
+        agent_id="future-agent",
+        action_type="llm_call",
+        decision="allow",
+        call_stack=[
+            CallStackNode(
+                id="n0",
+                kind="unknown",  # type: ignore[arg-type]
+                label="future-node-type",
+            ),
+        ],
+    )
+
+    decoded = AuditEvent.from_wire_bytes(original.to_wire_bytes())
+
+    assert decoded.call_stack[0].kind == "unknown"
+    assert decoded == original
