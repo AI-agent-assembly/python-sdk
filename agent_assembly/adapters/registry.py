@@ -7,6 +7,7 @@ from typing import Callable, Literal
 
 from agent_assembly.adapters.base import FrameworkAdapter
 from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
+from agent_assembly.adapters.google_adk.adapter import GoogleADKAdapter
 from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
 from agent_assembly.adapters.mcp.adapter import MCPAdapter
@@ -22,6 +23,7 @@ _ADAPTER_PRIORITY: dict[str, int] = {
     "crewai": 2,
     "pydantic_ai": 3,
     "openai": 4,
+    "google_adk": 5,
     "mcp": 99,
 }
 
@@ -63,6 +65,7 @@ class AdapterRegistry:
             CrewAIAdapter(),
             PydanticAIAdapter(),
             OpenAIAgentsAdapter(),
+            GoogleADKAdapter(),
             MCPAdapter(),
         ]
         for adapter in builtin_adapters:
