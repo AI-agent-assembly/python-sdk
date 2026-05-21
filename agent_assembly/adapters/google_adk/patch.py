@@ -39,10 +39,16 @@ class GoogleADKPatch:
         if tool_cls is None:
             return False
         _apply_tool_run_async_patch(tool_cls, self.callback_handler)
+        agent_cls = _load_google_adk_base_agent_class()
+        if agent_cls is not None:
+            _apply_agent_run_async_patch(agent_cls, self.process_agent_id)
         return True
 
     def revert(self) -> None:
-        """Revert Google ADK tool patch when available."""
+        """Revert Google ADK tool and agent patches when available."""
+        agent_cls = _load_google_adk_base_agent_class()
+        if agent_cls is not None:
+            _revert_agent_run_async_patch(agent_cls)
         tool_cls = _load_google_adk_base_tool_class()
         if tool_cls is not None:
             _revert_tool_run_async_patch(tool_cls)
