@@ -20,6 +20,7 @@ __all__ = [
     "DEFAULT_RUNTIME_HOST",
     "INSTALL_HINT",
     "find_aasm_binary",
+    "init_assembly",
     "is_running",
     "start_runtime",
 ]
@@ -100,3 +101,34 @@ def start_runtime(
         stdin=subprocess.DEVNULL,
         start_new_session=True,
     )
+
+
+def init_assembly(
+    agent_id: str | None = None,
+    *,
+    port: int = DEFAULT_PORT,
+) -> None:
+    """Ensure the local ``aasm`` sidecar is running, starting it if necessary.
+
+    Lifecycle per F115 / AAASM-1205:
+
+    1. Probe ``host:port`` via :func:`is_running`; return early if the sidecar
+       is already up (idempotent re-init).
+    2. Resolve the binary via :func:`find_aasm_binary`.
+    3. Spawn the sidecar via :func:`start_runtime`.
+
+    ``agent_id`` is accepted to keep the ticket-specified signature stable;
+    actual register-and-connect is performed by the existing gateway-aware
+    ``agent_assembly.init_assembly`` once the sidecar is reachable.
+
+    Raises:
+        RuntimeError: when no ``aasm`` binary is found on disk. The message
+            contains copy-paste install commands for all supported channels.
+    """
+    del agent_id  # not consumed at the lifecycle layer; see docstring
+    if is_running(port):
+        return
+    binary = find_aasm_binary()
+    if binary is None:
+        raise RuntimeError(INSTALL_HINT)
+    start_runtime(binary, port=port)
