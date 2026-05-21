@@ -19,6 +19,8 @@ from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_sc
 
 _ORIGINAL_TOOL_RUN_ASYNC = "_agent_assembly_original_google_adk_tool_run_async"
 _TOOLS_PATCHED_FLAG = "_agent_assembly_google_adk_tools_patched"
+_ORIGINAL_AGENT_RUN_ASYNC = "_agent_assembly_original_google_adk_agent_run_async"
+_AGENT_PATCHED_FLAG = "_agent_assembly_google_adk_agent_patched"
 _PROCESS_AGENT_ID: str | None = None
 _MAX_AUDIT_RESULT_CHARS = 2000
 
@@ -60,9 +62,59 @@ def _load_google_adk_base_tool_class() -> type[Any] | None:
     return None
 
 
+def _load_google_adk_base_agent_class() -> type[Any] | None:
+    try:
+        module = importlib.import_module("google.adk.agents")
+    except ImportError:
+        return None
+
+    agent_cls = getattr(module, "BaseAgent", None)
+    if isinstance(agent_cls, type):
+        return agent_cls
+    return None
+
+
 def _current_spawn_depth() -> int:
     current = _SPAWN_CTX.get()
     return (current.depth + 1) if current is not None else 1
+
+
+def _apply_agent_run_async_patch(agent_cls: type[Any], process_agent_id: str | None) -> None:
+    if getattr(agent_cls, _AGENT_PATCHED_FLAG, False):
+        return None
+
+    original_run_async = agent_cls.run_async
+
+    @wraps(original_run_async)
+    async def patched_run_async(self: Any, *args: Any, **kwargs: Any) -> Any:
+        spawn_ctx = SpawnContext(
+            parent_agent_id=process_agent_id or "",
+            depth=_current_spawn_depth(),
+            spawned_by_tool="google_adk_agent",
+        )
+        with spawn_context_scope(spawn_ctx):
+            async for event in original_run_async(self, *args, **kwargs):
+                yield event
+
+    setattr(agent_cls, _ORIGINAL_AGENT_RUN_ASYNC, original_run_async)
+    agent_cls.run_async = patched_run_async
+    setattr(agent_cls, _AGENT_PATCHED_FLAG, True)
+    return None
+
+
+def _revert_agent_run_async_patch(agent_cls: type[Any]) -> None:
+    if not getattr(agent_cls, _AGENT_PATCHED_FLAG, False):
+        return None
+
+    original_run_async = getattr(agent_cls, _ORIGINAL_AGENT_RUN_ASYNC, None)
+    if callable(original_run_async):
+        agent_cls.run_async = original_run_async
+
+    if hasattr(agent_cls, _ORIGINAL_AGENT_RUN_ASYNC):
+        delattr(agent_cls, _ORIGINAL_AGENT_RUN_ASYNC)
+    if hasattr(agent_cls, _AGENT_PATCHED_FLAG):
+        delattr(agent_cls, _AGENT_PATCHED_FLAG)
+    return None
 
 
 def _apply_tool_run_async_patch(tool_cls: type[Any], callback_handler: Any) -> None:
