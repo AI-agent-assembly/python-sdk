@@ -35,7 +35,29 @@ def test_find_aasm_binary_returns_path_hit_when_on_path(tmp_path: Path, monkeypa
 
     resolved = runtime.find_aasm_binary()
 
-    assert resolved == fake
+    assert resolved == fake  # noqa: S101 — pytest assertion
+
+
+def test_init_assembly_raises_runtime_error_with_install_hint_when_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """binary-not-found: init_assembly raises RuntimeError whose message is the
+    INSTALL_HINT (which includes the pip/brew/curl copy-paste commands)."""
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    monkeypatch.setenv("PATH", str(empty_dir))
+    monkeypatch.setattr(runtime, "USER_LOCAL_BIN", tmp_path / "no-such-local-bin")
+    monkeypatch.setattr(runtime, "WHEEL_BUNDLED_BIN", tmp_path / "no-such-wheel-bin")
+    monkeypatch.setattr(runtime, "DOCKER_BASE_BIN", tmp_path / "no-such-docker-bin")
+    # Ensure is_running returns False so the orchestrator reaches find_aasm_binary.
+    monkeypatch.setattr(runtime, "is_running", lambda *_args, **_kw: False)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        runtime.init_assembly()
+
+    assert str(exc_info.value) == runtime.INSTALL_HINT
+    assert "agent-assembly runtime not found" in str(exc_info.value)
+    assert "pip install" in str(exc_info.value)
 
 
 def test_find_aasm_binary_returns_wheel_bundled_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
