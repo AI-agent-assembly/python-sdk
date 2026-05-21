@@ -36,3 +36,19 @@ def test_find_aasm_binary_returns_path_hit_when_on_path(tmp_path: Path, monkeypa
     resolved = runtime.find_aasm_binary()
 
     assert resolved == fake
+
+
+def test_find_aasm_binary_returns_wheel_bundled_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """binary-bundled: when PATH and ~/.local/bin both miss, the wheel-bundled
+    location (`agent_assembly/bin/aasm`) is the next checked fallback."""
+    fake_wheel_bin = tmp_path / "wheel_bin"
+    fake_wheel_bin.mkdir()
+    fake = _make_fake_aasm(fake_wheel_bin)
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))  # not on PATH
+    monkeypatch.setattr(runtime, "USER_LOCAL_BIN", tmp_path / "no-such-local-bin")
+    monkeypatch.setattr(runtime, "WHEEL_BUNDLED_BIN", fake_wheel_bin)
+    monkeypatch.setattr(runtime, "DOCKER_BASE_BIN", tmp_path / "no-such-docker-bin")
+
+    resolved = runtime.find_aasm_binary()
+
+    assert resolved == fake
