@@ -9,9 +9,7 @@ Covers the four scenarios from the AAASM-1230 AC checklist:
 
 from __future__ import annotations
 
-import os
 import stat
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -74,3 +72,18 @@ def test_find_aasm_binary_returns_wheel_bundled_path(tmp_path: Path, monkeypatch
     resolved = runtime.find_aasm_binary()
 
     assert resolved == fake
+
+
+def test_init_assembly_idempotent_when_already_running(monkeypatch: pytest.MonkeyPatch) -> None:
+    """already-running: init_assembly returns early without calling
+    find_aasm_binary or start_runtime when is_running reports True."""
+    find_spy = MagicMock(return_value=None)
+    start_spy = MagicMock()
+    monkeypatch.setattr(runtime, "is_running", lambda *_args, **_kw: True)
+    monkeypatch.setattr(runtime, "find_aasm_binary", find_spy)
+    monkeypatch.setattr(runtime, "start_runtime", start_spy)
+
+    runtime.init_assembly()
+
+    find_spy.assert_not_called()
+    start_spy.assert_not_called()
