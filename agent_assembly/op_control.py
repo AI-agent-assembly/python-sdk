@@ -25,8 +25,9 @@ Out of scope for PR-E (deferred):
 from __future__ import annotations
 
 import threading
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Iterator, Optional, Protocol
+from typing import Protocol
 
 import grpc
 
@@ -81,8 +82,8 @@ class OpControlSubscriber:
         self._ops: dict[str, OpControlState] = {}
         self._stream_alive = threading.Event()
         self._stream_alive.set()
-        self._reader: Optional[threading.Thread] = None
-        self._call: Optional[grpc.RpcContext] = None
+        self._reader: threading.Thread | None = None
+        self._call: grpc.RpcContext | None = None
 
     @classmethod
     def connect(
@@ -92,8 +93,8 @@ class OpControlSubscriber:
         org_id: str,
         team_id: str,
         agent_id: str,
-        channel_factory: Optional[grpc.Channel] = None,
-    ) -> "OpControlSubscriber":
+        channel_factory: grpc.Channel | None = None,
+    ) -> OpControlSubscriber:
         """Open the gRPC channel + subscription stream and start the reader.
 
         ``gateway_url`` is the ``host:port`` of the gateway's gRPC endpoint
@@ -101,7 +102,7 @@ class OpControlSubscriber:
         (tests), it's used instead of opening a fresh insecure channel.
         """
         channel = channel_factory or grpc.insecure_channel(gateway_url)
-        stub = policy_pb2_grpc.PolicyServiceStub(channel)
+        stub = policy_pb2_grpc.PolicyServiceStub(channel)  # type: ignore[no-untyped-call]
         proto_agent_id = common_pb2.AgentId(org_id=org_id, team_id=team_id, agent_id=agent_id)
         subscriber = cls(stub, proto_agent_id)
         subscriber._start()
@@ -114,7 +115,7 @@ class OpControlSubscriber:
         a hand-rolled stub and call ``_start`` themselves.
         """
         request = policy_pb2.OpControlSubscribeRequest(agent_id=self._agent_id)
-        self._call = self._stub.OpControlStream(request)  # type: ignore[assignment]
+        self._call = self._stub.OpControlStream(request)
         self._reader = threading.Thread(
             target=self._reader_loop,
             name=f"aa-op-control-{self._agent_id.agent_id}",
@@ -153,7 +154,7 @@ class OpControlSubscriber:
                 state.terminated = True
                 state.event.set()
 
-    def await_op(self, op_id: str, *, timeout: Optional[float] = None) -> None:
+    def await_op(self, op_id: str, *, timeout: float | None = None) -> None:
         """Block until ``op_id`` is runnable, or raise on terminate.
 
         Returns immediately when the op is not currently paused. When paused,
@@ -208,7 +209,7 @@ class OpControlSubscriber:
         if self._reader is not None:
             self._reader.join(timeout=2.0)
 
-    def __enter__(self) -> "OpControlSubscriber":
+    def __enter__(self) -> OpControlSubscriber:
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

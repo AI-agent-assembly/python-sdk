@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import threading
 import time
-from queue import Empty, Queue
-from typing import Iterator
+from collections.abc import Iterator
+from queue import Queue
 
 import pytest
 

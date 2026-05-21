@@ -53,6 +53,7 @@ def main() -> int:
         "grpc_tools.protoc",
         f"--proto_path={proto_dir}",
         f"--python_out={OUTPUT_DIR}",
+        f"--pyi_out={OUTPUT_DIR}",
         f"--grpc_python_out={OUTPUT_DIR}",
         *[str(proto_dir / name) for name in PROTO_FILES],
     ]
