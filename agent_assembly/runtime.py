@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import shutil
 import socket
+import subprocess
 from pathlib import Path
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "INSTALL_HINT",
     "find_aasm_binary",
     "is_running",
+    "start_runtime",
 ]
 
 BINARY_NAME = "aasm"
@@ -73,3 +75,28 @@ def is_running(port: int = DEFAULT_PORT, *, host: str = DEFAULT_RUNTIME_HOST) ->
             return True
     except OSError:
         return False
+
+
+def start_runtime(
+    binary: Path,
+    *,
+    port: int = DEFAULT_PORT,
+    log_dir: Path | None = None,
+) -> subprocess.Popen[bytes]:
+    """Spawn ``aasm serve --port <port>`` as a detached background subprocess.
+
+    Stdout and stderr are appended to ``<log_dir>/.aasm-runtime.log`` (default
+    log directory is the current working directory) so the sidecar outlives
+    the parent. ``start_new_session=True`` detaches the child from this
+    process's controlling terminal.
+    """
+    target_dir = log_dir if log_dir is not None else Path.cwd()
+    log_path = target_dir / RUNTIME_LOG_FILENAME
+    log_file = log_path.open("ab")
+    return subprocess.Popen(
+        [str(binary), "serve", "--port", str(port)],
+        stdout=log_file,
+        stderr=log_file,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+    )
