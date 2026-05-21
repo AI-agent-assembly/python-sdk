@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import socket
 from pathlib import Path
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "DEFAULT_RUNTIME_HOST",
     "INSTALL_HINT",
     "find_aasm_binary",
+    "is_running",
 ]
 
 BINARY_NAME = "aasm"
@@ -58,3 +60,16 @@ def find_aasm_binary() -> Path | None:
         if candidate.is_file() and os.access(candidate, os.X_OK):
             return candidate
     return None
+
+
+def is_running(port: int = DEFAULT_PORT, *, host: str = DEFAULT_RUNTIME_HOST) -> bool:
+    """Return True iff a local TCP listener accepts a connect on ``host:port``.
+
+    A 100 ms connect window keeps the probe cheap on the common idle path; any
+    socket error (refused, timeout, unreachable) is treated as no-sidecar.
+    """
+    try:
+        with socket.create_connection((host, port), timeout=0.1):
+            return True
+    except OSError:
+        return False
