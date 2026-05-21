@@ -12,6 +12,7 @@ __all__ = [
     "ToolExecutionBlockedError",
     "MCPToolBlockedError",
     "PolicyViolationError",
+    "OpTerminatedError",
 ]
 
 
@@ -60,3 +61,17 @@ class MCPToolBlockedError(ToolExecutionBlockedError):
 
 class PolicyViolationError(ToolExecutionBlockedError):
     """Exception raised when policy blocks tool execution."""
+
+
+class OpTerminatedError(AssemblyError):
+    """Raised when the gateway terminates an in-flight op (AAASM-1422 PR-E).
+
+    Carries the originating `op_id` so callers can correlate the failure
+    against the operation they were awaiting. Surfaced by
+    `OpControlSubscriber.await_op` when an `OP_CONTROL_SIGNAL_TERMINATE`
+    arrives for the awaited op.
+    """
+
+    def __init__(self, message: str, *, op_id: str) -> None:
+        super().__init__(message)
+        self.op_id = op_id
