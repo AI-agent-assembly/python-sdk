@@ -85,3 +85,43 @@ class TestLoadConfigFile:
         cfg.write_text("agent:\n  gateway_url: x\n", encoding="utf-8")
         with patch.dict("sys.modules", {"yaml": None}):
             assert gateway_resolver._load_config_file(str(cfg)) == {}
+
+
+class TestAutoStartGateway:
+    def test_raises_configuration_error_when_aasm_not_on_path(self) -> None:
+        from agent_assembly.exceptions import ConfigurationError
+
+        with (
+            patch.object(gateway_resolver.shutil, "which", return_value=None),
+            pytest.raises(ConfigurationError, match="'aasm' is not on PATH"),
+        ):
+            gateway_resolver._auto_start_gateway()
+
+    def test_spawns_subprocess_and_returns_when_ready(self) -> None:
+        with (
+            patch.object(gateway_resolver.shutil, "which", return_value="/usr/local/bin/aasm"),
+            patch.object(gateway_resolver.subprocess, "Popen") as mock_popen,
+            patch.object(gateway_resolver, "_wait_for_healthz", return_value=True),
+        ):
+            assert gateway_resolver._auto_start_gateway() is None
+
+        args, kwargs = mock_popen.call_args
+        assert args[0] == [
+            "/usr/local/bin/aasm",
+            "start",
+            "--mode",
+            "local",
+            "--foreground",
+        ]
+        assert kwargs.get("start_new_session") is True
+
+    def test_raises_gateway_error_on_timeout(self) -> None:
+        from agent_assembly.exceptions import GatewayError
+
+        with (
+            patch.object(gateway_resolver.shutil, "which", return_value="/usr/local/bin/aasm"),
+            patch.object(gateway_resolver.subprocess, "Popen"),
+            patch.object(gateway_resolver, "_wait_for_healthz", return_value=False),
+            pytest.raises(GatewayError, match="did not become ready"),
+        ):
+            gateway_resolver._auto_start_gateway(timeout=0.1)
