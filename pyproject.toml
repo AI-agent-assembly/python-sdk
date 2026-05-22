@@ -33,6 +33,12 @@ dependencies = [
     "protobuf>=5,<8",
 ]
 
+[project.optional-dependencies]
+# Triggers the platform wheel that bundles the aasm sidecar binary at
+# agent_assembly/bin/aasm. Empty list — selection is purely by the
+# platform-tagged wheel that maturin produces, not by extra deps.
+runtime = []
+
 [project.scripts]
 aasm = "agent_assembly.cli.main:main"
 
