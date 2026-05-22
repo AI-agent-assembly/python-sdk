@@ -12,6 +12,7 @@ from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langchain.runtime import get_active_callback_handler
 from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
+from agent_assembly.core.gateway_resolver import resolve_api_key, resolve_gateway_url
 from agent_assembly.core.spawn import _SPAWN_CTX
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
@@ -104,8 +105,8 @@ class AssemblyContext:
 
 
 def init_assembly(
-    gateway_url: str,
-    api_key: str,
+    gateway_url: str | None = None,
+    api_key: str | None = None,
     agent_id: str | None = None,
     mode: RuntimeMode = "auto",
     *,
@@ -119,8 +120,15 @@ def init_assembly(
 
     Uses ``AdapterRegistry.get_available_adapters_by_priority()`` as the
     single detection path for framework adapters (see ADR-0001).
+
+    With no ``gateway_url`` / ``api_key`` arguments the SDK falls back
+    through the resolver chain (env → config file → local default with
+    optional auto-start) per Epic 17 S-G — see
+    ``agent_assembly.core.gateway_resolver``.
     """
-    _validate_inputs(gateway_url=gateway_url, api_key=api_key, mode=mode)
+    gateway_url = resolve_gateway_url(gateway_url)
+    api_key = resolve_api_key(api_key)
+    _validate_inputs(gateway_url=gateway_url, mode=mode)
     if delegation_reason is not None and len(delegation_reason) > 256:
         raise ValueError("delegation_reason must be <= 256 characters")
 
@@ -182,11 +190,9 @@ def init_assembly(
         return context
 
 
-def _validate_inputs(*, gateway_url: str, api_key: str, mode: RuntimeMode) -> None:
+def _validate_inputs(*, gateway_url: str, mode: RuntimeMode) -> None:
     if not gateway_url:
         raise ConfigurationError("gateway_url is required")
-    if not api_key:
-        raise ConfigurationError("api_key is required")
     if mode not in _VALID_RUNTIME_MODES:
         raise ConfigurationError("mode must be one of: auto, ebpf, proxy, sdk-only")
 
