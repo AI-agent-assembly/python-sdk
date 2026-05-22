@@ -15,6 +15,8 @@ Resolution precedence (highest first)::
 
 from __future__ import annotations
 
+import time
+
 import httpx
 
 DEFAULT_GATEWAY_URL = "http://localhost:7391"
@@ -41,3 +43,23 @@ def _probe_healthz(base_url: str, timeout: float = DEFAULT_PROBE_TIMEOUT_SECONDS
     except httpx.HTTPError:
         return False
     return 200 <= response.status_code < 300
+
+
+def _wait_for_healthz(
+    base_url: str,
+    timeout: float = DEFAULT_AUTO_START_TIMEOUT_SECONDS,
+    poll_interval: float = 0.1,
+) -> bool:
+    """Poll the gateway healthz endpoint until success or timeout.
+
+    Returns True as soon as ``_probe_healthz`` succeeds. Returns False if
+    the gateway is not ready within ``timeout`` seconds. The poll interval
+    is short (default 100ms) so the auto-start path feels instant when the
+    local CP comes up quickly.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _probe_healthz(base_url):
+            return True
+        time.sleep(poll_interval)
+    return _probe_healthz(base_url)
