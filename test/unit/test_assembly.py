@@ -75,6 +75,31 @@ def test_init_assembly_with_invalid_config() -> None:
         )
 
 
+def test_init_assembly_zero_arg_resolves_local_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-1846 AC: init_assembly() with no args connects to local default."""
+    from agent_assembly.core import gateway_resolver
+
+    monkeypatch.setattr(gateway_resolver, "_probe_healthz", lambda _url: True)
+    monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
+    monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
+    monkeypatch.setattr(gateway_resolver, "_load_config_file", lambda: {})
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly()
+    try:
+        assert context.client.gateway_url == gateway_resolver.DEFAULT_GATEWAY_URL
+        assert context.client.api_key == ""
+    finally:
+        context.shutdown()
+
+
 def test_mode_sdk_only_skips_network_layer() -> None:
     network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="sdk-only")
     assert network_mode == "sdk-only"
