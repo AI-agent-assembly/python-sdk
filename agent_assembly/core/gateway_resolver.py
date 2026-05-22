@@ -16,6 +16,8 @@ Resolution precedence (highest first)::
 from __future__ import annotations
 
 import time
+from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -63,3 +65,27 @@ def _wait_for_healthz(
             return True
         time.sleep(poll_interval)
     return _probe_healthz(base_url)
+
+
+def _load_config_file(path: str = DEFAULT_CONFIG_FILE_PATH) -> dict[str, Any]:
+    """Load ``~/.aasm/config.yaml`` if present.
+
+    Returns an empty dict when the file is missing, when PyYAML is not
+    installed (it is a soft dependency for SDK consumers), or when the
+    file's contents are not a mapping. This keeps the resolver chain
+    purely advisory at step 3 — never raises.
+    """
+    try:
+        import yaml  # type: ignore[import-untyped]  # noqa: PLC0415 — soft dependency
+    except ImportError:
+        return {}
+
+    resolved = Path(path).expanduser()
+    if not resolved.is_file():
+        return {}
+
+    try:
+        loaded = yaml.safe_load(resolved.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
