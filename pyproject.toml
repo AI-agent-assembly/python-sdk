@@ -67,6 +67,13 @@ lint = [
     "ruff>=0.1.0",
     "mypy>=1.2.0,<3",
 ]
+test = [
+    "pytest>=8.1.1,<10",
+    "pytest-cov>=5.0.0,<8",
+    "pytest-rerunfailures>=14.0,<17",
+    "pytest-asyncio>=0.23.0,<2",
+    "pytest-benchmark>=4.0.0,<6",
+]
 pre-commit-ci = [
     "pre-commit>=3.5.0,<5",
     "pylint>=3.1.0,<5",
