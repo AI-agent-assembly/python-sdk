@@ -15,6 +15,8 @@ Resolution precedence (highest first)::
 
 from __future__ import annotations
 
+import httpx
+
 DEFAULT_GATEWAY_URL = "http://localhost:7391"
 DEFAULT_HEALTHZ_PATH = "/healthz"
 DEFAULT_PROBE_TIMEOUT_SECONDS = 0.5
@@ -25,3 +27,17 @@ ENV_GATEWAY_URL = "AAASM_GATEWAY_URL"
 ENV_API_KEY = "AAASM_API_KEY"
 
 AASM_AUTO_START_ARGV = ("start", "--mode", "local", "--foreground")
+
+
+def _probe_healthz(base_url: str, timeout: float = DEFAULT_PROBE_TIMEOUT_SECONDS) -> bool:
+    """Return True if a gateway responds 2xx at ``{base_url}/healthz``.
+
+    A short timeout keeps the local-dev probe near-instant when nothing is
+    listening; any network/HTTP error is swallowed and reported as False.
+    """
+    url = base_url.rstrip("/") + DEFAULT_HEALTHZ_PATH
+    try:
+        response = httpx.get(url, timeout=timeout)
+    except httpx.HTTPError:
+        return False
+    return 200 <= response.status_code < 300
