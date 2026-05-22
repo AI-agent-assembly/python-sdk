@@ -40,3 +40,16 @@ def test_ensure_runtime_returns_path_match_first(monkeypatch, tmp_path: Path) ->
     resolved = _install.ensure_runtime()
 
     assert resolved == on_path
+
+
+def test_ensure_runtime_falls_back_to_wheel_bundled(isolate_runtime: Path) -> None:
+    """When PATH has no aasm, ensure_runtime returns the wheel-bundled path."""
+    import stat
+
+    fake_binary = isolate_runtime
+    fake_binary.write_text("#!/bin/sh\nexit 0\n")
+    fake_binary.chmod(fake_binary.stat().st_mode | stat.S_IXUSR)
+
+    resolved = _install.ensure_runtime()
+
+    assert resolved == fake_binary
