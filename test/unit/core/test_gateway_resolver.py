@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -58,3 +59,29 @@ class TestWaitForHealthz:
         ):
             result = gateway_resolver._wait_for_healthz("http://localhost:7391", timeout=0.05, poll_interval=0.01)
         assert result is False
+
+
+class TestLoadConfigFile:
+    def test_returns_empty_when_file_missing(self, tmp_path: Path) -> None:
+        missing = tmp_path / "absent.yaml"
+        assert gateway_resolver._load_config_file(str(missing)) == {}
+
+    def test_returns_parsed_mapping(self, tmp_path: Path) -> None:
+        cfg = tmp_path / "config.yaml"
+        cfg.write_text(
+            'agent:\n  gateway_url: "http://staging.internal:7391"\n  api_key: "k-1"\n',
+            encoding="utf-8",
+        )
+        loaded = gateway_resolver._load_config_file(str(cfg))
+        assert loaded == {"agent": {"gateway_url": "http://staging.internal:7391", "api_key": "k-1"}}
+
+    def test_returns_empty_on_non_mapping_root(self, tmp_path: Path) -> None:
+        cfg = tmp_path / "config.yaml"
+        cfg.write_text("- just-a-list\n", encoding="utf-8")
+        assert gateway_resolver._load_config_file(str(cfg)) == {}
+
+    def test_returns_empty_when_pyyaml_missing(self, tmp_path: Path) -> None:
+        cfg = tmp_path / "config.yaml"
+        cfg.write_text("agent:\n  gateway_url: x\n", encoding="utf-8")
+        with patch.dict("sys.modules", {"yaml": None}):
+            assert gateway_resolver._load_config_file(str(cfg)) == {}
