@@ -146,3 +146,36 @@ jobs:
         with:
           name: wheels-macos-arm64
           path: dist/*.whl
+
+  build-macos-x86_64:
+    name: Build macosx_x86_64 wheel
+    runs-on: macos-13  # Intel runner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Stage aasm sidecar binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+        run: |
+          mkdir -p agent_assembly/bin
+          if gh release download --repo "$AASM_REPO" --pattern 'aasm-macos-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
+            mv agent_assembly/bin/aasm-macos-x86_64 agent_assembly/bin/aasm
+            chmod +x agent_assembly/bin/aasm
+            echo "Bundled aasm binary into wheel"
+          else
+            echo "::warning::aasm-macos-x86_64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
+          fi
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64-apple-darwin
+          command: build
+          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-x86_64
+          path: dist/*.whl
