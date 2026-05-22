@@ -30,7 +30,7 @@ dependencies = [
     # AAASM-1654 (PR-E): OpControlSubscriber consumes PolicyService.OpControlStream
     # via gRPC. Held to grpcio's modern stable line.
     "grpcio>=1.66,<2",
-    "protobuf>=5,<7",
+    "protobuf>=5,<8",
 ]
 
 [project.scripts]
