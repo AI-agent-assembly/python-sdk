@@ -77,6 +77,13 @@ default-groups = [
     "pre-commit-ci",
 ]
 
+[tool.maturin]
+manifest-path = "rust/aa-ffi-python/Cargo.toml"
+module-name = "agent_assembly._core"
+python-source = "."
+bindings = "pyo3"
+features = ["pyo3/extension-module"]
+
 [tool.hatch.build.targets.sdist]
 include = ["agent_assembly/"]
 packages = ["agent_assembly"]
