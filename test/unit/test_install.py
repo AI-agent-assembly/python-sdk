@@ -24,3 +24,19 @@ def isolate_runtime(monkeypatch, tmp_path: Path) -> Path:
     monkeypatch.setattr(_install, "WHEEL_BUNDLED_BIN", fake_binary)
     monkeypatch.setenv("PATH", "")
     return fake_binary
+
+
+def test_ensure_runtime_returns_path_match_first(monkeypatch, tmp_path: Path) -> None:
+    """When `aasm` is on PATH, ensure_runtime returns that resolved path."""
+    import stat
+
+    bin_dir = tmp_path / "system-bin"
+    bin_dir.mkdir()
+    on_path = bin_dir / _install.BINARY_NAME
+    on_path.write_text("#!/bin/sh\nexit 0\n")
+    on_path.chmod(on_path.stat().st_mode | stat.S_IXUSR)
+    monkeypatch.setenv("PATH", str(bin_dir))
+
+    resolved = _install.ensure_runtime()
+
+    assert resolved == on_path
