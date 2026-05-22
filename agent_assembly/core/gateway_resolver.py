@@ -156,3 +156,27 @@ def resolve_gateway_url(explicit: str | None = None) -> str:
 
     _auto_start_gateway(DEFAULT_GATEWAY_URL)
     return DEFAULT_GATEWAY_URL
+
+
+def resolve_api_key(explicit: str | None = None) -> str:
+    """Resolve the API key using the same 4-step precedence as the URL.
+
+    Returns the resolved key (possibly empty for local mode, which
+    accepts unauthenticated agents). Never raises — an empty API key
+    is the documented "local dev" default per Epic 17.
+    """
+    if explicit:
+        return explicit
+
+    env_value = os.environ.get(ENV_API_KEY)
+    if env_value:
+        return env_value
+
+    config = _load_config_file()
+    agent_section = config.get("agent")
+    if isinstance(agent_section, dict):
+        config_key = agent_section.get("api_key")
+        if isinstance(config_key, str) and config_key:
+            return config_key
+
+    return ""
