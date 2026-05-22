@@ -100,6 +100,40 @@ def test_init_assembly_zero_arg_resolves_local_default(
         context.shutdown()
 
 
+def test_init_assembly_explicit_args_bypass_resolver(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-1846 regression: explicit gateway_url / api_key still bind verbatim."""
+    from agent_assembly.core import gateway_resolver
+
+    def _fail_probe(_url: str) -> bool:
+        raise AssertionError("resolver should not probe when explicit args provided")
+
+    def _fail_auto_start(_url: str = "") -> None:
+        raise AssertionError("resolver should not auto-start when explicit args provided")
+
+    monkeypatch.setattr(gateway_resolver, "_probe_healthz", _fail_probe)
+    monkeypatch.setattr(gateway_resolver, "_auto_start_gateway", _fail_auto_start)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://explicit.gw:9999",
+        api_key="explicit-key",
+        agent_id="agent-x",
+    )
+    try:
+        assert context.client.gateway_url == "http://explicit.gw:9999"
+        assert context.client.api_key == "explicit-key"
+        assert context.client.agent_id == "agent-x"
+    finally:
+        context.shutdown()
+
+
 def test_mode_sdk_only_skips_network_layer() -> None:
     network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="sdk-only")
     assert network_mode == "sdk-only"
