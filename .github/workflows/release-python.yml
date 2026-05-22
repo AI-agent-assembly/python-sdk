@@ -1,0 +1,34 @@
+name: Release Python SDK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Skip PyPI upload, build wheels only'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write  # PyPI Trusted Publisher OIDC
+
+concurrency:
+  group: release-python-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Source of the prebuilt aasm sidecar binary, fetched per platform
+  # before each maturin build so it lands at agent_assembly/bin/aasm
+  # inside the wheel (matches runtime.py's WHEEL_BUNDLED_BIN search path).
+  AASM_BINARY_RELEASE_REPO: AI-agent-assembly/agent-assembly
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  noop:
+    name: Placeholder
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "release-python.yml — real jobs added in follow-up commits"
