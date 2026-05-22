@@ -171,3 +171,32 @@ class TestResolveGatewayUrl:
             result = gateway_resolver.resolve_gateway_url()
         assert result == gateway_resolver.DEFAULT_GATEWAY_URL
         mock_auto_start.assert_called_once_with(gateway_resolver.DEFAULT_GATEWAY_URL)
+
+
+class TestResolveApiKey:
+    def test_explicit_argument_short_circuits(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_API_KEY, "k-env")
+        assert gateway_resolver.resolve_api_key("k-explicit") == "k-explicit"
+
+    def test_env_var_takes_precedence_over_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_API_KEY, "k-env")
+        with patch.object(
+            gateway_resolver,
+            "_load_config_file",
+            return_value={"agent": {"api_key": "k-config"}},
+        ):
+            assert gateway_resolver.resolve_api_key() == "k-env"
+
+    def test_config_file_used_when_env_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
+        with patch.object(
+            gateway_resolver,
+            "_load_config_file",
+            return_value={"agent": {"api_key": "k-config"}},
+        ):
+            assert gateway_resolver.resolve_api_key() == "k-config"
+
+    def test_returns_empty_string_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
+        with patch.object(gateway_resolver, "_load_config_file", return_value={}):
+            assert gateway_resolver.resolve_api_key() == ""
