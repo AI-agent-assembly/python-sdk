@@ -15,11 +15,15 @@ Resolution precedence (highest first)::
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import time
 from pathlib import Path
 from typing import Any
 
 import httpx
+
+from agent_assembly.exceptions import ConfigurationError, GatewayError
 
 DEFAULT_GATEWAY_URL = "http://localhost:7391"
 DEFAULT_HEALTHZ_PATH = "/healthz"
@@ -89,3 +93,36 @@ def _load_config_file(path: str = DEFAULT_CONFIG_FILE_PATH) -> dict[str, Any]:
     except (OSError, yaml.YAMLError):
         return {}
     return loaded if isinstance(loaded, dict) else {}
+
+
+def _auto_start_gateway(
+    base_url: str = DEFAULT_GATEWAY_URL,
+    timeout: float = DEFAULT_AUTO_START_TIMEOUT_SECONDS,
+) -> None:
+    """Spawn ``aasm start --mode local --foreground`` and wait until ready.
+
+    Raises ``ConfigurationError`` if the ``aasm`` binary is not on the
+    caller's PATH — the SDK cannot meaningfully auto-start without it.
+    Raises ``GatewayError`` if the spawned gateway does not respond to
+    ``/healthz`` within ``timeout`` seconds.
+
+    The subprocess is detached via ``start_new_session=True`` so it
+    survives the parent Python process — matching the ``docker``-style
+    daemon hand-off described in Epic 17 S-G.
+    """
+    aasm_path = shutil.which("aasm")
+    if aasm_path is None:
+        raise ConfigurationError(
+            f"No gateway found at {base_url} and 'aasm' is not on PATH. "
+            "Install it with: pip install agent-assembly[cli]"
+        )
+
+    subprocess.Popen(
+        [aasm_path, *AASM_AUTO_START_ARGV],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+    if not _wait_for_healthz(base_url, timeout=timeout):
+        raise GatewayError(f"Auto-started gateway at {base_url} did not become ready within {timeout:g} seconds")
