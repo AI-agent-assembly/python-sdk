@@ -38,6 +38,8 @@ dependencies = [
 # agent_assembly/bin/aasm. Empty list — selection is purely by the
 # platform-tagged wheel that maturin produces, not by extra deps.
 runtime = []
+# Catch-all alias for users who want the full SDK + runtime install.
+all = ["agent-assembly[runtime]"]
 
 [project.scripts]
 aasm = "agent_assembly.cli.main:main"
