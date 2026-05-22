@@ -83,6 +83,13 @@ module-name = "agent_assembly._core"
 python-source = "."
 bindings = "pyo3"
 features = ["pyo3/extension-module"]
+# aasm sidecar binary is placed at agent_assembly/bin/aasm by the release
+# workflow before `maturin build`; runtime.py's find_aasm_binary() resolves
+# WHEEL_BUNDLED_BIN to that same path at import time.
+include = [
+    { path = "agent_assembly/bin/aasm", format = "wheel" },
+    { path = "agent_assembly/bin/aasm.exe", format = "wheel" },
+]
 
 [tool.hatch.build.targets.sdist]
 include = ["agent_assembly/"]
