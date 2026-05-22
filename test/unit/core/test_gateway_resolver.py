@@ -32,3 +32,29 @@ class TestProbeHealthz:
         fake_response = MagicMock(status_code=status)
         with patch.object(gateway_resolver.httpx, "get", return_value=fake_response):
             assert gateway_resolver._probe_healthz("http://localhost:7391") is False
+
+
+class TestWaitForHealthz:
+    def test_returns_true_when_probe_succeeds_immediately(self) -> None:
+        with patch.object(gateway_resolver, "_probe_healthz", return_value=True) as mock_probe:
+            result = gateway_resolver._wait_for_healthz("http://localhost:7391", timeout=5.0)
+        assert result is True
+        assert mock_probe.call_count == 1
+
+    def test_returns_true_after_initial_failures(self) -> None:
+        probe_results = iter([False, False, True])
+        with (
+            patch.object(gateway_resolver, "_probe_healthz", side_effect=probe_results),
+            patch.object(gateway_resolver.time, "sleep") as mock_sleep,
+        ):
+            result = gateway_resolver._wait_for_healthz("http://localhost:7391", timeout=5.0, poll_interval=0.01)
+        assert result is True
+        assert mock_sleep.call_count == 2
+
+    def test_returns_false_when_timeout_elapses(self) -> None:
+        with (
+            patch.object(gateway_resolver, "_probe_healthz", return_value=False),
+            patch.object(gateway_resolver.time, "sleep"),
+        ):
+            result = gateway_resolver._wait_for_healthz("http://localhost:7391", timeout=0.05, poll_interval=0.01)
+        assert result is False
