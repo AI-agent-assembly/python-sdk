@@ -125,3 +125,49 @@ class TestAutoStartGateway:
             pytest.raises(GatewayError, match="did not become ready"),
         ):
             gateway_resolver._auto_start_gateway(timeout=0.1)
+
+
+class TestResolveGatewayUrl:
+    def test_explicit_argument_short_circuits(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_GATEWAY_URL, "http://from-env:7391")
+        result = gateway_resolver.resolve_gateway_url("http://explicit:7391")
+        assert result == "http://explicit:7391"
+
+    def test_env_var_takes_precedence_over_config_and_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_GATEWAY_URL, "http://from-env:7391")
+        with patch.object(
+            gateway_resolver,
+            "_load_config_file",
+            return_value={"agent": {"gateway_url": "http://from-config:7391"}},
+        ):
+            assert gateway_resolver.resolve_gateway_url() == "http://from-env:7391"
+
+    def test_config_file_used_when_env_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
+        with patch.object(
+            gateway_resolver,
+            "_load_config_file",
+            return_value={"agent": {"gateway_url": "http://from-config:7391"}},
+        ):
+            assert gateway_resolver.resolve_gateway_url() == "http://from-config:7391"
+
+    def test_local_default_returned_when_probe_succeeds(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
+        with (
+            patch.object(gateway_resolver, "_load_config_file", return_value={}),
+            patch.object(gateway_resolver, "_probe_healthz", return_value=True),
+            patch.object(gateway_resolver, "_auto_start_gateway") as mock_auto_start,
+        ):
+            assert gateway_resolver.resolve_gateway_url() == gateway_resolver.DEFAULT_GATEWAY_URL
+        mock_auto_start.assert_not_called()
+
+    def test_auto_start_invoked_when_probe_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
+        with (
+            patch.object(gateway_resolver, "_load_config_file", return_value={}),
+            patch.object(gateway_resolver, "_probe_healthz", return_value=False),
+            patch.object(gateway_resolver, "_auto_start_gateway") as mock_auto_start,
+        ):
+            result = gateway_resolver.resolve_gateway_url()
+        assert result == gateway_resolver.DEFAULT_GATEWAY_URL
+        mock_auto_start.assert_called_once_with(gateway_resolver.DEFAULT_GATEWAY_URL)
