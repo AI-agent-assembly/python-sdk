@@ -10,28 +10,26 @@ import pytest
 
 from agent_assembly.core import gateway_resolver
 
+_RESOLVER_MOD = "agent_assembly.core.gateway_resolver"
+
 
 class TestProbeHealthz:
     def test_returns_true_on_2xx_response(self) -> None:
         fake_response = MagicMock(status_code=200)
-        with patch.object(gateway_resolver.httpx, "get", return_value=fake_response) as mock_get:
+        with patch(f"{_RESOLVER_MOD}.httpx.get", return_value=fake_response) as mock_get:
             assert gateway_resolver._probe_healthz("http://localhost:7391") is True
 
         called_url = mock_get.call_args.args[0]
         assert called_url == "http://localhost:7391/healthz"
 
     def test_returns_false_when_httpx_raises(self) -> None:
-        with patch.object(
-            gateway_resolver.httpx,
-            "get",
-            side_effect=httpx.ConnectError("refused"),
-        ):
+        with patch(f"{_RESOLVER_MOD}.httpx.get", side_effect=httpx.ConnectError("refused")):
             assert gateway_resolver._probe_healthz("http://localhost:7391") is False
 
-    @pytest.mark.parametrize("status", [400, 404, 500, 503])
+    @pytest.mark.parametrize("status", [400, 404, 500, 503])  # type: ignore[misc]
     def test_returns_false_on_non_2xx(self, status: int) -> None:
         fake_response = MagicMock(status_code=status)
-        with patch.object(gateway_resolver.httpx, "get", return_value=fake_response):
+        with patch(f"{_RESOLVER_MOD}.httpx.get", return_value=fake_response):
             assert gateway_resolver._probe_healthz("http://localhost:7391") is False
 
 
@@ -46,7 +44,7 @@ class TestWaitForHealthz:
         probe_results = iter([False, False, True])
         with (
             patch.object(gateway_resolver, "_probe_healthz", side_effect=probe_results),
-            patch.object(gateway_resolver.time, "sleep") as mock_sleep,
+            patch(f"{_RESOLVER_MOD}.time.sleep") as mock_sleep,
         ):
             result = gateway_resolver._wait_for_healthz("http://localhost:7391", timeout=5.0, poll_interval=0.01)
         assert result is True
@@ -55,7 +53,7 @@ class TestWaitForHealthz:
     def test_returns_false_when_timeout_elapses(self) -> None:
         with (
             patch.object(gateway_resolver, "_probe_healthz", return_value=False),
-            patch.object(gateway_resolver.time, "sleep"),
+            patch(f"{_RESOLVER_MOD}.time.sleep"),
         ):
             result = gateway_resolver._wait_for_healthz("http://localhost:7391", timeout=0.05, poll_interval=0.01)
         assert result is False
@@ -92,18 +90,18 @@ class TestAutoStartGateway:
         from agent_assembly.exceptions import ConfigurationError
 
         with (
-            patch.object(gateway_resolver.shutil, "which", return_value=None),
+            patch(f"{_RESOLVER_MOD}.shutil.which", return_value=None),
             pytest.raises(ConfigurationError, match="'aasm' is not on PATH"),
         ):
             gateway_resolver._auto_start_gateway()
 
     def test_spawns_subprocess_and_returns_when_ready(self) -> None:
         with (
-            patch.object(gateway_resolver.shutil, "which", return_value="/usr/local/bin/aasm"),
-            patch.object(gateway_resolver.subprocess, "Popen") as mock_popen,
+            patch(f"{_RESOLVER_MOD}.shutil.which", return_value="/usr/local/bin/aasm"),
+            patch(f"{_RESOLVER_MOD}.subprocess.Popen") as mock_popen,
             patch.object(gateway_resolver, "_wait_for_healthz", return_value=True),
         ):
-            assert gateway_resolver._auto_start_gateway() is None
+            gateway_resolver._auto_start_gateway()
 
         args, kwargs = mock_popen.call_args
         assert args[0] == [
@@ -119,8 +117,8 @@ class TestAutoStartGateway:
         from agent_assembly.exceptions import GatewayError
 
         with (
-            patch.object(gateway_resolver.shutil, "which", return_value="/usr/local/bin/aasm"),
-            patch.object(gateway_resolver.subprocess, "Popen"),
+            patch(f"{_RESOLVER_MOD}.shutil.which", return_value="/usr/local/bin/aasm"),
+            patch(f"{_RESOLVER_MOD}.subprocess.Popen"),
             patch.object(gateway_resolver, "_wait_for_healthz", return_value=False),
             pytest.raises(GatewayError, match="did not become ready"),
         ):

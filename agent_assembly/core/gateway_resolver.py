@@ -49,7 +49,8 @@ def _probe_healthz(base_url: str, timeout: float = DEFAULT_PROBE_TIMEOUT_SECONDS
         response = httpx.get(url, timeout=timeout)
     except httpx.HTTPError:
         return False
-    return 200 <= response.status_code < 300
+    status: int = response.status_code
+    return 200 <= status < 300
 
 
 def _wait_for_healthz(
@@ -81,7 +82,7 @@ def _load_config_file(path: str = DEFAULT_CONFIG_FILE_PATH) -> dict[str, Any]:
     purely advisory at step 3 — never raises.
     """
     try:
-        import yaml  # type: ignore[import-untyped]  # noqa: PLC0415 — soft dependency
+        import yaml  # type: ignore[import-untyped,unused-ignore]  # noqa: PLC0415 — soft dep
     except ImportError:
         return {}
 
