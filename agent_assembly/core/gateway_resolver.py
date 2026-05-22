@@ -15,6 +15,7 @@ Resolution precedence (highest first)::
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import time
@@ -126,3 +127,32 @@ def _auto_start_gateway(
 
     if not _wait_for_healthz(base_url, timeout=timeout):
         raise GatewayError(f"Auto-started gateway at {base_url} did not become ready within {timeout:g} seconds")
+
+
+def resolve_gateway_url(explicit: str | None = None) -> str:
+    """Resolve the gateway URL using the 4-step precedence chain.
+
+    Returns the resolved URL. May spawn a local ``aasm`` subprocess
+    (step 4 only). Raises ``ConfigurationError`` / ``GatewayError`` from
+    ``_auto_start_gateway`` when the local default is needed but cannot
+    be brought up.
+    """
+    if explicit:
+        return explicit
+
+    env_value = os.environ.get(ENV_GATEWAY_URL)
+    if env_value:
+        return env_value
+
+    config = _load_config_file()
+    agent_section = config.get("agent")
+    if isinstance(agent_section, dict):
+        config_url = agent_section.get("gateway_url")
+        if isinstance(config_url, str) and config_url:
+            return config_url
+
+    if _probe_healthz(DEFAULT_GATEWAY_URL):
+        return DEFAULT_GATEWAY_URL
+
+    _auto_start_gateway(DEFAULT_GATEWAY_URL)
+    return DEFAULT_GATEWAY_URL
