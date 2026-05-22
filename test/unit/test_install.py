@@ -53,3 +53,14 @@ def test_ensure_runtime_falls_back_to_wheel_bundled(isolate_runtime: Path) -> No
     resolved = _install.ensure_runtime()
 
     assert resolved == fake_binary
+
+
+def test_ensure_runtime_raises_with_install_hint(isolate_runtime: Path) -> None:
+    """When no binary exists, raise RuntimeError carrying INSTALL_HINT."""
+    # Sanity: isolate_runtime points at a path that doesn't exist yet.
+    assert not isolate_runtime.exists()
+
+    with pytest.raises(RuntimeError) as exc_info:
+        _install.ensure_runtime()
+
+    assert _install.INSTALL_HINT in str(exc_info.value)
