@@ -27,18 +27,12 @@ def test_init_assembly_with_valid_config():
 
 @pytest.mark.integration
 def test_init_assembly_with_invalid_config():
-    """Test that assembly initialization fails with invalid configuration."""
-    with pytest.raises(ConfigurationError):
-        init_assembly(
-            gateway_url="",  # Invalid: empty URL
-            api_key="test-api-key",
-            agent_id="test-agent-001",
-        )
-
+    """Test that assembly initialization fails with an unknown runtime mode."""
     with pytest.raises(ConfigurationError):
         init_assembly(
             gateway_url="http://localhost:8080",
-            api_key="",  # Invalid: empty API key
+            api_key="test-api-key",
+            mode="invalid-mode",  # type: ignore[arg-type]
         )
 
 

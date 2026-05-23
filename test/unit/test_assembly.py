@@ -69,24 +69,69 @@ def test_init_assembly_with_valid_config_returns_context(
 def test_init_assembly_with_invalid_config() -> None:
     with pytest.raises(ConfigurationError):
         init_assembly(
-            gateway_url="",
-            api_key="test-api-key",
-            agent_id="test-agent-001",
-        )
-
-    with pytest.raises(ConfigurationError):
-        init_assembly(
-            gateway_url="http://localhost:8080",
-            api_key="",
-            agent_id="test-agent-001",
-        )
-
-    with pytest.raises(ConfigurationError):
-        init_assembly(
             gateway_url="http://localhost:8080",
             api_key="test-api-key",
             mode="invalid-mode",  # type: ignore[arg-type]
         )
+
+
+def test_init_assembly_zero_arg_resolves_local_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-1846 AC: init_assembly() with no args connects to local default."""
+    from agent_assembly.core import gateway_resolver
+
+    monkeypatch.setattr(gateway_resolver, "_probe_healthz", lambda _url: True)
+    monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
+    monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
+    monkeypatch.setattr(gateway_resolver, "_load_config_file", lambda: {})
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly()
+    try:
+        assert context.client.gateway_url == gateway_resolver.DEFAULT_GATEWAY_URL
+        assert context.client.api_key == ""
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_explicit_args_bypass_resolver(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-1846 regression: explicit gateway_url / api_key still bind verbatim."""
+    from agent_assembly.core import gateway_resolver
+
+    def _fail_probe(_url: str) -> bool:
+        raise AssertionError("resolver should not probe when explicit args provided")
+
+    def _fail_auto_start(_url: str = "") -> None:
+        raise AssertionError("resolver should not auto-start when explicit args provided")
+
+    monkeypatch.setattr(gateway_resolver, "_probe_healthz", _fail_probe)
+    monkeypatch.setattr(gateway_resolver, "_auto_start_gateway", _fail_auto_start)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://explicit.gw:9999",
+        api_key="explicit-key",
+        agent_id="agent-x",
+    )
+    try:
+        assert context.client.gateway_url == "http://explicit.gw:9999"
+        assert context.client.api_key == "explicit-key"
+        assert context.client.agent_id == "agent-x"
+    finally:
+        context.shutdown()
 
 
 def test_mode_sdk_only_skips_network_layer() -> None:
