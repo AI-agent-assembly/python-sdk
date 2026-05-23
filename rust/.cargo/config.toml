@@ -1,0 +1,9 @@
+# pyo3 0.20 caps at CPython 3.12 (current crate pin). The Python SDK's
+# `requires-python = ">=3.12,<4.0"` plus the CI matrix's Python 3.13 runner
+# means pyo3-ffi's build script otherwise errors with:
+#   "the configured Python interpreter version (3.13) is newer than PyO3's
+#    maximum supported version (3.12)"
+# Forward-compat ABI3 flag suppresses that check; the resulting binding
+# uses the stable Python ABI subset that works across 3.12+.
+[env]
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
