@@ -431,3 +431,86 @@ def test_init_assembly_delegation_reason_too_long_raises(
             api_key="test-api-key",
             delegation_reason="x" * 257,
         )
+
+
+# ── enforcement_mode parameter (AAASM-1560) ──────────────────────────────────
+
+
+@pytest.mark.parametrize("mode", ["enforce", "observe", "disabled"])
+def test_init_assembly_enforcement_mode_forwarded_to_client(
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+) -> None:
+    """All three valid EnforcementMode values land on the GatewayClient."""
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://localhost:8080",
+        api_key="test-api-key",
+        agent_id=f"agent-{mode}",
+        enforcement_mode=mode,  # type: ignore[arg-type]
+    )
+
+    try:
+        assert context.client.enforcement_mode == mode
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_enforcement_mode_invalid_raises_configuration_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown enforcement_mode string fails fast at init time.
+
+    Catches typos like ``"obesrve"`` before the agent silently registers
+    under live enforcement — the security-conscious default.
+    """
+    from agent_assembly.exceptions import ConfigurationError
+
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    with pytest.raises(ConfigurationError, match="enforcement_mode must be one of"):
+        init_assembly(
+            gateway_url="http://localhost:8080",
+            api_key="test-api-key",
+            enforcement_mode="invalid-mode",  # type: ignore[arg-type]
+        )
+
+
+def test_init_assembly_enforcement_mode_defaults_to_none_to_preserve_wire_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Omitting enforcement_mode keeps the pre-feature registration body shape.
+
+    The default is `None` (not `"enforce"`) so a pre-feature SDK caller's
+    `register_agent()` request emits a body that omits the field entirely.
+    The gateway then applies its server-side default of live enforcement,
+    so semantic behaviour is identical to before.
+    """
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://localhost:8080",
+        api_key="test-api-key",
+        agent_id="default-mode-agent",
+    )
+
+    try:
+        assert context.client.enforcement_mode is None
+    finally:
+        context.shutdown()

@@ -106,3 +106,59 @@ async def test_register_agent_includes_depth_when_set() -> None:
     _, call_kwargs = mock_post.call_args
     body = call_kwargs.get("json") or {}
     assert body["depth"] == 3
+
+
+# ── enforcement_mode wire-shape (AAASM-1560) ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_register_agent_sends_enforcement_mode_when_set() -> None:
+    """Registering an agent with enforcement_mode=observe puts the snake_case
+    string on the wire so the gateway's REST → gRPC bridge can map it to
+    RegisterRequest.enforcement_mode (proto enum) per AAASM-1555/1557.
+    """
+    client = GatewayClient(
+        gateway_url="http://gw.test",
+        agent_id="experimental-agent",
+        api_key="key",
+        enforcement_mode="observe",
+    )
+    mock_post = MagicMock(return_value=_make_ok_response())
+    with patch.object(
+        type(client),
+        "client",
+        new_callable=lambda: property(lambda self: MagicMock(post=mock_post)),
+    ):
+        await client.register_agent()
+
+    _, kwargs = mock_post.call_args
+    body = kwargs.get("json") or {}
+    assert body["enforcement_mode"] == "observe"
+
+
+@pytest.mark.asyncio
+async def test_register_agent_omits_enforcement_mode_when_none() -> None:
+    """A client constructed without enforcement_mode (the pre-feature path)
+    must NOT include the key in the body — keeps the wire shape identical
+    to before so a legacy gateway that doesn't know about the field still
+    accepts the registration cleanly.
+    """
+    client = GatewayClient(
+        gateway_url="http://gw.test",
+        agent_id="legacy-agent",
+        api_key="key",
+        # no enforcement_mode kwarg
+    )
+    mock_post = MagicMock(return_value=_make_ok_response())
+    with patch.object(
+        type(client),
+        "client",
+        new_callable=lambda: property(lambda self: MagicMock(post=mock_post)),
+    ):
+        await client.register_agent()
+
+    _, kwargs = mock_post.call_args
+    body = kwargs.get("json")
+    # body may be None (no fields set) or a dict that omits the key.
+    if body is not None:
+        assert "enforcement_mode" not in body

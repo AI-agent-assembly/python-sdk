@@ -22,6 +22,7 @@ class GatewayClient:
         delegation_reason: str | None = None,
         spawned_by_tool: str | None = None,
         depth: int | None = None,
+        enforcement_mode: str | None = None,
     ) -> None:
         """
         Initialize the GatewayClient.
@@ -36,6 +37,10 @@ class GatewayClient:
             delegation_reason: Human-readable reason for delegation
             spawned_by_tool: Name of the tool that spawned this agent
             depth: Spawn depth in the agent lineage tree
+            enforcement_mode: Per-agent governance posture sent to the gateway
+                at registration. ``None`` (the default) omits the field from
+                the request body so a legacy gateway sees the same wire shape
+                as before; the gateway then defaults to live enforcement.
         """
         self.gateway_url = gateway_url.rstrip("/")
         self.agent_id = agent_id
@@ -46,6 +51,7 @@ class GatewayClient:
         self.delegation_reason = delegation_reason
         self.spawned_by_tool = spawned_by_tool
         self.depth = depth
+        self.enforcement_mode = enforcement_mode
         self._client: httpx.Client | None = None
 
     @property
@@ -97,6 +103,8 @@ class GatewayClient:
             body["spawned_by_tool"] = self.spawned_by_tool
         if self.depth is not None:
             body["depth"] = self.depth
+        if self.enforcement_mode is not None:
+            body["enforcement_mode"] = self.enforcement_mode
         try:
             response = self.client.post(
                 f"/agents/{self.agent_id}/register",
