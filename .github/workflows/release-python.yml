@@ -1,0 +1,208 @@
+name: Release Python SDK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Skip PyPI upload, build wheels only'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write  # PyPI Trusted Publisher OIDC
+
+concurrency:
+  group: release-python-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Source of the prebuilt aasm sidecar binary, fetched per platform
+  # before each maturin build so it lands at agent_assembly/bin/aasm
+  # inside the wheel (matches runtime.py's WHEEL_BUNDLED_BIN search path).
+  AASM_BINARY_RELEASE_REPO: AI-agent-assembly/agent-assembly
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  build-sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Build source distribution
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist/*.tar.gz
+
+  build-linux-x86_64:
+    name: Build manylinux_x86_64 wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Stage aasm sidecar binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+        run: |
+          mkdir -p agent_assembly/bin
+          if gh release download --repo "$AASM_REPO" --pattern 'aasm-linux-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
+            mv agent_assembly/bin/aasm-linux-x86_64 agent_assembly/bin/aasm
+            chmod +x agent_assembly/bin/aasm
+            echo "Bundled aasm binary into wheel"
+          else
+            echo "::warning::aasm-linux-x86_64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
+          fi
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64-unknown-linux-gnu
+          command: build
+          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+          manylinux: auto
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-x86_64
+          path: dist/*.whl
+
+  build-linux-aarch64:
+    name: Build manylinux_aarch64 wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Stage aasm sidecar binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+        run: |
+          mkdir -p agent_assembly/bin
+          if gh release download --repo "$AASM_REPO" --pattern 'aasm-linux-aarch64' --dir agent_assembly/bin/ 2>/dev/null; then
+            mv agent_assembly/bin/aasm-linux-aarch64 agent_assembly/bin/aasm
+            chmod +x agent_assembly/bin/aasm
+            echo "Bundled aasm binary into wheel"
+          else
+            echo "::warning::aasm-linux-aarch64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
+          fi
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: aarch64-unknown-linux-gnu
+          command: build
+          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+          manylinux: auto
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-aarch64
+          path: dist/*.whl
+
+  build-macos-arm64:
+    name: Build macosx_arm64 wheel
+    runs-on: macos-14  # Apple silicon runner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Stage aasm sidecar binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+        run: |
+          mkdir -p agent_assembly/bin
+          if gh release download --repo "$AASM_REPO" --pattern 'aasm-macos-arm64' --dir agent_assembly/bin/ 2>/dev/null; then
+            mv agent_assembly/bin/aasm-macos-arm64 agent_assembly/bin/aasm
+            chmod +x agent_assembly/bin/aasm
+            echo "Bundled aasm binary into wheel"
+          else
+            echo "::warning::aasm-macos-arm64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
+          fi
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: aarch64-apple-darwin
+          command: build
+          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-arm64
+          path: dist/*.whl
+
+  build-macos-x86_64:
+    name: Build macosx_x86_64 wheel
+    runs-on: macos-13  # Intel runner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Stage aasm sidecar binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+        run: |
+          mkdir -p agent_assembly/bin
+          if gh release download --repo "$AASM_REPO" --pattern 'aasm-macos-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
+            mv agent_assembly/bin/aasm-macos-x86_64 agent_assembly/bin/aasm
+            chmod +x agent_assembly/bin/aasm
+            echo "Bundled aasm binary into wheel"
+          else
+            echo "::warning::aasm-macos-x86_64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
+          fi
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64-apple-darwin
+          command: build
+          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-x86_64
+          path: dist/*.whl
+
+  publish:
+    name: Publish to PyPI (Trusted Publisher)
+    needs:
+      - build-sdist
+      - build-linux-x86_64
+      - build-linux-aarch64
+      - build-macos-arm64
+      - build-macos-x86_64
+    runs-on: ubuntu-latest
+    # Publish only on actual tag push; workflow_dispatch is dry-run.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/agent-assembly
+    permissions:
+      id-token: write  # OIDC token for Trusted Publisher
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+      - name: Publish via PyPI Trusted Publisher
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # No `with: password:` — Trusted Publisher uses OIDC, no token stored.
