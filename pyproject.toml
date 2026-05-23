@@ -91,3 +91,13 @@ include = [
     { path = "agent_assembly/bin/aasm.exe", format = "wheel" },
 ]
 
+[tool.hatch.build.targets.sdist]
+include = ["agent_assembly/"]
+packages = ["agent_assembly"]
+#artifacts = ["agent_assembly/py.typed"]
+
+[tool.hatch.build.targets.wheel]
+include = ["agent_assembly/"]
+packages = ["agent_assembly"]
+#artifacts = ["agent_assembly/py.typed"]
+
