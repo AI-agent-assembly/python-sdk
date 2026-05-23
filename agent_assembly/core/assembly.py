@@ -127,7 +127,7 @@ def init_assembly(
     delegation_reason: str | None = None,
     spawned_by_tool: str | None = None,
     depth: int | None = None,
-    enforcement_mode: EnforcementMode = "enforce",
+    enforcement_mode: EnforcementMode | None = None,
 ) -> AssemblyContext:
     """Initialize the Agent Assembly SDK runtime for this process.
 
@@ -140,10 +140,12 @@ def init_assembly(
     ``agent_assembly.core.gateway_resolver``.
 
     :param enforcement_mode: Per-agent governance posture sent to the gateway
-        at registration (see :data:`EnforcementMode`). Defaults to
-        ``"enforce"``, the pre-feature behaviour. Set to ``"observe"`` to
-        register the agent in dry-run / sandbox mode — every action proceeds
-        and the gateway records would-be violations as shadow audit events.
+        at registration (see :data:`EnforcementMode`). Defaults to ``None``,
+        which omits the field from the registration body — the gateway then
+        applies its server-side default (live ``enforce``). Pass ``"observe"``
+        to register the agent in dry-run / sandbox mode: every action
+        proceeds and the gateway records would-be violations as shadow audit
+        events.
     """
     gateway_url = resolve_gateway_url(gateway_url)
     api_key = resolve_api_key(api_key)
@@ -210,12 +212,14 @@ def init_assembly(
         return context
 
 
-def _validate_inputs(*, gateway_url: str, mode: RuntimeMode, enforcement_mode: EnforcementMode = "enforce") -> None:
+def _validate_inputs(
+    *, gateway_url: str, mode: RuntimeMode, enforcement_mode: EnforcementMode | None = None
+) -> None:
     if not gateway_url:
         raise ConfigurationError("gateway_url is required")
     if mode not in _VALID_RUNTIME_MODES:
         raise ConfigurationError("mode must be one of: auto, ebpf, proxy, sdk-only")
-    if enforcement_mode not in _VALID_ENFORCEMENT_MODES:
+    if enforcement_mode is not None and enforcement_mode not in _VALID_ENFORCEMENT_MODES:
         raise ConfigurationError(
             f"enforcement_mode must be one of: enforce, observe, disabled (got: {enforcement_mode!r})"
         )

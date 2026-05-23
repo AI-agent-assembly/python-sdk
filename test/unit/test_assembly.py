@@ -487,10 +487,16 @@ def test_init_assembly_enforcement_mode_invalid_raises_configuration_error(
         )
 
 
-def test_init_assembly_enforcement_mode_defaults_to_enforce(
+def test_init_assembly_enforcement_mode_defaults_to_none_to_preserve_wire_shape(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Omitting enforcement_mode preserves the pre-feature default."""
+    """Omitting enforcement_mode keeps the pre-feature registration body shape.
+
+    The default is `None` (not `"enforce"`) so a pre-feature SDK caller's
+    `register_agent()` request emits a body that omits the field entirely.
+    The gateway then applies its server-side default of live enforcement,
+    so semantic behaviour is identical to before.
+    """
     monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
     monkeypatch.setattr(
         core_assembly,
@@ -505,6 +511,6 @@ def test_init_assembly_enforcement_mode_defaults_to_enforce(
     )
 
     try:
-        assert context.client.enforcement_mode == "enforce"
+        assert context.client.enforcement_mode is None
     finally:
         context.shutdown()
