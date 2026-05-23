@@ -33,6 +33,14 @@ dependencies = [
     "protobuf>=5,<8",
 ]
 
+[project.optional-dependencies]
+# Triggers the platform wheel that bundles the aasm sidecar binary at
+# agent_assembly/bin/aasm. Empty list — selection is purely by the
+# platform-tagged wheel that maturin produces, not by extra deps.
+runtime = []
+# Catch-all alias for users who want the full SDK + runtime install.
+all = ["agent-assembly[runtime]"]
+
 [project.scripts]
 aasm = "agent_assembly.cli.main:main"
 
@@ -42,23 +50,30 @@ Repository = "https://github.com/agent-assembly/python-sdk"
 
 [dependency-groups]
 dev = [
-    "pytest>=8.1.1,<10",
-    "pytest-cov>=5.0.0,<8",
     "coverage~=7.10",
-    "pytest-rerunfailures>=14.0,<17",
-    "pytest-asyncio>=0.23.0,<2",
     "python-dotenv>=1.0.1,<2",
-    "ruff>=0.1.0",
-    "pytest-benchmark>=4.0.0,<6",
     # AAASM-1654 (PR-E): grpcio-tools provides protoc + Python plugin used by
     # scripts/gen_proto.py to regenerate agent_assembly/proto/*_pb2*.py from
     # the sibling agent-assembly/proto/ checkout.
     "grpcio-tools>=1.66,<2",
+    { include-group = "lint" },
+    { include-group = "test" },
+]
+lint = [
+    "ruff>=0.1.0",
+    "mypy>=1.2.0,<3",
+]
+test = [
+    "pytest>=8.1.1,<10",
+    "pytest-cov>=5.0.0,<8",
+    "pytest-rerunfailures>=14.0,<17",
+    "pytest-asyncio>=0.23.0,<2",
+    "pytest-benchmark>=4.0.0,<6",
 ]
 pre-commit-ci = [
     "pre-commit>=3.5.0,<5",
     "pylint>=3.1.0,<5",
-    "mypy>=1.2.0,<3",
+    { include-group = "lint" },
 ]
 docs = [
     "mkdocs>=1.6.0,<2",

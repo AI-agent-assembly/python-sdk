@@ -18,6 +18,7 @@ dependencies = [
 dev = [
     { name = "coverage" },
     { name = "grpcio-tools" },
+    { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-benchmark" },
@@ -36,25 +37,40 @@ docs = [
     { name = "mkdocstrings" },
     { name = "mkdocstrings-python" },
 ]
+lint = [
+    { name = "mypy" },
+    { name = "ruff" },
+]
 pre-commit-ci = [
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pylint" },
+    { name = "ruff" },
+]
+test = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-cov" },
+    { name = "pytest-rerunfailures" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "agent-assembly", extras = ["runtime"], marker = "extra == 'all'" },
     { name = "grpcio", specifier = ">=1.66,<2" },
     { name = "httpx", specifier = ">=0.27.0,<1.0.0" },
     { name = "protobuf", specifier = ">=5,<8" },
     { name = "pydantic", specifier = ">=2.0.0,<3.0.0" },
     { name = "typing-extensions", specifier = ">=4.0.0" },
 ]
+provides-extras = ["runtime", "all"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", specifier = "~=7.10" },
     { name = "grpcio-tools", specifier = ">=1.66,<2" },
+    { name = "mypy", specifier = ">=1.2.0,<3" },
     { name = "pytest", specifier = ">=8.1.1,<10" },
     { name = "pytest-asyncio", specifier = ">=0.23.0,<2" },
     { name = "pytest-benchmark", specifier = ">=4.0.0,<6" },
@@ -73,10 +89,22 @@ docs = [
     { name = "mkdocstrings", specifier = ">=0.24.0,<2" },
     { name = "mkdocstrings-python", specifier = ">=1.10.0,<3" },
 ]
+lint = [
+    { name = "mypy", specifier = ">=1.2.0,<3" },
+    { name = "ruff", specifier = ">=0.1.0" },
+]
 pre-commit-ci = [
     { name = "mypy", specifier = ">=1.2.0,<3" },
     { name = "pre-commit", specifier = ">=3.5.0,<5" },
     { name = "pylint", specifier = ">=3.1.0,<5" },
+    { name = "ruff", specifier = ">=0.1.0" },
+]
+test = [
+    { name = "pytest", specifier = ">=8.1.1,<10" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0,<2" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0,<6" },
+    { name = "pytest-cov", specifier = ">=5.0.0,<8" },
+    { name = "pytest-rerunfailures", specifier = ">=14.0,<17" },
 ]
 
 [[package]]
