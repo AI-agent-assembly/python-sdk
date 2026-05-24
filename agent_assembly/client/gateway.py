@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 
+from agent_assembly.client.dispatch import DispatchToolResult
 from agent_assembly.exceptions import GatewayError
 
 
@@ -175,3 +178,41 @@ class GatewayClient:
             return response.json()
         except httpx.HTTPError as e:
             raise GatewayError(f"Failed to report edge: {e}") from e
+
+    async def dispatch_tool(self, tool_name: str, args: dict[str, Any]) -> DispatchToolResult:
+        """
+        Dispatch a tool with placeholder-form args (AAASM-1920 Secret Injection).
+
+        The gateway resolves every ``${NAME}`` placeholder in ``args`` against
+        its registered ``SecretsStore``, emits a placeholder-form audit entry,
+        and returns the resolved args plus the list of substituted names.
+
+        The LLM never observes the resolved credential value: the agent code
+        holds the placeholder, Assembly resolves it on the gateway side, and
+        the response is forwarded to the tool sink only.
+
+        Args:
+            tool_name: Name of the tool to dispatch (e.g. ``"call_database"``).
+            args: Placeholder-form args. May contain ``${NAME}`` tokens that
+                will be resolved server-side before the tool is invoked.
+
+        Returns:
+            ``DispatchToolResult`` with the resolved args + the list of
+            placeholder names that were substituted.
+
+        Raises:
+            GatewayError: If the request fails for any reason — including a
+                422 Unprocessable Entity when ``args`` references a placeholder
+                that is not registered in the gateway's ``SecretsStore``.
+        """
+        body = {"tool": tool_name, "args": args}
+        try:
+            response = self.client.post("/dispatch_tool", json=body)
+            response.raise_for_status()
+            data = response.json()
+            return DispatchToolResult(
+                resolved_args=data.get("resolved_args", {}),
+                names_substituted=list(data.get("names_substituted", [])),
+            )
+        except httpx.HTTPError as e:
+            raise GatewayError(f"Failed to dispatch tool {tool_name}: {e}") from e
