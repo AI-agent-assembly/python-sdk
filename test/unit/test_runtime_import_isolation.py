@@ -58,6 +58,11 @@ def test_runtime_import_does_not_pull_in_httpx() -> None:
 
 
 def test_top_level_package_import_does_not_pull_in_httpx() -> None:
+    # Import once in the test process so we know what `__version__` the
+    # subprocess should print. Avoids hard-coding the literal — pre-release
+    # bumps (e.g. AAASM-1933 → `0.0.1a1`) used to break this test by drift.
+    import agent_assembly as _aa  # noqa: PLC0415 — test-local import on purpose
+
     result = _run_python_with_blocked_imports(
         ["httpx", "pydantic"],
         "import agent_assembly\nprint(agent_assembly.__version__)\n",
@@ -66,7 +71,7 @@ def test_top_level_package_import_does_not_pull_in_httpx() -> None:
         f"`import agent_assembly` must not eagerly import httpx/pydantic.\n"
         f"stdout: {result.stdout}\nstderr: {result.stderr}"
     )
-    assert result.stdout.strip() == "0.0.0"
+    assert result.stdout.strip() == _aa.__version__
 
 
 def test_eager_attribute_access_still_resolves_through_lazy_loader() -> None:
