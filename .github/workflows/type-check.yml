@@ -49,7 +49,7 @@ jobs:
 
       - name: Verify py.typed marker exists
         run: |
-          if [ ! -f "slack_mcp/py.typed" ]; then
+          if [ ! -f "agent_assembly/py.typed" ]; then
             echo "❌ Error: py.typed marker file not found!"
             echo "PEP 561 requires a py.typed file in the package directory."
             exit 1
@@ -58,7 +58,7 @@ jobs:
 
       - name: Verify types.py module exists
         run: |
-          if [ ! -f "slack_mcp/types.py" ]; then
+          if [ ! -f "agent_assembly/types.py" ]; then
             echo "❌ Error: types.py module not found!"
             exit 1
           fi
@@ -66,7 +66,7 @@ jobs:
 
       - name: Check types.py has __all__ export
         run: |
-          if ! grep -q "__all__" slack_mcp/types.py; then
+          if ! grep -q "__all__" agent_assembly/types.py; then
             echo "❌ Error: types.py missing __all__ export!"
             exit 1
           fi
@@ -86,7 +86,7 @@ jobs:
           
           # Check sdist
           echo "Checking source distribution..."
-          if tar -tzf dist/*.tar.gz | grep -q "slack_mcp/py.typed"; then
+          if tar -tzf dist/*.tar.gz | grep -q "agent_assembly/py.typed"; then
             echo "✅ py.typed found in source distribution"
           else
             echo "❌ Error: py.typed not found in source distribution!"
@@ -95,7 +95,7 @@ jobs:
           
           # Check wheel
           echo "Checking wheel distribution..."
-          if unzip -l dist/*.whl | grep -q "slack_mcp/py.typed"; then
+          if unzip -l dist/*.whl | grep -q "agent_assembly/py.typed"; then
             echo "✅ py.typed found in wheel distribution"
           else
             echo "❌ Error: py.typed not found in wheel distribution!"
@@ -104,14 +104,14 @@ jobs:
           
           # Check types.py in distributions
           echo "Checking types.py in distributions..."
-          if tar -tzf dist/*.tar.gz | grep -q "slack_mcp/types.py"; then
+          if tar -tzf dist/*.tar.gz | grep -q "agent_assembly/types.py"; then
             echo "✅ types.py found in source distribution"
           else
             echo "❌ Error: types.py not found in source distribution!"
             exit 1
           fi
           
-          if unzip -l dist/*.whl | grep -q "slack_mcp/types.py"; then
+          if unzip -l dist/*.whl | grep -q "agent_assembly/types.py"; then
             echo "✅ types.py found in wheel distribution"
           else
             echo "❌ Error: types.py not found in wheel distribution!"
