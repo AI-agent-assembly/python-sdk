@@ -62,7 +62,7 @@ jobs:
     with:
       level: ${{ inputs.level }}
       python: ${{ inputs.python }}
-      docs: ${{ inputs.docs || 'skip' }}
+      docs: ${{ inputs.docs }}
 
   # Summary job to report results
   validation-summary:
