@@ -135,75 +135,50 @@ jobs:
         run: |
           uv sync --all-extras
 
-      - name: Test importing types module
+      - name: Test importing agent_assembly.types module
         run: |
           uv run python -c "
-          from slack_mcp import types
-          print('✅ Successfully imported types module')
-          print(f'✅ Available types: {len(types.__all__)} exports')
+          from agent_assembly import types
+          print('✅ Successfully imported agent_assembly.types module')
+          print(f'✅ Available exports: {len(types.__all__)} symbols')
           "
 
-      - name: Test importing SlackEvent
+      - name: Test agent_assembly.types public exports are accessible
         run: |
           uv run python -c "
-          from slack_mcp import SlackEvent
-          print('✅ Successfully imported SlackEvent')
-          print(f'✅ Total events: {len(SlackEvent)}')
+          from agent_assembly import types
+
+          # __all__ pins the public surface; AAASM-1419 added CallStackNode + CallStackNodeKind.
+          expected = {'AuditEvent', 'CallStackNode', 'CallStackNodeKind'}
+          declared = set(types.__all__)
+          assert expected <= declared, (
+              f'agent_assembly.types.__all__ missing expected exports: '
+              f'{expected - declared}; declared={declared}'
+          )
+          print(f'✅ __all__ contains the expected public exports: {sorted(expected)}')
+
+          for name in expected:
+              assert hasattr(types, name), f'agent_assembly.types is missing attribute {name!r}'
+          print(f'✅ All expected attributes resolve on the types module')
           "
 
-      - name: Test type definitions are accessible
+      - name: Test top-level lazy re-exports resolve to the same objects
         run: |
           uv run python -c "
-          from slack_mcp import types
-          
-          # Test JSON types
-          assert hasattr(types, 'JSONValue')
-          assert hasattr(types, 'JSONDict')
-          assert hasattr(types, 'JSONList')
-          assert hasattr(types, 'JSONPrimitive')
-          print('✅ JSON types accessible')
-          
-          # Test Slack types
-          assert hasattr(types, 'SlackChannelID')
-          assert hasattr(types, 'SlackUserID')
-          assert hasattr(types, 'SlackTimestamp')
-          assert hasattr(types, 'SlackToken')
-          assert hasattr(types, 'SlackEventPayload')
-          print('✅ Slack types accessible')
-          
-          # Test Protocol types
-          assert hasattr(types, 'EventHandlerProtocol')
-          assert hasattr(types, 'QueueBackendProtocol')
-          print('✅ Protocol types accessible')
-          
-          # Test type guards
-          assert hasattr(types, 'is_slack_channel_id')
-          assert hasattr(types, 'is_slack_user_id')
-          assert hasattr(types, 'is_slack_timestamp')
-          print('✅ Type guards accessible')
-          "
+          import agent_assembly
+          from agent_assembly import types
 
-      - name: Test type guards functionality
-        run: |
-          uv run python -c "
-          from slack_mcp import types
-          
-          # Test channel ID validation
-          assert types.is_slack_channel_id('C1234567890') == True
-          assert types.is_slack_channel_id('#general') == True
-          assert types.is_slack_channel_id('invalid') == False
-          print('✅ Channel ID type guard works')
-          
-          # Test user ID validation
-          assert types.is_slack_user_id('U1234567890') == True
-          assert types.is_slack_user_id('W1234567890') == True
-          assert types.is_slack_user_id('invalid') == False
-          print('✅ User ID type guard works')
-          
-          # Test timestamp validation
-          assert types.is_slack_timestamp('1234567890.123456') == True
-          assert types.is_slack_timestamp('invalid') == False
-          print('✅ Timestamp type guard works')
+          # agent_assembly/__init__.py lazily re-exports these from agent_assembly.types
+          # via PEP 562; verify the lazy-import indirection still resolves to the
+          # same identity (no stale cached objects, no shadowing).
+          for name in ('AuditEvent', 'CallStackNode', 'CallStackNodeKind'):
+              top = getattr(agent_assembly, name)
+              direct = getattr(types, name)
+              assert top is direct, (
+                  f'agent_assembly.{name} is not agent_assembly.types.{name}: '
+                  f'{top!r} vs {direct!r}'
+              )
+          print('✅ Top-level lazy re-exports resolve to the same objects as agent_assembly.types')
           "
 
   summary:
