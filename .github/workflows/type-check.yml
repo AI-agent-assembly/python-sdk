@@ -9,9 +9,9 @@ on:
       # GitHub Action workflow files
       - ".github/workflows/type-check.yml"
       # Type definition files
-      - "slack_mcp/types.py"
-      - "slack_mcp/py.typed"
-      - "slack_mcp/__init__.py"
+      - "agent_assembly/types.py"
+      - "agent_assembly/py.typed"
+      - "agent_assembly/__init__.py"
       # Configuration files
       - "pyproject.toml"
       - "uv.lock"
@@ -23,9 +23,9 @@ on:
       # GitHub Action workflow files
       - ".github/workflows/type-check.yml"
       # Type definition files
-      - "slack_mcp/types.py"
-      - "slack_mcp/py.typed"
-      - "slack_mcp/__init__.py"
+      - "agent_assembly/types.py"
+      - "agent_assembly/py.typed"
+      - "agent_assembly/__init__.py"
       # Configuration files
       - "pyproject.toml"
       - "uv.lock"
