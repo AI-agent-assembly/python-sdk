@@ -4,7 +4,7 @@ on:
   # Run on push to master and pull requests
   push:
     branches:
-      - "your_base_branch"
+      - "master"
     paths:
       # GitHub Action workflow files
       - ".github/workflows/type-check.yml"
@@ -18,7 +18,7 @@ on:
 
   pull_request:
     branches:
-      - "your_base_branch"
+      - "master"
     paths:
       # GitHub Action workflow files
       - ".github/workflows/type-check.yml"
