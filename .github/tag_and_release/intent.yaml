@@ -10,18 +10,18 @@ level: patch  # auto | patch | minor | major
 artifacts:
   python: auto  # auto | force | skip
   docker: auto  # auto | force | skip
-  # Documentation versioning (supports both legacy and enhanced formats)
-  docs:
-    # Enhanced multi-section configuration
-    mode: auto          # auto | force | skip - How to handle docs versioning
-    sections:           # Array of Docusaurus plugin IDs to version
-      - docs            # Main documentation section
-      - dev             # Development/contributor documentation  
-#      - api             # API reference documentation
-    strategy: always   # changed | always - When to version sections
-    
-  # Legacy format (still supported for backward compatibility):
-  # docs: auto    # auto | force | skip
+  # Documentation versioning (legacy string form).
+  # python-sdk uses MkDocs (`mkdocs.yml` at repo root; `docs/` is Markdown only)
+  # and deploys docs via `.github/workflows/documentation.yaml` on
+  # `workflow_run: ["release"]: types: [completed]`. The centralized release
+  # workflow's `rw_docusaurus_operations.yaml` sub-job expects a Docusaurus
+  # tree (`docs/package.json`) which does not exist here. Set `docs: skip`
+  # so the validation/release pipeline does not invoke that Docusaurus
+  # sub-workflow. Tracked under AAASM-2063 — when the upstream reusable
+  # workflow learns to gate the Docusaurus call on this value (Option A in
+  # the bug), the multi-section enhanced form can be reintroduced if MkDocs
+  # support lands upstream.
+  docs: skip
 
 notes: "Automatic release based on semantic versioning and enhanced release with multi-section docs versioning"
 
