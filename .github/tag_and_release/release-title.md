@@ -1,1 +1,1 @@
-v0.0.0 - Sample release note title 🍻
+v0.0.1-alpha.2 — pre-release dry-run continuation
