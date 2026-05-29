@@ -74,6 +74,13 @@ jobs:
           command: build
           args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
           manylinux: auto
+          # The manylinux2014 image (CentOS 7-based) lacks protoc; aa-proto's
+          # build.rs needs it via prost-build. Install before maturin runs.
+          before-script-linux: |
+            yum install -y protobuf-compiler || (
+              # Fallback for manylinux_2_28+ (Rocky Linux / AlmaLinux based)
+              dnf install -y protobuf-compiler
+            )
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v7
         with:
@@ -108,6 +115,9 @@ jobs:
           command: build
           args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
           manylinux: auto
+          # See linux-x86_64 above for rationale.
+          before-script-linux: |
+            yum install -y protobuf-compiler || dnf install -y protobuf-compiler
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v7
         with:
@@ -135,6 +145,8 @@ jobs:
           else
             echo "::warning::aasm-macos-arm64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
           fi
+      - name: Install protoc (macOS)
+        run: brew install protobuf
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -168,6 +180,8 @@ jobs:
           else
             echo "::warning::aasm-macos-x86_64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
           fi
+      - name: Install protoc (macOS)
+        run: brew install protobuf
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
