@@ -75,12 +75,25 @@ jobs:
           args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
           manylinux: auto
           # The manylinux2014 image (CentOS 7-based) lacks protoc; aa-proto's
-          # build.rs needs it via prost-build. Install before maturin runs.
+          # build.rs needs it via prost-build for proto3 syntax. The yum/dnf
+          # `protobuf-compiler` package on CentOS 7 ships protoc 2.5.0 which
+          # ONLY understands proto2 ("Unrecognized syntax identifier 'proto3'"),
+          # so we download the official protoc binary release instead.
           before-script-linux: |
-            yum install -y protobuf-compiler || (
-              # Fallback for manylinux_2_28+ (Rocky Linux / AlmaLinux based)
-              dnf install -y protobuf-compiler
-            )
+            set -euo pipefail
+            (command -v unzip >/dev/null) || (yum install -y unzip || dnf install -y unzip)
+            PROTOC_VERSION="32.1"
+            ARCH=$(uname -m)
+            case "$ARCH" in
+              x86_64)  PROTOC_ARCH="x86_64"  ;;
+              aarch64) PROTOC_ARCH="aarch_64" ;;
+              *) echo "::error::unsupported manylinux arch: $ARCH"; exit 1 ;;
+            esac
+            curl -sSLf \
+              "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
+              -o /tmp/protoc.zip
+            unzip -o /tmp/protoc.zip -d /usr/local >/dev/null
+            protoc --version
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v7
         with:
@@ -115,9 +128,22 @@ jobs:
           command: build
           args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
           manylinux: auto
-          # See linux-x86_64 above for rationale.
+          # See linux-x86_64 above for rationale. Same protoc binary download.
           before-script-linux: |
-            yum install -y protobuf-compiler || dnf install -y protobuf-compiler
+            set -euo pipefail
+            (command -v unzip >/dev/null) || (yum install -y unzip || dnf install -y unzip)
+            PROTOC_VERSION="32.1"
+            ARCH=$(uname -m)
+            case "$ARCH" in
+              x86_64)  PROTOC_ARCH="x86_64"  ;;
+              aarch64) PROTOC_ARCH="aarch_64" ;;
+              *) echo "::error::unsupported manylinux arch: $ARCH"; exit 1 ;;
+            esac
+            curl -sSLf \
+              "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
+              -o /tmp/protoc.zip
+            unzip -o /tmp/protoc.zip -d /usr/local >/dev/null
+            protoc --version
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v7
         with:
