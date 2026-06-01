@@ -1,1 +1,1 @@
-v0.0.1-alpha.2 — pre-release dry-run continuation
+v0.0.1-alpha.3 — release-infra fixes verification
