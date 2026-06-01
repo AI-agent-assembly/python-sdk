@@ -1,10 +1,10 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12, <4.0"
 
 [[package]]
 name = "agent-assembly"
-version = "0.0.2"
+version = "0.0.1a3"
 source = { editable = "." }
 dependencies = [
     { name = "grpcio" },
