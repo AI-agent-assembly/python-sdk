@@ -201,7 +201,7 @@ jobs:
 
   build-macos-x86_64:
     name: Build macosx_x86_64 wheel
-    runs-on: macos-13  # Intel runner
+    runs-on: macos-15-intel  # Intel runner (macos-13 sunset 2025-09-19)
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
