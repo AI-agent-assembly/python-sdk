@@ -92,7 +92,7 @@ jobs:
           # be installing an arbitrary binary as root with no integrity gate.
           before-script-linux: |
             set -euo pipefail
-            (command -v unzip >/dev/null) || (yum install -y unzip || dnf install -y unzip)
+            (command -v unzip >/dev/null) || (yum install -y unzip 2>/dev/null || dnf install -y unzip 2>/dev/null || (apt-get update && apt-get install -y unzip))
             ARCH=$(uname -m)
             case "$ARCH" in
               x86_64)  PROTOC_ARCH="x86_64";   EXPECTED_SHA="${{ env.PROTOC_SHA256_X86_64 }}"  ;;
@@ -144,7 +144,7 @@ jobs:
           # SHA-verified protoc binary download.
           before-script-linux: |
             set -euo pipefail
-            (command -v unzip >/dev/null) || (yum install -y unzip || dnf install -y unzip)
+            (command -v unzip >/dev/null) || (yum install -y unzip 2>/dev/null || dnf install -y unzip 2>/dev/null || (apt-get update && apt-get install -y unzip))
             ARCH=$(uname -m)
             case "$ARCH" in
               x86_64)  PROTOC_ARCH="x86_64";   EXPECTED_SHA="${{ env.PROTOC_SHA256_X86_64 }}"  ;;
