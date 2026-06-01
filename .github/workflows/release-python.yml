@@ -25,6 +25,12 @@ env:
   # inside the wheel (matches runtime.py's WHEEL_BUNDLED_BIN search path).
   AASM_BINARY_RELEASE_REPO: AI-agent-assembly/agent-assembly
   PYTHON_VERSION: '3.12'
+  # protoc binary version + per-arch SHA256 sums (cross-verified against
+  # the GitHub release API's `digest:` field on the v32.1 release assets).
+  # Bump in one place when upgrading protoc.
+  PROTOC_VERSION: '32.1'
+  PROTOC_SHA256_X86_64: 'e9c129c176bb7df02546c4cd6185126ca53c89e7d2f09511e209319704b5dd7e'
+  PROTOC_SHA256_AARCH_64: '4a802ed23d70f7bad7eb19e5a3e724b3aa967250d572cadfd537c1ba939aee6a'
 
 jobs:
   build-sdist:
@@ -79,19 +85,25 @@ jobs:
           # `protobuf-compiler` package on CentOS 7 ships protoc 2.5.0 which
           # ONLY understands proto2 ("Unrecognized syntax identifier 'proto3'"),
           # so we download the official protoc binary release instead.
+          #
+          # SECURITY: the zip is downloaded over HTTPS from GitHub's release
+          # CDN AND verified against a hardcoded SHA256 cross-checked against
+          # the GitHub release API's `digest` field. Without the SHA check we'd
+          # be installing an arbitrary binary as root with no integrity gate.
           before-script-linux: |
             set -euo pipefail
             (command -v unzip >/dev/null) || (yum install -y unzip || dnf install -y unzip)
-            PROTOC_VERSION="32.1"
             ARCH=$(uname -m)
             case "$ARCH" in
-              x86_64)  PROTOC_ARCH="x86_64"  ;;
-              aarch64) PROTOC_ARCH="aarch_64" ;;
+              x86_64)  PROTOC_ARCH="x86_64";   EXPECTED_SHA="${{ env.PROTOC_SHA256_X86_64 }}"  ;;
+              aarch64) PROTOC_ARCH="aarch_64"; EXPECTED_SHA="${{ env.PROTOC_SHA256_AARCH_64 }}" ;;
               *) echo "::error::unsupported manylinux arch: $ARCH"; exit 1 ;;
             esac
-            curl -sSLf \
-              "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
+            curl -sSLf --retry 3 --retry-delay 5 \
+              "https://github.com/protocolbuffers/protobuf/releases/download/v${{ env.PROTOC_VERSION }}/protoc-${{ env.PROTOC_VERSION }}-linux-${PROTOC_ARCH}.zip" \
               -o /tmp/protoc.zip
+            echo "${EXPECTED_SHA}  /tmp/protoc.zip" | sha256sum --check --status \
+              || { echo "::error::protoc-${{ env.PROTOC_VERSION }}-linux-${PROTOC_ARCH}.zip SHA256 mismatch — refusing to install"; sha256sum /tmp/protoc.zip; exit 1; }
             unzip -o /tmp/protoc.zip -d /usr/local >/dev/null
             protoc --version
       - name: Upload wheel artifact
@@ -128,20 +140,22 @@ jobs:
           command: build
           args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
           manylinux: auto
-          # See linux-x86_64 above for rationale. Same protoc binary download.
+          # See linux-x86_64 above for rationale + security model. Same
+          # SHA-verified protoc binary download.
           before-script-linux: |
             set -euo pipefail
             (command -v unzip >/dev/null) || (yum install -y unzip || dnf install -y unzip)
-            PROTOC_VERSION="32.1"
             ARCH=$(uname -m)
             case "$ARCH" in
-              x86_64)  PROTOC_ARCH="x86_64"  ;;
-              aarch64) PROTOC_ARCH="aarch_64" ;;
+              x86_64)  PROTOC_ARCH="x86_64";   EXPECTED_SHA="${{ env.PROTOC_SHA256_X86_64 }}"  ;;
+              aarch64) PROTOC_ARCH="aarch_64"; EXPECTED_SHA="${{ env.PROTOC_SHA256_AARCH_64 }}" ;;
               *) echo "::error::unsupported manylinux arch: $ARCH"; exit 1 ;;
             esac
-            curl -sSLf \
-              "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
+            curl -sSLf --retry 3 --retry-delay 5 \
+              "https://github.com/protocolbuffers/protobuf/releases/download/v${{ env.PROTOC_VERSION }}/protoc-${{ env.PROTOC_VERSION }}-linux-${PROTOC_ARCH}.zip" \
               -o /tmp/protoc.zip
+            echo "${EXPECTED_SHA}  /tmp/protoc.zip" | sha256sum --check --status \
+              || { echo "::error::protoc-${{ env.PROTOC_VERSION }}-linux-${PROTOC_ARCH}.zip SHA256 mismatch — refusing to install"; sha256sum /tmp/protoc.zip; exit 1; }
             unzip -o /tmp/protoc.zip -d /usr/local >/dev/null
             protoc --version
       - name: Upload wheel artifact
