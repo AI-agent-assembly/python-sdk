@@ -67,9 +67,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+          AASM_TAG: ${{ github.event.client_payload.release_tag }}
         run: |
           mkdir -p agent_assembly/bin
-          if gh release download --repo "$AASM_REPO" --pattern 'aasm-linux-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
+          # repository_dispatch supplies the exact upstream tag in the
+          # client_payload; workflow_dispatch (dry-run) leaves it empty
+          # and falls back to the latest release.
+          TAG_ARG=()
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          if gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-linux-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
             mv agent_assembly/bin/aasm-linux-x86_64 agent_assembly/bin/aasm
             chmod +x agent_assembly/bin/aasm
             echo "Bundled aasm binary into wheel"
@@ -127,9 +133,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+          AASM_TAG: ${{ github.event.client_payload.release_tag }}
         run: |
           mkdir -p agent_assembly/bin
-          if gh release download --repo "$AASM_REPO" --pattern 'aasm-linux-aarch64' --dir agent_assembly/bin/ 2>/dev/null; then
+          # See linux-x86_64 above for tag-pinning rationale.
+          TAG_ARG=()
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          if gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-linux-aarch64' --dir agent_assembly/bin/ 2>/dev/null; then
             mv agent_assembly/bin/aasm-linux-aarch64 agent_assembly/bin/aasm
             chmod +x agent_assembly/bin/aasm
             echo "Bundled aasm binary into wheel"
@@ -179,9 +189,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+          AASM_TAG: ${{ github.event.client_payload.release_tag }}
         run: |
           mkdir -p agent_assembly/bin
-          if gh release download --repo "$AASM_REPO" --pattern 'aasm-macos-arm64' --dir agent_assembly/bin/ 2>/dev/null; then
+          # See linux-x86_64 above for tag-pinning rationale.
+          TAG_ARG=()
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          if gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-macos-arm64' --dir agent_assembly/bin/ 2>/dev/null; then
             mv agent_assembly/bin/aasm-macos-arm64 agent_assembly/bin/aasm
             chmod +x agent_assembly/bin/aasm
             echo "Bundled aasm binary into wheel"
@@ -214,9 +228,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+          AASM_TAG: ${{ github.event.client_payload.release_tag }}
         run: |
           mkdir -p agent_assembly/bin
-          if gh release download --repo "$AASM_REPO" --pattern 'aasm-macos-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
+          # See linux-x86_64 above for tag-pinning rationale.
+          TAG_ARG=()
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          if gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-macos-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
             mv agent_assembly/bin/aasm-macos-x86_64 agent_assembly/bin/aasm
             chmod +x agent_assembly/bin/aasm
             echo "Bundled aasm binary into wheel"
