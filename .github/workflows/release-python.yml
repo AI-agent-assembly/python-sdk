@@ -1,9 +1,12 @@
 name: Release Python SDK
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  # Triggered by agent-assembly's `notify-downstream` job after the upstream
+  # GitHub Release is created and aasm-* binaries are uploaded. Payload:
+  #   { "release_tag": "v0.0.1-alpha.4" }
+  # See AI-agent-assembly/agent-assembly PR #842 for the dispatcher side.
+  repository_dispatch:
+    types: [agent-assembly-release-published]
   workflow_dispatch:
     inputs:
       dry-run:
@@ -243,8 +246,8 @@ jobs:
       - build-macos-arm64
       - build-macos-x86_64
     runs-on: ubuntu-latest
-    # Publish only on actual tag push; workflow_dispatch is dry-run.
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # Publish only when fired by agent-assembly's repository_dispatch; workflow_dispatch is dry-run.
+    if: github.event_name == 'repository_dispatch'
     environment:
       name: pypi
       url: https://pypi.org/p/agent-assembly
