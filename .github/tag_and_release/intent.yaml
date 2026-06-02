@@ -3,7 +3,7 @@
 # If this file doesn't exist, defaults will be used
 
 # === RELEASE CONTROL ===
-release: true
+release: false
 level: patch  # auto | patch | minor | major
 
 # === RELEASE ARTIFACTS ===
