@@ -1,9 +1,12 @@
 name: Release Python SDK
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  # Triggered by agent-assembly's `notify-downstream` job after the upstream
+  # GitHub Release is created and aasm-* binaries are uploaded. Payload:
+  #   { "release_tag": "v0.0.1-alpha.4" }
+  # See AI-agent-assembly/agent-assembly PR #842 for the dispatcher side.
+  repository_dispatch:
+    types: [agent-assembly-release-published]
   workflow_dispatch:
     inputs:
       dry-run:
@@ -64,15 +67,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+          AASM_TAG: ${{ github.event.client_payload.release_tag }}
         run: |
+          set -euo pipefail
           mkdir -p agent_assembly/bin
-          if gh release download --repo "$AASM_REPO" --pattern 'aasm-linux-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
-            mv agent_assembly/bin/aasm-linux-x86_64 agent_assembly/bin/aasm
-            chmod +x agent_assembly/bin/aasm
-            echo "Bundled aasm binary into wheel"
-          else
-            echo "::warning::aasm-linux-x86_64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
-          fi
+          # repository_dispatch supplies the exact upstream tag in the
+          # client_payload; workflow_dispatch (dry-run) leaves it empty
+          # and falls back to the latest release.
+          TAG_ARG=()
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          # Hard error on missing binary: the repository_dispatch event
+          # guarantees the aasm-* assets exist on the upstream release
+          # at this point (see AI-agent-assembly/agent-assembly#842).
+          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-linux-x86_64' --dir agent_assembly/bin/
+          mv agent_assembly/bin/aasm-linux-x86_64 agent_assembly/bin/aasm
+          chmod +x agent_assembly/bin/aasm
+          echo "Bundled aasm binary into wheel"
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -124,15 +134,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+          AASM_TAG: ${{ github.event.client_payload.release_tag }}
         run: |
+          set -euo pipefail
           mkdir -p agent_assembly/bin
-          if gh release download --repo "$AASM_REPO" --pattern 'aasm-linux-aarch64' --dir agent_assembly/bin/ 2>/dev/null; then
-            mv agent_assembly/bin/aasm-linux-aarch64 agent_assembly/bin/aasm
-            chmod +x agent_assembly/bin/aasm
-            echo "Bundled aasm binary into wheel"
-          else
-            echo "::warning::aasm-linux-aarch64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
-          fi
+          # See linux-x86_64 above for tag-pinning rationale.
+          TAG_ARG=()
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          # Hard error on missing binary: the repository_dispatch event
+          # guarantees the aasm-* assets exist on the upstream release
+          # at this point (see AI-agent-assembly/agent-assembly#842).
+          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-linux-aarch64' --dir agent_assembly/bin/
+          mv agent_assembly/bin/aasm-linux-aarch64 agent_assembly/bin/aasm
+          chmod +x agent_assembly/bin/aasm
+          echo "Bundled aasm binary into wheel"
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -176,15 +191,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+          AASM_TAG: ${{ github.event.client_payload.release_tag }}
         run: |
+          set -euo pipefail
           mkdir -p agent_assembly/bin
-          if gh release download --repo "$AASM_REPO" --pattern 'aasm-macos-arm64' --dir agent_assembly/bin/ 2>/dev/null; then
-            mv agent_assembly/bin/aasm-macos-arm64 agent_assembly/bin/aasm
-            chmod +x agent_assembly/bin/aasm
-            echo "Bundled aasm binary into wheel"
-          else
-            echo "::warning::aasm-macos-arm64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
-          fi
+          # See linux-x86_64 above for tag-pinning rationale.
+          TAG_ARG=()
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          # Hard error on missing binary: the repository_dispatch event
+          # guarantees the aasm-* assets exist on the upstream release
+          # at this point (see AI-agent-assembly/agent-assembly#842).
+          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-macos-arm64' --dir agent_assembly/bin/
+          mv agent_assembly/bin/aasm-macos-arm64 agent_assembly/bin/aasm
+          chmod +x agent_assembly/bin/aasm
+          echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
         run: brew install protobuf
       - name: Build wheel
@@ -211,15 +231,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
+          AASM_TAG: ${{ github.event.client_payload.release_tag }}
         run: |
+          set -euo pipefail
           mkdir -p agent_assembly/bin
-          if gh release download --repo "$AASM_REPO" --pattern 'aasm-macos-x86_64' --dir agent_assembly/bin/ 2>/dev/null; then
-            mv agent_assembly/bin/aasm-macos-x86_64 agent_assembly/bin/aasm
-            chmod +x agent_assembly/bin/aasm
-            echo "Bundled aasm binary into wheel"
-          else
-            echo "::warning::aasm-macos-x86_64 not yet published by $AASM_REPO — wheel will ship without bundled binary"
-          fi
+          # See linux-x86_64 above for tag-pinning rationale.
+          TAG_ARG=()
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          # Hard error on missing binary: the repository_dispatch event
+          # guarantees the aasm-* assets exist on the upstream release
+          # at this point (see AI-agent-assembly/agent-assembly#842).
+          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-macos-x86_64' --dir agent_assembly/bin/
+          mv agent_assembly/bin/aasm-macos-x86_64 agent_assembly/bin/aasm
+          chmod +x agent_assembly/bin/aasm
+          echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
         run: brew install protobuf
       - name: Build wheel
@@ -243,8 +268,8 @@ jobs:
       - build-macos-arm64
       - build-macos-x86_64
     runs-on: ubuntu-latest
-    # Publish only on actual tag push; workflow_dispatch is dry-run.
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # Publish only when fired by agent-assembly's repository_dispatch; workflow_dispatch is dry-run.
+    if: github.event_name == 'repository_dispatch'
     environment:
       name: pypi
       url: https://pypi.org/p/agent-assembly
