@@ -79,8 +79,8 @@ jobs:
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see AI-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-linux-x86_64' --dir agent_assembly/bin/
-          mv agent_assembly/bin/aasm-linux-x86_64 agent_assembly/bin/aasm
+          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-x86_64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
+          mv agent_assembly/bin/aasm-x86_64-unknown-linux-gnu.tar.gz agent_assembly/bin/aasm
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
       - name: Build wheel
@@ -144,8 +144,8 @@ jobs:
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see AI-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-linux-aarch64' --dir agent_assembly/bin/
-          mv agent_assembly/bin/aasm-linux-aarch64 agent_assembly/bin/aasm
+          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-aarch64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
+          mv agent_assembly/bin/aasm-aarch64-unknown-linux-gnu.tar.gz agent_assembly/bin/aasm
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
       - name: Build wheel
@@ -201,8 +201,8 @@ jobs:
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see AI-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-macos-arm64' --dir agent_assembly/bin/
-          mv agent_assembly/bin/aasm-macos-arm64 agent_assembly/bin/aasm
+          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-aarch64-apple-darwin.tar.gz' --dir agent_assembly/bin/
+          mv agent_assembly/bin/aasm-aarch64-apple-darwin.tar.gz agent_assembly/bin/aasm
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
@@ -241,8 +241,8 @@ jobs:
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see AI-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-macos-x86_64' --dir agent_assembly/bin/
-          mv agent_assembly/bin/aasm-macos-x86_64 agent_assembly/bin/aasm
+          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-x86_64-apple-darwin.tar.gz' --dir agent_assembly/bin/
+          mv agent_assembly/bin/aasm-x86_64-apple-darwin.tar.gz agent_assembly/bin/aasm
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
