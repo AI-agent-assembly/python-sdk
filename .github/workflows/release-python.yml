@@ -44,6 +44,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Sync version from dispatch payload
+        uses: ./.github/actions/sync-version-from-dispatch
+        with:
+          release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build source distribution
         uses: PyO3/maturin-action@v1
         with:
@@ -86,6 +90,10 @@ jobs:
           rm -f agent_assembly/bin/aasm-x86_64-unknown-linux-gnu.tar.gz
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
+      - name: Sync version from dispatch payload
+        uses: ./.github/actions/sync-version-from-dispatch
+        with:
+          release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -154,6 +162,10 @@ jobs:
           rm -f agent_assembly/bin/aasm-aarch64-unknown-linux-gnu.tar.gz
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
+      - name: Sync version from dispatch payload
+        uses: ./.github/actions/sync-version-from-dispatch
+        with:
+          release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -216,6 +228,10 @@ jobs:
           echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
         run: brew install protobuf
+      - name: Sync version from dispatch payload
+        uses: ./.github/actions/sync-version-from-dispatch
+        with:
+          release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -259,6 +275,10 @@ jobs:
           echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
         run: brew install protobuf
+      - name: Sync version from dispatch payload
+        uses: ./.github/actions/sync-version-from-dispatch
+        with:
+          release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
