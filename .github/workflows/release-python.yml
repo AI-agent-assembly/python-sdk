@@ -75,7 +75,7 @@ jobs:
           # client_payload; workflow_dispatch (dry-run) leaves it empty
           # and falls back to the latest release.
           TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see AI-agent-assembly/agent-assembly#842).
@@ -140,7 +140,7 @@ jobs:
           mkdir -p agent_assembly/bin
           # See linux-x86_64 above for tag-pinning rationale.
           TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see AI-agent-assembly/agent-assembly#842).
@@ -197,7 +197,7 @@ jobs:
           mkdir -p agent_assembly/bin
           # See linux-x86_64 above for tag-pinning rationale.
           TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see AI-agent-assembly/agent-assembly#842).
@@ -237,7 +237,7 @@ jobs:
           mkdir -p agent_assembly/bin
           # See linux-x86_64 above for tag-pinning rationale.
           TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=(--tag "$AASM_TAG"); fi
+          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see AI-agent-assembly/agent-assembly#842).
