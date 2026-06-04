@@ -23,3 +23,15 @@ updates:
       - "dependencies"
     commit-message:
       prefix: ⬆
+
+  # Rust native binding (PyO3) — rust/aa-ffi-python
+  - package-ecosystem: "cargo"
+    directory: "/rust"
+    schedule:
+      interval: "daily"
+    labels:
+      - "🔍 enhancement"
+      - "🦀 rust"
+      - "dependencies"
+    commit-message:
+      prefix: ⬆
