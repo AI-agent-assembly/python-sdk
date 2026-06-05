@@ -16,8 +16,6 @@ AssemblyError                       (base)
 └── MCPToolBlockedError             (MCP tool call blocked by policy)
 ```
 
-`PolicyTimeoutError` is also raised by the optional native runtime client (`agent_assembly._core`) when a policy check exceeds its deadline; it is **not** a subclass of `AssemblyError` because it originates from the Rust FFI layer. Catch it explicitly if you opt into the native fast path.
-
 ## `agent_assembly.exceptions`
 
 ::: agent_assembly.exceptions
