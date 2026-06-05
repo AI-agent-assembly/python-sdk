@@ -88,10 +88,13 @@ impl RuntimeClient {
     ///
     /// The event payload passes through `aa-sdk-client`'s advisory preflight
     /// before the wire; the runtime re-scans authoritatively regardless.
-    fn send_event(&self, event: GovernanceEvent) -> PyResult<()> {
+    fn send_event(&self, py: Python<'_>, event: GovernanceEvent) -> PyResult<()> {
         let event_type = format!("{:?}", event.audit_entry.event_type());
-        self.client
-            .report_event(event_type, event.payload_json)
+        let details = event.payload_json;
+        // Release the GIL while delegating: aa-sdk-client uses a bounded channel
+        // with a blocking send, so under backpressure this can park the calling
+        // thread — holding the GIL there would stall every other Python thread.
+        py.detach(move || self.client.report_event(event_type, details))
             .map_err(map_sdk_error)
     }
 
