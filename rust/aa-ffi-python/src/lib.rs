@@ -414,6 +414,7 @@ fn action_type_from_str(value: &str) -> i32 {
         "network_call" => ActionType::NetworkCall as i32,
         "process_exec" => ActionType::ProcessExec as i32,
         "agent_spawn" => ActionType::AgentSpawn as i32,
+        "tool_result" => ActionType::ToolResult as i32,
         _ => ActionType::ActionUnspecified as i32,
     }
 }
@@ -426,6 +427,7 @@ fn action_type_to_str(value: i32) -> &'static str {
         ActionType::NetworkCall => "network_call",
         ActionType::ProcessExec => "process_exec",
         ActionType::AgentSpawn => "agent_spawn",
+        ActionType::ToolResult => "tool_result",
         ActionType::ActionUnspecified => "",
     }
 }

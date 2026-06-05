@@ -10,8 +10,12 @@ name = "aa_ffi_python"
 crate-type = ["cdylib"]
 
 [dependencies]
-aa-core = { git = "https://github.com/AI-agent-assembly/agent-assembly.git", rev = "ed4aa11a8c1d1ce1e6f96b08cf2179fd772099b2", package = "aa-core", features = ["serde"] }
-aa-proto = { git = "https://github.com/AI-agent-assembly/agent-assembly.git", rev = "ed4aa11a8c1d1ce1e6f96b08cf2179fd772099b2", package = "aa-proto" }
+# Shared crates consumed via git-SHA pin (ADR 0002, AAASM-2559). aa-core,
+# aa-proto, and aa-sdk-client must share one SHA so cargo resolves a single
+# checkout of the agent-assembly workspace.
+aa-core = { git = "https://github.com/AI-agent-assembly/agent-assembly.git", rev = "9cf8a033d39c870ba46a0929b62261d125a00a09", package = "aa-core", features = ["serde"] }
+aa-proto = { git = "https://github.com/AI-agent-assembly/agent-assembly.git", rev = "9cf8a033d39c870ba46a0929b62261d125a00a09", package = "aa-proto" }
+aa-sdk-client = { git = "https://github.com/AI-agent-assembly/agent-assembly.git", rev = "9cf8a033d39c870ba46a0929b62261d125a00a09", package = "aa-sdk-client" }
 once_cell = "1.20"
 prost = "0.14"
 pyo3 = { version = "0.28", features = ["extension-module"] }
