@@ -27,13 +27,14 @@ def test_governance_event_construction(benchmark: Any) -> None:
 
     payload = json.dumps(
         {
-            "event_type": "LlmCall",
-            "agent_id": "bench-agent",
-            "tool_name": "bench-tool",
-            "input": "benchmark input",
-            "output": "benchmark output",
-            "timestamp": "2026-01-01T00:00:00Z",
-            "duration_ms": 100,
+            "seq": 0,
+            "timestamp_ns": 1_700_000_000_000_000_000,
+            "event_type": "ToolCallIntercepted",
+            "agent_id": [7] * 16,
+            "session_id": [11] * 16,
+            "payload": json.dumps({"model": "gpt-4o", "tokens": 100}),
+            "previous_hash": [0] * 32,
+            "entry_hash": [0] * 32,
         }
     )
 
@@ -59,13 +60,14 @@ def test_send_event_enqueue(benchmark: Any) -> None:
 
     payload = json.dumps(
         {
-            "event_type": "LlmCall",
-            "agent_id": "bench-agent",
-            "tool_name": "bench-tool",
-            "input": "benchmark input",
-            "output": "benchmark output",
-            "timestamp": "2026-01-01T00:00:00Z",
-            "duration_ms": 100,
+            "seq": 0,
+            "timestamp_ns": 1_700_000_000_000_000_000,
+            "event_type": "ToolCallIntercepted",
+            "agent_id": [7] * 16,
+            "session_id": [11] * 16,
+            "payload": json.dumps({"model": "gpt-4o", "tokens": 100}),
+            "previous_hash": [0] * 32,
+            "entry_hash": [0] * 32,
         }
     )
     event = _core.GovernanceEvent(payload)
