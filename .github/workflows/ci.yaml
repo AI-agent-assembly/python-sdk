@@ -55,6 +55,10 @@ on:
       - "pyproject.toml"
       - "uv.lock"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test_all:
 #    name: Run all tests and organize all test reports
