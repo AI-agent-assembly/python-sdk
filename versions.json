@@ -3,15 +3,14 @@
     "version": "0.0.2",
     "title": "0.0.2",
     "aliases": [
+      "latest",
       "stable"
     ]
   },
   {
     "version": "0.0.1a3",
     "title": "0.0.1a3",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "0.0.1a2",
