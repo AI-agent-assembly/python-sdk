@@ -145,7 +145,7 @@ uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --rele
 Validate native module import:
 
 ```python
-from agent_assembly._core import RuntimeClient, GovernanceEvent, PolicyResult
+from agent_assembly._core import RuntimeClient, GovernanceEvent
 ```
 
 Run opt-in native integration tests:

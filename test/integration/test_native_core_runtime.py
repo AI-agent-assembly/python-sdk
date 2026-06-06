@@ -175,34 +175,6 @@ def test_send_event_is_non_blocking(native_core) -> None:
 
 
 @pytest.mark.integration
-def test_query_policy_returns_quickly_and_times_out(native_core) -> None:
-    fast_server = MockRuntimeServer(policy_delay_ms=0)
-    fast_server.start()
-
-    fast_client = native_core.RuntimeClient.connect(fast_server.socket_path)
-    try:
-        start = time.perf_counter()
-        result = fast_client.query_policy({"action": "tool.call", "timeout_ms": 50})
-        elapsed_ms = (time.perf_counter() - start) * 1000.0
-        assert elapsed_ms < 50.0
-        assert result.allowed is True
-    finally:
-        fast_client.close()
-        fast_server.close()
-
-    slow_server = MockRuntimeServer(policy_delay_ms=200)
-    slow_server.start()
-
-    slow_client = native_core.RuntimeClient.connect(slow_server.socket_path)
-    try:
-        with pytest.raises(native_core.PolicyTimeoutError):
-            slow_client.query_policy({"action": "slow.call", "timeout_ms": 10})
-    finally:
-        slow_client.close()
-        slow_server.close()
-
-
-@pytest.mark.integration
 def test_runtime_client_has_no_thread_deadlock(native_core) -> None:
     server = MockRuntimeServer()
     server.start()
@@ -214,7 +186,6 @@ def test_runtime_client_has_no_thread_deadlock(native_core) -> None:
         try:
             for index in range(100):
                 client.send_event(native_core.GovernanceEvent(make_audit_entry_payload(index, worker_id=worker_id)))
-                client.query_policy({"action": "tool.call", "timeout_ms": 50})
         except Exception as error:  # pragma: no cover - runtime guard
             errors.append(error)
 

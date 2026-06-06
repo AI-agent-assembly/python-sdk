@@ -31,8 +31,6 @@ _LAZY_EXPORTS: dict[str, str] = {
     "CallStackNode": "agent_assembly.types",
     "CallStackNodeKind": "agent_assembly.types",
     "GovernanceEvent": "agent_assembly._core",
-    "PolicyResult": "agent_assembly._core",
-    "PolicyTimeoutError": "agent_assembly._core",
     "RuntimeClient": "agent_assembly._core",
 }
 
@@ -58,8 +56,6 @@ _ALWAYS_EXPORTED: list[str] = [
 _OPTIONAL_CORE: list[str] = [
     "RuntimeClient",
     "GovernanceEvent",
-    "PolicyResult",
-    "PolicyTimeoutError",
 ]
 
 
@@ -116,7 +112,5 @@ if TYPE_CHECKING:
     with contextlib.suppress(ImportError):
         from agent_assembly._core import (
             GovernanceEvent,
-            PolicyResult,
-            PolicyTimeoutError,
             RuntimeClient,
         )

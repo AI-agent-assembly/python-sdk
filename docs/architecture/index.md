@@ -75,12 +75,10 @@ The pure-Python adapters described above are sufficient for governing most agent
 
 ### What ships in the wheel
 
-The native crate lives at `rust/aa-ffi-python/` in the repository and is built with [`maturin`](https://www.maturin.rs/). When installed, it exposes a private `agent_assembly._core` module with three symbols:
+The native crate lives at `rust/aa-ffi-python/` in the repository and is built with [`maturin`](https://www.maturin.rs/). When installed, it exposes a private `agent_assembly._core` module with two symbols:
 
-- `RuntimeClient` — a Rust-backed gateway client implementing the same protocol as `agent_assembly.client.GatewayClient`. Sub-millisecond policy checks under load.
+- `RuntimeClient` — a Rust-backed runtime client (a thin shim over the shared `aa-sdk-client` crate) that ships governance events to `aa-runtime` over the local socket. Sub-millisecond, fire-and-forget event reporting under load.
 - `GovernanceEvent` — Rust-side dataclass for events emitted on the audit channel.
-- `PolicyResult` — Rust-side enum-like value returned from `RuntimeClient.evaluate(...)`.
-- `PolicyTimeoutError` — raised when a policy check exceeds the configured deadline.
 
 `agent_assembly/__init__.py` imports these symbols inside a `try / except ImportError` block. **If the native extension was never built, the SDK still works** — pure-Python `GatewayClient` is the fallback, and the `RuntimeClient` symbol simply is not present in `agent_assembly.__all__`.
 
