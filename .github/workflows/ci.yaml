@@ -63,6 +63,12 @@ jobs:
   build-and-test_all:
 #    name: Run all tests and organize all test reports
     uses: ./.github/workflows/rw_run_all_test_and_record.yaml
+    with:
+      # PRs run ubuntu-only to trim the 4-OS matrix; push/scheduled/release keep the full list.
+      operating-systems: >-
+        ${{ github.event_name == 'pull_request'
+            && '["ubuntu-latest"]'
+            || '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]' }}
     secrets:
       codecov_token: ${{ secrets.CODECOV_TOKEN }}
       sonar_token: ${{ secrets.SONAR_TOKEN }}
