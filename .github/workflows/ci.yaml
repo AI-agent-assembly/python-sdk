@@ -72,3 +72,23 @@ jobs:
     secrets:
       codecov_token: ${{ secrets.CODECOV_TOKEN }}
       sonar_token: ${{ secrets.SONAR_TOKEN }}
+
+  # Single aggregate required check. Collapses the reusable-workflow fan-out into one
+  # stable status so branch protection needs only this check, and it still reports a
+  # result (success on skip) instead of staying pending when path filters skip the
+  # underlying test jobs.
+  ci-success:
+    name: CI Success
+    needs: [build-and-test_all]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify upstream jobs did not fail or get cancelled
+        run: |
+          result="${{ needs.build-and-test_all.result }}"
+          echo "build-and-test_all result: ${result}"
+          if [ "${result}" = "failure" ] || [ "${result}" = "cancelled" ]; then
+            echo "::error::CI failed: build-and-test_all=${result}"
+            exit 1
+          fi
+          echo "CI Success: all required upstream jobs passed or were skipped."
