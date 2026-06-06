@@ -25,11 +25,24 @@ Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agen
 
 ### Use the SDK in your project
 
+The package is published on PyPI as [`agent-assembly`](https://pypi.org/project/agent-assembly/):
+
 ```bash
-pip install agent-assembly
+pip install agent-assembly            # pure-Python SDK
+pip install 'agent-assembly[runtime]' # SDK + bundled aasm runtime binary (platform wheel)
 ```
 
-(Once published to PyPI. Until then, install directly from GitHub:)
+`agent-assembly[runtime]` pulls a platform wheel (`manylinux`, `macosx`) that bundles the
+`aasm` sidecar binary, so you don't need a separate runtime install. Plain `agent-assembly`
+is the pure-Python client and expects an `aasm` runtime to be reachable some other way.
+
+With [`uv`](https://docs.astral.sh/uv/):
+
+```bash
+uv add agent-assembly
+```
+
+To track unreleased changes, install from the `master` branch:
 
 ```bash
 pip install git+https://github.com/AI-agent-assembly/python-sdk.git
