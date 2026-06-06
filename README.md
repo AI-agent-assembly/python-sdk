@@ -15,6 +15,17 @@ Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agen
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need sub-millisecond policy checks.
 - **Typed throughout** — Pydantic models for every gateway payload, mypy strict on adapter base and registry.
 
+## Project status
+
+**Pre-1.0 (`0.x`) — published and usable, API not yet frozen.** The SDK is released to
+PyPI from the `0.0.x` line (the version badge above reflects the current release). Until
+`1.0.0`, minor versions may introduce breaking changes to the public surface; pin an exact
+version (`agent-assembly==0.0.x`) if you need a stable contract.
+
+- **Releases** — [PyPI release history](https://pypi.org/project/agent-assembly/#history) · [GitHub releases](https://github.com/AI-agent-assembly/python-sdk/releases)
+- **Changelog** — tracked via [commits to `master`](https://github.com/AI-agent-assembly/python-sdk/commits/master) until the first tagged `1.0` release; see the [release notes](https://ai-agent-assembly.github.io/python-sdk/latest/release-notes/) page.
+- **Stability** — the `init_assembly()` entry point and the exception hierarchy are the most stable surface; framework adapters and the native fast path may evolve faster.
+
 ## Requirements
 
 - **Python** `>=3.12,<4.0` (3.12, 3.13, 3.14 are tested in CI)
