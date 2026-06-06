@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "rust/**"
-      - "agent_assembly/**"
+      # FFI-binding Python files that import the native `_core` module.
+      - "agent_assembly/__init__.py"
+      - "agent_assembly/types.py"
       - ".github/workflows/native-core-build.yml"
   workflow_dispatch:
 
