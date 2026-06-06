@@ -2,6 +2,9 @@ name: Benchmarks
 
 on:
   pull_request:
+    # Only run when a PR is (re)labeled; the job below gates on the 'benchmark' label
+    # so benchmarks stay off the default per-PR path (noisy on shared runners).
+    types: [labeled]
     branches:
       - "master"
     paths:
@@ -11,9 +14,14 @@ on:
       - "pyproject.toml"
       - "uv.lock"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmark:
     name: Run performance benchmarks
+    if: contains(github.event.pull_request.labels.*.name, 'benchmark')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

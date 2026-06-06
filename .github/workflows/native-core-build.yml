@@ -4,9 +4,15 @@ on:
   pull_request:
     paths:
       - "rust/**"
-      - "agent_assembly/**"
+      # FFI-binding Python files that import the native `_core` module.
+      - "agent_assembly/__init__.py"
+      - "agent_assembly/types.py"
       - ".github/workflows/native-core-build.yml"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-native-core:
@@ -37,7 +43,7 @@ jobs:
       - name: Build native module with maturin
         env:
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
-        run: uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+        run: uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml
 
       - name: Verify native module import
         run: |

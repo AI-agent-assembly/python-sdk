@@ -8,6 +8,11 @@ on:
         type: boolean
         required: false
         default: false
+      operating-systems:
+        description: "JSON array string of runner OSes for the test matrix. Callers pass [\"ubuntu-latest\"] for PRs and the full 4-OS list for push/scheduled/release."
+        type: string
+        required: false
+        default: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'
     secrets:
       e2e_test_api_token:
         description: "Set the Slack bot token for end-to-end test."
@@ -22,7 +27,7 @@ jobs:
       test_folder: './test/unit'
       install_dependency_with_group: 'dev'
       python-versions: '["3.13"]'
-      operating-systems: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'
+      operating-systems: ${{ inputs.operating-systems }}
 
   run_integration-test:
 #    name: Run all integration test items
@@ -32,7 +37,7 @@ jobs:
       test_folder: './test/integration'
       install_dependency_with_group: 'dev'
       python-versions: '["3.13"]'
-      operating-systems: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'
+      operating-systems: ${{ inputs.operating-systems }}
 
   run_e2e-test:
 #    name: Run all end-to-end test items
@@ -44,7 +49,7 @@ jobs:
       install_dependency_with_group: 'dev'
       max-parallel: 1
       python-versions: '["3.13"]'
-      operating-systems: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'
+      operating-systems: ${{ inputs.operating-systems }}
     secrets:
       e2e_test_api_token: ${{ secrets.e2e_test_api_token }}
 

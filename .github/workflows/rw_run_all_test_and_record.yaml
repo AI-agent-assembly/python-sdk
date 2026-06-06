@@ -8,6 +8,11 @@ on:
         type: boolean
         required: false
         default: false
+      operating-systems:
+        description: "JSON array string of runner OSes for the test matrix. Forwarded to rw_build_and_test."
+        type: string
+        required: false
+        default: '["ubuntu-latest", "ubuntu-22.04", "macos-latest", "macos-14"]'
     secrets:
       e2e_test_api_token:
         description: "Set the Slack bot token for end-to-end test."
@@ -25,6 +30,7 @@ jobs:
     uses: ./.github/workflows/rw_build_and_test.yaml
     with:
       run_e2e: ${{ inputs.run_e2e }}
+      operating-systems: ${{ inputs.operating-systems }}
     secrets:
       e2e_test_api_token: ${{ secrets.e2e_test_api_token }}
 
