@@ -15,15 +15,19 @@ Stable, importable types you can annotate against:
 
 | Import | Kind | Notes |
 | --- | --- | --- |
-| `agent_assembly.AuditEvent` | `dataclass` | A governance event from the audit trail. |
-| `agent_assembly.CallStackNode` | `dataclass` | One node in an event's hierarchical call stack. |
-| `agent_assembly.CallStackNodeKind` | type alias | `Literal["llm", "tool", "result"]`. |
+| `agent_assembly.types.AuditEvent` | `dataclass` | A governance event from the audit trail. |
+| `agent_assembly.types.CallStackNode` | `dataclass` | One node in an event's hierarchical call stack. |
+| `agent_assembly.types.CallStackNodeKind` | type alias | `Literal["llm", "tool", "result"]`. |
 | `agent_assembly.models.AgentConfig` | `pydantic.BaseModel` | Agent registration config. |
 | `agent_assembly.models.AgentState` | `pydantic.BaseModel` | Agent runtime state. |
 | `agent_assembly.models.PolicyEvaluation` | `pydantic.BaseModel` | Policy decision result. |
 
-The exception hierarchy (`AssemblyError` and subtypes) is also fully typed; catch the most
-specific subtype you care about.
+Import data types from their defining submodule (`agent_assembly.types`,
+`agent_assembly.models`) as shown — this is what the SDK's own code does and keeps strict
+checkers (mypy `--strict`, which enables `no-implicit-reexport`) happy. `init_assembly` and the
+exception hierarchy are imported from the top-level `agent_assembly` package. The exception
+types (`AssemblyError` and subtypes) are fully typed too; catch the most specific subtype you
+care about.
 
 ## Checking your own code
 
