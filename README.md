@@ -210,6 +210,12 @@ doc.
 
 Please read [**CONTRIBUTING.md**](./CONTRIBUTING.md) before opening a PR — it covers dev environment setup, framework adapter authoring, the test/lint command list, branch naming, and the PR checklist.
 
+## Support
+
+- **Bugs & feature requests** — open a [GitHub issue](https://github.com/AI-agent-assembly/python-sdk/issues).
+- **Questions & usage help** — start with the [documentation site](https://ai-agent-assembly.github.io/python-sdk/) and the [Troubleshooting](https://ai-agent-assembly.github.io/python-sdk/latest/development/troubleshooting/) guide, then open an issue if you're still stuck.
+- **Security** — please **do not** file public issues for vulnerabilities. Report them privately via [GitHub Security Advisories](https://github.com/AI-agent-assembly/python-sdk/security/advisories/new).
+
 ## License
 
 [MIT License](./LICENSE)
