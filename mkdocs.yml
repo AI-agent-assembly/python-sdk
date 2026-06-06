@@ -154,6 +154,10 @@ nav:
   - Home: index.md
   - Architecture:
       - architecture/index.md
+  - Usage:
+      - Configuration: usage/configuration.md
+      - Framework examples: usage/framework-examples.md
+      - Type checking: usage/type-checking.md
   - API reference:
       - api-reference/index.md
       - Client: api-reference/client.md
@@ -161,6 +165,9 @@ nav:
       - Models: api-reference/models.md
   - Development:
       - development/index.md
+      - Troubleshooting: development/troubleshooting.md
+      - Compatibility: development/compatibility.md
+      - Release process: development/release-process.md
       - ADR:
           - 0001 — Hook architecture: development/adr/0001-hook-architecture.md
   - Release notes:
