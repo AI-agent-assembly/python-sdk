@@ -186,6 +186,26 @@ AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturi
 - **API reference** — [rendered](https://ai-agent-assembly.github.io/python-sdk/latest/api-reference/) / [source](./docs/api-reference/index.md) — auto-generated from package docstrings via `mkdocstrings`. Per-module pages: [Client](./docs/api-reference/client.md), [Exceptions](./docs/api-reference/exceptions.md), [Models](./docs/api-reference/models.md).
 - **ADRs** — [`docs/development/adr/`](./docs/development/adr/) (architecture decision records)
 
+## Ecosystem
+
+This SDK is one piece of the **AI Agent Assembly** project. Start from the
+[organization profile](https://github.com/AI-agent-assembly) to discover every repo, or jump
+directly:
+
+| Project | What it is |
+| --- | --- |
+| [agent-assembly](https://github.com/AI-agent-assembly/agent-assembly) | **Core runtime** — gateway, policy engine, eBPF, proxy, CLI. Also home of the protocol specification. |
+| [Documentation site](https://ai-agent-assembly.github.io/agent-assembly-docs/) | Canonical, cross-repo documentation hub for the whole project. |
+| [python-sdk](https://github.com/AI-agent-assembly/python-sdk) | **This repo** — the Python SDK. |
+| [node-sdk](https://github.com/AI-agent-assembly/node-sdk) · [go-sdk](https://github.com/AI-agent-assembly/go-sdk) | Sibling SDKs for TypeScript/Node and Go. |
+| [homebrew-agent-assembly](https://github.com/AI-agent-assembly/homebrew-agent-assembly) | Homebrew tap for installing the `aasm` runtime CLI. |
+
+The protocol specification and gateway behaviour the SDK targets live in the core runtime
+monorepo; see its [README](https://github.com/AI-agent-assembly/agent-assembly#readme) for the
+spec and architecture. For how this SDK stays in sync with the core runtime, see the
+[Compatibility](https://ai-agent-assembly.github.io/python-sdk/latest/development/compatibility/)
+doc.
+
 ## Contributing
 
 Please read [**CONTRIBUTING.md**](./CONTRIBUTING.md) before opening a PR — it covers dev environment setup, framework adapter authoring, the test/lint command list, branch naming, and the PR checklist.
