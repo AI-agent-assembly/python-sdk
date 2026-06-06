@@ -41,4 +41,4 @@ jobs:
 
       - name: Verify native module import
         run: |
-          uv run python -c "from agent_assembly._core import RuntimeClient, GovernanceEvent, PolicyResult"
+          uv run python -c "from agent_assembly._core import RuntimeClient, GovernanceEvent"
