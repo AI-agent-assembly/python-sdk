@@ -8,8 +8,8 @@ site_description: >-
   with one init_assembly() call.
 
 # Repository
-repo_name: AI-agent-assembly/python-sdk
-repo_url: https://github.com/AI-agent-assembly/python-sdk
+repo_name: ai-agent-assembly/python-sdk
+repo_url: https://github.com/ai-agent-assembly/python-sdk
 edit_uri: edit/master/docs/
 
 # Copyright
@@ -90,7 +90,7 @@ plugins:
       strict: true
   # Documentation modification info — per-page contributor list.
   - git-committers:
-      repository: AI-agent-assembly/python-sdk
+      repository: ai-agent-assembly/python-sdk
       branch: master
 
 # Extensions
@@ -120,7 +120,7 @@ markdown_extensions:
   - pymdownx.keys
   - pymdownx.magiclink:
       repo_url_shorthand: true
-      user: AI-agent-assembly
+      user: ai-agent-assembly
       repo: python-sdk
   - pymdownx.mark
   - pymdownx.smartsymbols
@@ -145,7 +145,7 @@ extra:
   # Social info
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/AI-agent-assembly/python-sdk
+      link: https://github.com/ai-agent-assembly/python-sdk
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/agent-assembly/
 
