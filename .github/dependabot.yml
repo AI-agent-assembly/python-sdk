@@ -24,9 +24,9 @@ updates:
     commit-message:
       prefix: ⬆
 
-  # Rust native binding (PyO3) — rust/aa-ffi-python
+  # Rust native binding (PyO3) — native/aa-ffi-python
   - package-ecosystem: "cargo"
-    directory: "/rust"
+    directory: "/native/aa-ffi-python"
     schedule:
       interval: "daily"
     labels:

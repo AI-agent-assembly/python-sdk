@@ -3,7 +3,7 @@ name: Native Core Build Check
 on:
   pull_request:
     paths:
-      - "rust/**"
+      - "native/**"
       # FFI-binding Python files that import the native `_core` module.
       - "agent_assembly/__init__.py"
       - "agent_assembly/types.py"
@@ -43,7 +43,7 @@ jobs:
       - name: Build native module with maturin
         env:
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
-        run: uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml
+        run: uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml
 
       - name: Verify native module import
         run: |
