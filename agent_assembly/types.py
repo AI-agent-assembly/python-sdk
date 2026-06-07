@@ -115,7 +115,7 @@ class AuditEvent:
             raise ImportError(
                 "AuditEvent.to_wire_bytes() requires the native "
                 "agent_assembly._core extension; reinstall with the "
-                "native wheel or run `maturin develop` in rust/aa-ffi-python/."
+                "native wheel or run `maturin develop` in native/aa-ffi-python/."
             ) from exc
         return cast(bytes, audit_event_to_wire_bytes(self))
 
@@ -133,7 +133,7 @@ class AuditEvent:
             raise ImportError(
                 "AuditEvent.from_wire_bytes() requires the native "
                 "agent_assembly._core extension; reinstall with the "
-                "native wheel or run `maturin develop` in rust/aa-ffi-python/."
+                "native wheel or run `maturin develop` in native/aa-ffi-python/."
             ) from exc
         return cast(AuditEvent, audit_event_from_wire_bytes(data))
 

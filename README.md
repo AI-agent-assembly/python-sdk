@@ -72,7 +72,7 @@ uv sync
 To build the optional PyO3 extension locally (requires Rust):
 
 ```bash
-uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --release
 ```
 
 The pure-Python SDK works without the native extension — `maturin develop` is only needed if you want the sub-millisecond `RuntimeClient` fast path.
@@ -163,7 +163,7 @@ uv run mypy agent_assembly
 Build and install the PyO3 extension locally:
 
 ```bash
-uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --release
 ```
 
 Validate native module import:

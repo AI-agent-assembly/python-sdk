@@ -30,7 +30,7 @@ an exact core-runtime commit**. All three shared crates resolve to a single git 
 share one protocol definition (ADR-0002 / AAASM-2559):
 
 ```toml
-# rust/aa-ffi-python/Cargo.toml
+# native/aa-ffi-python/Cargo.toml
 aa-core       = { git = ".../agent-assembly.git", rev = "<sha>", package = "aa-core" }
 aa-proto      = { git = ".../agent-assembly.git", rev = "<sha>", package = "aa-proto" }
 aa-sdk-client = { git = ".../agent-assembly.git", rev = "<sha>", package = "aa-sdk-client" }
@@ -38,7 +38,7 @@ aa-sdk-client = { git = ".../agent-assembly.git", rev = "<sha>", package = "aa-s
 
 **The pinned `rev` is the source of truth** for which core-runtime revision a given native
 wheel is wire-compatible with. To find it, read the `rev` in
-[`rust/aa-ffi-python/Cargo.toml`](https://github.com/AI-agent-assembly/python-sdk/blob/master/rust/aa-ffi-python/Cargo.toml)
+[`native/aa-ffi-python/Cargo.toml`](https://github.com/AI-agent-assembly/python-sdk/blob/master/native/aa-ffi-python/Cargo.toml)
 and compare it against the [core runtime history](https://github.com/AI-agent-assembly/agent-assembly/commits/master).
 
 ## Shared wire semantics
