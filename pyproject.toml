@@ -93,7 +93,7 @@ default-groups = [
 ]
 
 [tool.maturin]
-manifest-path = "rust/aa-ffi-python/Cargo.toml"
+manifest-path = "native/aa-ffi-python/Cargo.toml"
 module-name = "agent_assembly._core"
 python-source = "."
 bindings = "pyo3"
