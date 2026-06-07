@@ -19,7 +19,7 @@ def test_maturin_develop_exposes_runtime_client() -> None:
         "maturin",
         "develop",
         "--manifest-path",
-        "rust/aa-ffi-python/Cargo.toml",
+        "native/aa-ffi-python/Cargo.toml",
         "--release",
     ]
     env = os.environ.copy()
