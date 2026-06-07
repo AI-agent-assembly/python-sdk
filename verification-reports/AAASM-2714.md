@@ -24,7 +24,7 @@ all dependency versions are explicit, exactly like `aa-ffi-node`.
 - The 3-crate git-SHA pin (`aa-core` / `aa-proto` / `aa-sdk-client` @
   `9cf8a033…`) — unchanged.
 - `[lib] crate-type = ["cdylib"]` — unchanged.
-- Org casing (`AI-agent-assembly`) in git-dep URLs — left as-is (separate ticket).
+- Org casing (`ai-agent-assembly`) in git-dep URLs — left as-is (separate ticket).
 - Historical `verification-reports/*.md` — left as point-in-time records.
 
 ## Changes

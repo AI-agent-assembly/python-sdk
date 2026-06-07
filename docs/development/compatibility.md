@@ -38,8 +38,8 @@ aa-sdk-client = { git = ".../agent-assembly.git", rev = "<sha>", package = "aa-s
 
 **The pinned `rev` is the source of truth** for which core-runtime revision a given native
 wheel is wire-compatible with. To find it, read the `rev` in
-[`native/aa-ffi-python/Cargo.toml`](https://github.com/AI-agent-assembly/python-sdk/blob/master/native/aa-ffi-python/Cargo.toml)
-and compare it against the [core runtime history](https://github.com/AI-agent-assembly/agent-assembly/commits/master).
+[`native/aa-ffi-python/Cargo.toml`](https://github.com/ai-agent-assembly/python-sdk/blob/master/native/aa-ffi-python/Cargo.toml)
+and compare it against the [core runtime history](https://github.com/ai-agent-assembly/agent-assembly/commits/master).
 
 ## Shared wire semantics
 
@@ -52,9 +52,9 @@ in snake_case.
 ## Upgrading
 
 - **Pure-Python only** — upgrade `agent-assembly` from PyPI freely; pin an exact version if you
-  need a frozen contract (the project is pre-1.0; see [Project status](https://github.com/AI-agent-assembly/python-sdk#project-status)).
+  need a frozen contract (the project is pre-1.0; see [Project status](https://github.com/ai-agent-assembly/python-sdk#project-status)).
 - **Native path** — a new native wheel may advance the pinned core-runtime SHA. If you run a
   self-managed gateway, keep it within the same protocol generation as the pinned `rev`.
 
-See the core runtime's [README](https://github.com/AI-agent-assembly/agent-assembly#readme) for
+See the core runtime's [README](https://github.com/ai-agent-assembly/agent-assembly#readme) for
 the protocol specification and the gateway side of this contract.

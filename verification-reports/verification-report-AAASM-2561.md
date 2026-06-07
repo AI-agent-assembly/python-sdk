@@ -2,7 +2,7 @@
 
 **Story:** AAASM-2561 — ♻️ (python-sdk): Thin Python pyo3 shim over `aa-sdk-client` (retire fat binding copy)
 **Epic:** AAASM-2552 — SDK security boundary + FFI consolidation (boundary-first)
-**ADR:** [`agent-assembly/docs/src/adr/0002-sdk-security-boundary.md`](https://github.com/AI-agent-assembly/agent-assembly/blob/master/docs/src/adr/0002-sdk-security-boundary.md)
+**ADR:** [`agent-assembly/docs/src/adr/0002-sdk-security-boundary.md`](https://github.com/ai-agent-assembly/agent-assembly/blob/master/docs/src/adr/0002-sdk-security-boundary.md)
 **Component:** `python-sdk` — binding at `rust/aa-ffi-python/`
 **Date:** 2026-06-06
 
@@ -18,8 +18,8 @@ The Python SDK's PyO3 binding is now a **thin shim** over the shared `aa-sdk-cli
 
 | Subtask | PR | Scope |
 | --- | --- | --- |
-| AAASM-2640 | [#79](https://github.com/AI-agent-assembly/python-sdk/pull/79) | Pin shared crates + add `aa-sdk-client`; delegate `RuntimeClient` to `aa_sdk_client::AssemblyClient`; release the GIL during `send_event` |
-| AAASM-2641 | [#80](https://github.com/AI-agent-assembly/python-sdk/pull/80) | Drop `PolicyResult`/`PolicyTimeoutError` from `_core` exports; align native tests + docs; valid `AuditEntry` payload in the FFI benchmark |
+| AAASM-2640 | [#79](https://github.com/ai-agent-assembly/python-sdk/pull/79) | Pin shared crates + add `aa-sdk-client`; delegate `RuntimeClient` to `aa_sdk_client::AssemblyClient`; release the GIL during `send_event` |
+| AAASM-2641 | [#80](https://github.com/ai-agent-assembly/python-sdk/pull/80) | Drop `PolicyResult`/`PolicyTimeoutError` from `_core` exports; align native tests + docs; valid `AuditEntry` payload in the FFI benchmark |
 | AAASM-2642 | this PR | Verification + report |
 
 ## Acceptance criteria

@@ -90,7 +90,7 @@ Run the maturin build only if you need the native fast path:
 uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --release
 ```
 
-For most contributors, this is unnecessary — the pure-Python SDK is the default development path, and CI exercises both with and without the native extension via the `AAASM_RUN_NATIVE_CORE_TESTS` and `AAASM_RUN_MATURIN_TESTS` environment-variable gates documented in [CONTRIBUTING.md](https://github.com/AI-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md).
+For most contributors, this is unnecessary — the pure-Python SDK is the default development path, and CI exercises both with and without the native extension via the `AAASM_RUN_NATIVE_CORE_TESTS` and `AAASM_RUN_MATURIN_TESTS` environment-variable gates documented in [CONTRIBUTING.md](https://github.com/ai-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md).
 
 ## `init_assembly()` lifecycle
 

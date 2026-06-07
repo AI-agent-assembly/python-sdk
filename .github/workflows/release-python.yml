@@ -4,7 +4,7 @@ on:
   # Triggered by agent-assembly's `notify-downstream` job after the upstream
   # GitHub Release is created and aasm-* binaries are uploaded. Payload:
   #   { "release_tag": "v0.0.1-alpha.4" }
-  # See AI-agent-assembly/agent-assembly PR #842 for the dispatcher side.
+  # See ai-agent-assembly/agent-assembly PR #842 for the dispatcher side.
   repository_dispatch:
     types: [agent-assembly-release-published]
   workflow_dispatch:
@@ -26,7 +26,7 @@ env:
   # Source of the prebuilt aasm sidecar binary, fetched per platform
   # before each maturin build so it lands at agent_assembly/bin/aasm
   # inside the wheel (matches runtime.py's WHEEL_BUNDLED_BIN search path).
-  AASM_BINARY_RELEASE_REPO: AI-agent-assembly/agent-assembly
+  AASM_BINARY_RELEASE_REPO: ai-agent-assembly/agent-assembly
   PYTHON_VERSION: '3.12'
   # protoc binary version + per-arch SHA256 sums (cross-verified against
   # the GitHub release API's `digest:` field on the v32.1 release assets).
@@ -82,7 +82,7 @@ jobs:
           if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
-          # at this point (see AI-agent-assembly/agent-assembly#842).
+          # at this point (see ai-agent-assembly/agent-assembly#842).
           gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-x86_64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
@@ -154,7 +154,7 @@ jobs:
           if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
-          # at this point (see AI-agent-assembly/agent-assembly#842).
+          # at this point (see ai-agent-assembly/agent-assembly#842).
           gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-aarch64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
@@ -218,7 +218,7 @@ jobs:
           if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
-          # at this point (see AI-agent-assembly/agent-assembly#842).
+          # at this point (see ai-agent-assembly/agent-assembly#842).
           gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-aarch64-apple-darwin.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
@@ -265,7 +265,7 @@ jobs:
           if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
-          # at this point (see AI-agent-assembly/agent-assembly#842).
+          # at this point (see ai-agent-assembly/agent-assembly#842).
           gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-x86_64-apple-darwin.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
