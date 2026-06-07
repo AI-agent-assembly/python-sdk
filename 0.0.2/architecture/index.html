@@ -1384,7 +1384,7 @@
 <h2 id="pyo3-ffi-layer">PyO3 FFI layer<a class="headerlink" href="#pyo3-ffi-layer" title="Permanent link">&para;</a></h2>
 <p>The pure-Python adapters described above are sufficient for governing most agent frameworks. For deployments where every microsecond of policy-check latency matters — typically gateways under heavy multi-tenant load — the SDK ships an <strong>optional</strong> native runtime client written in Rust and exposed to Python via <a href="https://pyo3.rs/">PyO3</a>.</p>
 <h3 id="what-ships-in-the-wheel">What ships in the wheel<a class="headerlink" href="#what-ships-in-the-wheel" title="Permanent link">&para;</a></h3>
-<p>The native crate lives at <code>rust/aa-ffi-python/</code> in the repository and is built with <a href="https://www.maturin.rs/"><code>maturin</code></a>. When installed, it exposes a private <code>agent_assembly._core</code> module with two symbols:</p>
+<p>The native crate lives at <code>native/aa-ffi-python/</code> in the repository and is built with <a href="https://www.maturin.rs/"><code>maturin</code></a>. When installed, it exposes a private <code>agent_assembly._core</code> module with two symbols:</p>
 <ul>
 <li><code>RuntimeClient</code> — a Rust-backed runtime client (a thin shim over the shared <code>aa-sdk-client</code> crate) that ships governance events to <code>aa-runtime</code> over the local socket. Sub-millisecond, fire-and-forget event reporting under load.</li>
 <li><code>GovernanceEvent</code> — Rust-side dataclass for events emitted on the audit channel.</li>
@@ -1392,7 +1392,7 @@
 <p><code>agent_assembly/__init__.py</code> imports these symbols inside a <code>try / except ImportError</code> block. <strong>If the native extension was never built, the SDK still works</strong> — pure-Python <code>GatewayClient</code> is the fallback, and the <code>RuntimeClient</code> symbol simply is not present in <code>agent_assembly.__all__</code>.</p>
 <h3 id="when-to-build-it">When to build it<a class="headerlink" href="#when-to-build-it" title="Permanent link">&para;</a></h3>
 <p>Run the maturin build only if you need the native fast path:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>rust/aa-ffi-python/Cargo.toml<span class="w"> </span>--release
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>native/aa-ffi-python/Cargo.toml<span class="w"> </span>--release
 </span></code></pre></div>
 <p>For most contributors, this is unnecessary — the pure-Python SDK is the default development path, and CI exercises both with and without the native extension via the <code>AAASM_RUN_NATIVE_CORE_TESTS</code> and <code>AAASM_RUN_MATURIN_TESTS</code> environment-variable gates documented in <a href="https://github.com/AI-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
 <h2 id="init_assembly-lifecycle"><code>init_assembly()</code> lifecycle<a class="headerlink" href="#init_assembly-lifecycle" title="Permanent link">&para;</a></h2>
@@ -1440,7 +1440,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 6, 2026 03:21:42 CST"><span class="timeago" datetime="2026-06-06T03:21:42+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 6, 2026 03:21:42 CST">2026-06-06</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 7, 2026 21:05:51 CST"><span class="timeago" datetime="2026-06-07T21:05:51+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 7, 2026 21:05:51 CST">2026-06-07</span>
   </span>
 
     
