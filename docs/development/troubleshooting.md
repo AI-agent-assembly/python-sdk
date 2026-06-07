@@ -55,5 +55,5 @@ uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --re
 
 ## Still stuck?
 
-Open a [GitHub issue](https://github.com/AI-agent-assembly/python-sdk/issues) with the full
+Open a [GitHub issue](https://github.com/ai-agent-assembly/python-sdk/issues) with the full
 traceback and your `init_assembly()` call (redact secrets).

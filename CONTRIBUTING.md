@@ -22,7 +22,7 @@ Thanks for your interest in improving the Agent Assembly Python SDK. This docume
 ### One-time setup
 
 ```bash
-git clone https://github.com/AI-agent-assembly/python-sdk.git
+git clone https://github.com/ai-agent-assembly/python-sdk.git
 cd python-sdk
 uv sync                           # creates .venv and installs runtime + dev dependencies
 uv run pre-commit install         # wires pre-commit hooks into your git config
@@ -141,7 +141,7 @@ Pre-commit hooks block commits that fail any of the above. Do not bypass with `-
 
 - **Branch**: `<release-or-phase>/<ticket>/<short_summary>` — e.g. `v0.0.0/AAASM-1122/author_readme_contributing`. Type slug optional but recommended (`feat`, `fix`, `refactor`, `test`, `docs`, `config`, `deps`, `remove`, `lint`).
 - **Base branch**: always `master`. Never branch from another feature branch.
-- **Push remote**: `remote` (= `https://github.com/AI-agent-assembly/python-sdk`). Never push feature branches to `origin` (the personal fork).
+- **Push remote**: `remote` (= `https://github.com/ai-agent-assembly/python-sdk`). Never push feature branches to `origin` (the personal fork).
 - **Commit message format**: `<gitemoji> (<scope>): <imperative summary under 72 chars>` — e.g. `📝 (readme): Add badge strip`. See [gitmoji.dev](https://gitmoji.dev/) for the full emoji table.
 - **One concern per commit.** Each commit must be bisectable: tests pass, build succeeds. Prefer many small commits over one large commit.
 

@@ -46,7 +46,7 @@ repository today.
     A ⏳ row means the **adapter is implemented and registered** — `init_assembly()` will detect
     and hook the framework if it's installed — but a curated, end-to-end runnable example is
     not yet vendored in `examples/`. Contributions adding one are welcome; see
-    [CONTRIBUTING.md](https://github.com/AI-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md).
+    [CONTRIBUTING.md](https://github.com/ai-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md).
 
 ## LangChain quick start
 
@@ -83,6 +83,6 @@ with init_assembly(
     print(executor.invoke({"input": "Which team is alice on?"})["output"])
 ```
 
-The same snippet lives in the repository [README](https://github.com/AI-agent-assembly/python-sdk#quick-start)
-and is the canonical, validated example. See the [`examples/`](https://github.com/AI-agent-assembly/python-sdk/tree/master/examples)
+The same snippet lives in the repository [README](https://github.com/ai-agent-assembly/python-sdk#quick-start)
+and is the canonical, validated example. See the [`examples/`](https://github.com/ai-agent-assembly/python-sdk/tree/master/examples)
 directory for additional runnable scripts and their status.

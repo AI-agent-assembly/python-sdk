@@ -12,7 +12,7 @@ Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agen
 
 ## Where to next
 
-- **[Quickstart](https://github.com/AI-agent-assembly/python-sdk#quick-start)** — 5-minute LangChain ReAct example with a mock LLM (in the repo README).
+- **[Quickstart](https://github.com/ai-agent-assembly/python-sdk#quick-start)** — 5-minute LangChain ReAct example with a mock LLM (in the repo README).
 - **[Architecture](architecture/index.md)** — adapter pattern, PyO3 FFI layer, and the `init_assembly()` lifecycle.
 - **[API reference](api-reference/index.md)** — auto-generated from package docstrings via `mkdocstrings`.
 - **[Development](development/index.md)** — ADRs, contributor docs, and project conventions.

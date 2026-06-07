@@ -44,7 +44,7 @@ unhandled `None`, etc.) is caught before runtime.
 ## Worked example
 
 A runnable, mypy-clean example lives at
-[`examples/type_checking/`](https://github.com/AI-agent-assembly/python-sdk/tree/master/examples/type_checking).
+[`examples/type_checking/`](https://github.com/ai-agent-assembly/python-sdk/tree/master/examples/type_checking).
 It annotates against the public types above and is checked with:
 
 ```bash
@@ -61,5 +61,5 @@ uv run mypy agent_assembly
 ```
 
 The adapter base class and registry are held to mypy strict. See
-[CONTRIBUTING.md](https://github.com/AI-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md)
+[CONTRIBUTING.md](https://github.com/ai-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md)
 for the full lint/type workflow.

@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/agent-assembly.svg)](https://pypi.org/project/agent-assembly/)
 [![Python versions](https://img.shields.io/pypi/pyversions/agent-assembly.svg)](https://pypi.org/project/agent-assembly/)
-[![CI](https://github.com/AI-agent-assembly/python-sdk/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/AI-agent-assembly/python-sdk/actions/workflows/ci.yaml)
+[![CI](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agents. One `init_assembly()` call wires your agent into the policy gateway, applies pre-execution allow/deny on tool calls, and emits audit events without changing how the agent itself is written.
@@ -22,8 +22,8 @@ PyPI from the `0.0.x` line (the version badge above reflects the current release
 `1.0.0`, minor versions may introduce breaking changes to the public surface; pin an exact
 version (`agent-assembly==0.0.x`) if you need a stable contract.
 
-- **Releases** — [PyPI release history](https://pypi.org/project/agent-assembly/#history) · [GitHub releases](https://github.com/AI-agent-assembly/python-sdk/releases)
-- **Changelog** — tracked via [commits to `master`](https://github.com/AI-agent-assembly/python-sdk/commits/master) until the first tagged `1.0` release; see the [release notes](https://ai-agent-assembly.github.io/python-sdk/latest/release-notes/) page.
+- **Releases** — [PyPI release history](https://pypi.org/project/agent-assembly/#history) · [GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases)
+- **Changelog** — tracked via [commits to `master`](https://github.com/ai-agent-assembly/python-sdk/commits/master) until the first tagged `1.0` release; see the [release notes](https://ai-agent-assembly.github.io/python-sdk/latest/release-notes/) page.
 - **Stability** — the `init_assembly()` entry point and the exception hierarchy are the most stable surface; framework adapters and the native fast path may evolve faster.
 
 ## Requirements
@@ -56,7 +56,7 @@ uv add agent-assembly
 To track unreleased changes, install from the `master` branch:
 
 ```bash
-pip install git+https://github.com/AI-agent-assembly/python-sdk.git
+pip install git+https://github.com/ai-agent-assembly/python-sdk.git
 ```
 
 ### Develop on the SDK
@@ -64,7 +64,7 @@ pip install git+https://github.com/AI-agent-assembly/python-sdk.git
 Clone the repo and sync the dev environment with `uv`:
 
 ```bash
-git clone https://github.com/AI-agent-assembly/python-sdk.git
+git clone https://github.com/ai-agent-assembly/python-sdk.git
 cd python-sdk
 uv sync
 ```
@@ -190,19 +190,19 @@ AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturi
 ## Ecosystem
 
 This SDK is one piece of the **AI Agent Assembly** project. Start from the
-[organization profile](https://github.com/AI-agent-assembly) to discover every repo, or jump
+[organization profile](https://github.com/ai-agent-assembly) to discover every repo, or jump
 directly:
 
 | Project | What it is |
 | --- | --- |
-| [agent-assembly](https://github.com/AI-agent-assembly/agent-assembly) | **Core runtime** — gateway, policy engine, eBPF, proxy, CLI. Also home of the protocol specification. |
+| [agent-assembly](https://github.com/ai-agent-assembly/agent-assembly) | **Core runtime** — gateway, policy engine, eBPF, proxy, CLI. Also home of the protocol specification. |
 | [Documentation site](https://ai-agent-assembly.github.io/agent-assembly-docs/) | Canonical, cross-repo documentation hub for the whole project. |
-| [python-sdk](https://github.com/AI-agent-assembly/python-sdk) | **This repo** — the Python SDK. |
-| [node-sdk](https://github.com/AI-agent-assembly/node-sdk) · [go-sdk](https://github.com/AI-agent-assembly/go-sdk) | Sibling SDKs for TypeScript/Node and Go. |
-| [homebrew-agent-assembly](https://github.com/AI-agent-assembly/homebrew-agent-assembly) | Homebrew tap for installing the `aasm` runtime CLI. |
+| [python-sdk](https://github.com/ai-agent-assembly/python-sdk) | **This repo** — the Python SDK. |
+| [node-sdk](https://github.com/ai-agent-assembly/node-sdk) · [go-sdk](https://github.com/ai-agent-assembly/go-sdk) | Sibling SDKs for TypeScript/Node and Go. |
+| [homebrew-agent-assembly](https://github.com/ai-agent-assembly/homebrew-agent-assembly) | Homebrew tap for installing the `aasm` runtime CLI. |
 
 The protocol specification and gateway behaviour the SDK targets live in the core runtime
-monorepo; see its [README](https://github.com/AI-agent-assembly/agent-assembly#readme) for the
+monorepo; see its [README](https://github.com/ai-agent-assembly/agent-assembly#readme) for the
 spec and architecture. For how this SDK stays in sync with the core runtime, see the
 [Compatibility](https://ai-agent-assembly.github.io/python-sdk/latest/development/compatibility/)
 doc.
@@ -213,9 +213,9 @@ Please read [**CONTRIBUTING.md**](./CONTRIBUTING.md) before opening a PR — it 
 
 ## Support
 
-- **Bugs & feature requests** — open a [GitHub issue](https://github.com/AI-agent-assembly/python-sdk/issues).
+- **Bugs & feature requests** — open a [GitHub issue](https://github.com/ai-agent-assembly/python-sdk/issues).
 - **Questions & usage help** — start with the [documentation site](https://ai-agent-assembly.github.io/python-sdk/) and the [Troubleshooting](https://ai-agent-assembly.github.io/python-sdk/latest/development/troubleshooting/) guide, then open an issue if you're still stuck.
-- **Security** — please **do not** file public issues for vulnerabilities. Report them privately via [GitHub Security Advisories](https://github.com/AI-agent-assembly/python-sdk/security/advisories/new).
+- **Security** — please **do not** file public issues for vulnerabilities. Report them privately via [GitHub Security Advisories](https://github.com/ai-agent-assembly/python-sdk/security/advisories/new).
 
 ## License
 

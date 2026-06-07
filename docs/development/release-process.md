@@ -21,7 +21,7 @@ wheel by platform tag, no post-install scripts needed:
 | `agent_assembly-<v>.tar.gz` (sdist) | Pure-Python source |
 
 `pip install agent-assembly` gets the pure-Python client; `pip install 'agent-assembly[runtime]'`
-pulls the platform wheel that bundles the binary. See [Installation](https://github.com/AI-agent-assembly/python-sdk#installation).
+pulls the platform wheel that bundles the binary. See [Installation](https://github.com/ai-agent-assembly/python-sdk#installation).
 
 ## Publishing: Trusted Publisher (OIDC)
 
@@ -51,4 +51,4 @@ the selector at the top of the [documentation site](https://ai-agent-assembly.gi
 ## Release notes
 
 Release notes are tracked on the [Release notes](../release-notes/index.md) page and the
-[GitHub releases](https://github.com/AI-agent-assembly/python-sdk/releases) feed.
+[GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases) feed.
