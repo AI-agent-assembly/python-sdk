@@ -75,7 +75,7 @@ The pure-Python adapters described above are sufficient for governing most agent
 
 ### What ships in the wheel
 
-The native crate lives at `rust/aa-ffi-python/` in the repository and is built with [`maturin`](https://www.maturin.rs/). When installed, it exposes a private `agent_assembly._core` module with two symbols:
+The native crate lives at `native/aa-ffi-python/` in the repository and is built with [`maturin`](https://www.maturin.rs/). When installed, it exposes a private `agent_assembly._core` module with two symbols:
 
 - `RuntimeClient` — a Rust-backed runtime client (a thin shim over the shared `aa-sdk-client` crate) that ships governance events to `aa-runtime` over the local socket. Sub-millisecond, fire-and-forget event reporting under load.
 - `GovernanceEvent` — Rust-side dataclass for events emitted on the audit channel.
@@ -87,7 +87,7 @@ The native crate lives at `rust/aa-ffi-python/` in the repository and is built w
 Run the maturin build only if you need the native fast path:
 
 ```bash
-uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --release
 ```
 
 For most contributors, this is unnecessary — the pure-Python SDK is the default development path, and CI exercises both with and without the native extension via the `AAASM_RUN_NATIVE_CORE_TESTS` and `AAASM_RUN_MATURIN_TESTS` environment-variable gates documented in [CONTRIBUTING.md](https://github.com/AI-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md).

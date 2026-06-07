@@ -16,7 +16,7 @@ Thanks for your interest in improving the Agent Assembly Python SDK. This docume
 
 - **Python** ≥ 3.12 (the CI matrix exercises 3.12, 3.13, and 3.14)
 - **uv** ≥ 0.4 — used to manage the virtualenv and lockfile (`pyproject.toml` + `uv.lock`)
-- **Rust** stable channel — only required if you plan to build the optional native extension (`rust/aa-ffi-python/`); pure-Python development works without it
+- **Rust** stable channel — only required if you plan to build the optional native extension (`native/aa-ffi-python/`); pure-Python development works without it
 - **pre-commit** — installed automatically as a dev dependency; activate with `uv run pre-commit install`
 
 ### One-time setup
@@ -31,7 +31,7 @@ uv run pre-commit install         # wires pre-commit hooks into your git config
 If you want the native fast path, build the PyO3 extension into the same venv:
 
 ```bash
-uv tool run maturin develop --manifest-path rust/aa-ffi-python/Cargo.toml --release
+uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --release
 ```
 
 After this, `from agent_assembly._core import RuntimeClient` should succeed inside `uv run python`.
@@ -123,7 +123,7 @@ AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturi
 The Rust crate has its own test suite:
 
 ```bash
-cargo test --manifest-path rust/aa-ffi-python/Cargo.toml
+cargo test --manifest-path native/aa-ffi-python/Cargo.toml
 ```
 
 ### Lint and format
