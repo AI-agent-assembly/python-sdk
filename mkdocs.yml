@@ -15,6 +15,10 @@ edit_uri: edit/master/docs/
 # Copyright
 copyright: Copyright &copy; 2026 Agent Assembly Team
 
+# Brand styling — shared doc brand kit (AAASM-2733)
+extra_css:
+  - stylesheets/aaasm-brand.css
+
 theme:
   name: material
   custom_dir: ./docs/_overrides
@@ -36,23 +40,29 @@ theme:
     - search.suggest
     - toc.follow
   palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Follow system
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
-      primary: indigo
-      accent: indigo
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   font:
-    text: Roboto
-    code: Roboto Mono
-  icon:
-    logo: material/library
+    text: Inter
+    code: JetBrains Mono
+  logo: assets/logo.png
+  favicon: assets/favicon.png
 
 # Plugins
 plugins:
@@ -151,6 +161,10 @@ extra:
 
 # Page tree
 nav:
+  - Docs Hub: https://ai-agent-assembly.github.io/agent-assembly-docs/
+  - Python SDK: https://ai-agent-assembly.github.io/python-sdk/
+  - Node SDK: https://ai-agent-assembly.github.io/node-sdk/
+  - Go SDK: https://ai-agent-assembly.github.io/go-sdk/
   - Home: index.md
   - Architecture:
       - architecture/index.md

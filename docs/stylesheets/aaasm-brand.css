@@ -1,0 +1,33 @@
+/* AI Agent Assembly — shared doc brand layer for MkDocs Material (python-sdk).
+   Install: drop at docs/stylesheets/aaasm-brand.css and reference via
+       extra_css: [stylesheets/aaasm-brand.css]
+   Pair with mkdocs-palette.yml (primary/accent: custom). Tokens: design/doc-tokens.md */
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #6366f1;
+  --md-primary-fg-color--light: #818cf8;
+  --md-primary-fg-color--dark: #4f46e5;
+  --md-accent-fg-color: #4f46e5;
+  --md-default-bg-color: #f5f4f0;
+  --md-default-fg-color: #111827;
+  --md-default-fg-color--light: #6b7280;
+  --md-typeset-a-color: #4f46e5;
+  --md-code-bg-color: #ffffff;
+}
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #818cf8;
+  --md-primary-fg-color--light: #a5b4fc;
+  --md-primary-fg-color--dark: #6366f1;
+  --md-accent-fg-color: #a5b4fc;
+  --md-default-bg-color: #0e0e0e;
+  --md-default-fg-color: #ededed;
+  --md-default-fg-color--light: #a3a3a3;
+  --md-typeset-a-color: #a5b4fc;
+  --md-code-bg-color: #1a1a1a;
+}
+
+:root { --md-text-font: "Inter"; --md-code-font: "JetBrains Mono"; }
+.md-typeset { line-height: 1.65; }
+.md-typeset h1 { font-weight: 700; }
+/* readability measure — cap the reading column (Material's grid stays full width) */
+.md-content__inner { max-width: 50rem; margin-inline: auto; }   /* ~72ch */
