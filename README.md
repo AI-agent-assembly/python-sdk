@@ -158,7 +158,7 @@ uv run ruff check .
 uv run mypy agent_assembly
 ```
 
-## Native Core Extension (AAASM-55)
+## Native Core Extension
 
 Build and install the PyO3 extension locally:
 
