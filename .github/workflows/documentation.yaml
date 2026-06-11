@@ -8,7 +8,7 @@ on:
       # Doc — CI workflow + deploy scripts
       - ".github/workflows/documentation.yaml"
       - "scripts/ci/deploy-latest-version-documentation.sh"
-      - "scripts/ci/deploy-stable-version-documentation.sh"
+      - "scripts/ci/deploy-release-version-documentation.sh"
       # Doc — MkDocs config
       - "mkdocs.yml"
       # Doc — Markdown content
@@ -19,8 +19,22 @@ on:
       - "agent_assembly/**/*.py"
       # Python project metadata (version is read from pyproject.toml)
       - "pyproject.toml"
+  # Build-only validation on PRs that touch docs — never deploys or pushes.
+  pull_request:
+    paths:
+      - ".github/workflows/documentation.yaml"
+      - "scripts/ci/deploy-latest-version-documentation.sh"
+      - "scripts/ci/deploy-release-version-documentation.sh"
+      - "mkdocs.yml"
+      - "docs/**/*.md"
+      - "docs/_overrides/**"
+      - "agent_assembly/**/*.py"
+      - "pyproject.toml"
+  # Cut the frozen, versioned snapshot after a successful release run. The
+  # referenced name must match release-python.yml's `name:` exactly, or this
+  # trigger silently never fires.
   workflow_run:
-    workflows: ["release"]
+    workflows: ["Release Python SDK"]
     types: [completed]
     branches: ["master"]
 
@@ -36,6 +50,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build_documentation:
+    name: Build documentation (PR, no deploy)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for mike + git-revision-date plugins)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install docs dependency group
+        run: uv sync --group docs
+
+      - name: Print tool versions
+        run: |
+          uv run mkdocs --version
+          uv run mike --version
+
+      # Build-only: validate the site compiles under --strict. No mike deploy,
+      # no push to gh-pages — PRs must never mutate the published docs.
+      - name: Build documentation
+        env:
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run mkdocs build --strict
+
   deploy_latest_documentation:
     name: Deploy latest documentation
     if: github.event_name == 'push'
@@ -72,8 +119,8 @@ jobs:
           source .venv/bin/activate
           bash ./scripts/ci/deploy-latest-version-documentation.sh
 
-  deploy_stable_documentation:
-    name: Deploy stable documentation (release)
+  deploy_release_documentation:
+    name: Deploy release documentation (channel)
     if: |
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success'
@@ -84,6 +131,29 @@ jobs:
         with:
           fetch-depth: 0
           ref: master
+
+      # The triggering "Release Python SDK" run published the real release tag
+      # as a `release-tag` artifact (the workflow_run event only carries the
+      # PEP-440 pyproject version, which loses the canonical tag form). Pull it
+      # so the deploy script can label the frozen snapshot and pick the channel.
+      - name: Download release-tag artifact from the release run
+        uses: actions/download-artifact@v8
+        with:
+          name: release-tag
+          path: release-tag-artifact
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Resolve release tag into the environment
+        run: |
+          set -euo pipefail
+          tag="$(tr -d '[:space:]' < release-tag-artifact/release-tag.txt)"
+          if [ -z "${tag}" ]; then
+            echo "::error::release-tag artifact was empty"
+            exit 1
+          fi
+          echo "RELEASE_TAG=${tag}" >> "$GITHUB_ENV"
+          echo "Resolved release tag: ${tag}"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -101,19 +171,21 @@ jobs:
           uv run mkdocs --version
           uv run mike --version
 
-      - name: Build and deploy stable documentation
+      - name: Build and deploy release documentation
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
           source .venv/bin/activate
-          bash ./scripts/ci/deploy-stable-version-documentation.sh
+          bash ./scripts/ci/deploy-release-version-documentation.sh
 
       - name: Deployment summary
         env:
-          STABLE_URL: "https://ai-agent-assembly.github.io/python-sdk/stable/"
+          BASE_URL: "https://ai-agent-assembly.github.io/python-sdk/"
         run: |
           {
-            echo "## 📚 Stable documentation deployed"
-            echo "🔗 ${STABLE_URL}"
+            echo "## 📚 Release documentation deployed"
+            echo "Tag: \`${RELEASE_TAG}\`"
+            echo "🔗 ${BASE_URL}"
           } >> "$GITHUB_STEP_SUMMARY"

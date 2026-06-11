@@ -317,3 +317,36 @@ jobs:
       - name: Publish via PyPI Trusted Publisher
         uses: pypa/gh-action-pypi-publish@release/v1
         # No `with: password:` — Trusted Publisher uses OIDC, no token stored.
+
+  # Publish the *real* release tag as a tiny artifact so the documentation
+  # workflow (which is triggered by `workflow_run` after this workflow
+  # completes) can label the frozen docs snapshot with the human-facing tag
+  # and pick the right channel. The `workflow_run` event itself only exposes
+  # the PEP-440 pyproject version, which loses the canonical tag form — so we
+  # hand the tag across explicitly. See AAASM-2750.
+  publish-release-tag:
+    name: Publish release tag for docs
+    needs:
+      - publish
+    runs-on: ubuntu-latest
+    # Only the real release path (repository_dispatch) carries a tag; the
+    # workflow_dispatch dry-run has no tag and no docs snapshot to cut.
+    if: github.event_name == 'repository_dispatch'
+    steps:
+      - name: Write release tag to file
+        env:
+          RELEASE_TAG: ${{ github.event.client_payload.release_tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_TAG}" ]; then
+            echo "::error::client_payload.release_tag is empty on a release dispatch"
+            exit 1
+          fi
+          printf '%s\n' "${RELEASE_TAG}" > release-tag.txt
+          echo "Recorded release tag: ${RELEASE_TAG}"
+      - name: Upload release-tag artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-tag
+          path: release-tag.txt
+          if-no-files-found: error
