@@ -94,7 +94,7 @@ from langchain_core.prompts import PromptTemplate
 from agent_assembly import init_assembly
 
 with init_assembly(
-    gateway_url="http://localhost:8080",
+    gateway_url="http://localhost:7391",
     api_key="dev-key",
     agent_id="quickstart-agent",
     mode="sdk-only",
@@ -120,8 +120,8 @@ What this does:
 ## Public API
 
 - `init_assembly(gateway_url, api_key, agent_id=None, mode="auto") -> AssemblyContext`
-- `GatewayClient.register_agent() -> dict`
-- `GatewayClient.check_policy_compliance(action: str) -> dict`
+- `async GatewayClient.register_agent() -> dict`
+- `async GatewayClient.check_policy_compliance(action: str) -> dict`
 - Exceptions: `AssemblyError`, `AgentError`, `PolicyError`, `GatewayError`, `ConfigurationError`
 - Data models: `AgentConfig`, `AgentState`, `PolicyEvaluation`
 
