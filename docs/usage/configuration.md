@@ -49,6 +49,9 @@ fallback chain (see `agent_assembly.core.gateway_resolver`):
 3. **Config file** — `~/.aasm/config.yaml`.
 4. **Local default** — probe `http://localhost:7391/healthz`; if no gateway is running, the
    SDK attempts to **auto-start** a local one (`aasm start --mode local --foreground`).
+   Auto-start needs the `aasm` binary on `PATH` — install it via the
+   `agent-assembly[runtime]` extra or the Homebrew tap. Without it the SDK raises
+   `ConfigurationError`.
 
 This means a local development loop often needs no arguments at all — start a gateway with
 `aasm`, or let the SDK start one for you.
@@ -57,6 +60,19 @@ This means a local development loop often needs no arguments at all — start a 
 export AASM_GATEWAY_URL="https://gateway.example.com"
 export AASM_API_KEY="…"
 ```
+
+### Config file format
+
+The optional `~/.aasm/config.yaml` reads both values from an `agent:` section:
+
+```yaml
+agent:
+  gateway_url: "https://gateway.example.com"
+  api_key: "…"
+```
+
+The file is advisory — it is skipped silently when missing, when PyYAML is not installed,
+or when a key is absent, so an explicit argument or environment variable always wins.
 
 ## Runtime modes
 
