@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 #
-# Build and deploy the docs site under the "stable" alias on a new official
-# release. Promotes the just-released version to be the default that readers
-# see at /python-sdk/.
+# Cut an immutable, versioned docs snapshot on a new official release and
+# promote it to be the default that readers see at /python-sdk/.
+#
+# This is the ONLY path that freezes a concrete version number. The first
+# frozen snapshot is therefore cut at the v0.1.0 release — master pushes only
+# ever update the live "latest" version (see
+# deploy-latest-version-documentation.sh).
 #
 # Behaviour:
-#   - Reads the project version from pyproject.toml.
+#   - Reads the just-released version from pyproject.toml (the release workflow
+#     syncs it from the dispatch tag before this script runs).
 #   - Runs `mkdocs build --strict` first as a guard so a broken build never
 #     reaches gh-pages.
-#   - Calls `mike deploy --push --update-aliases <version> stable` to
-#     publish under both the concrete version and the "stable" alias.
+#   - Calls `mike deploy --push --update-aliases <version> stable latest` to
+#     publish the frozen <version> and retarget both the "stable" and "latest"
+#     aliases onto it.
 #   - Calls `mike set-default --push stable` so the bare /python-sdk/ URL
 #     redirects readers to the stable version.
 #
@@ -49,8 +55,9 @@ git fetch remote gh-pages --depth=1 2>/dev/null || \
 # Pre-flight: fail fast if the build itself is broken.
 mkdocs build --strict
 
-# Push the version + retarget the "stable" alias atomically.
-mike deploy --push --update-aliases "${VERSION}" stable
+# Freeze the released version + retarget both "stable" and "latest" aliases
+# onto it atomically.
+mike deploy --push --update-aliases "${VERSION}" stable latest
 
 # Make "stable" the default so /python-sdk/ redirects to /python-sdk/stable/.
 mike set-default --push stable
