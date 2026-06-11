@@ -36,8 +36,11 @@ git fetch remote gh-pages --depth=1 2>/dev/null || \
 # Pre-flight: fail fast if the build itself is broken.
 mkdocs build --strict
 
-# Re-deploy "latest" in place. Master pushes never freeze a concrete version;
-# the first frozen snapshot is cut at the v0.1.0 release.
-mike deploy --push latest
+# Re-deploy the "latest" channel in place. Master pushes never freeze a concrete
+# version; frozen, immutable snapshots are cut only at release time by
+# deploy-release-version-documentation.sh. The title carries the "(master)"
+# suffix so the version selector reads "latest (master)" — making it explicit
+# that this channel tracks master HEAD, not a tagged release.
+mike deploy --push --title "latest (master)" latest
 
 echo "🍻 Latest documentation deployed (live, tracking master)."
