@@ -19,8 +19,11 @@ on:
       - "agent_assembly/**/*.py"
       # Python project metadata (version is read from pyproject.toml)
       - "pyproject.toml"
+  # Cut the frozen, versioned snapshot after a successful release run. The
+  # referenced name must match release-python.yml's `name:` exactly, or this
+  # trigger silently never fires.
   workflow_run:
-    workflows: ["release"]
+    workflows: ["Release Python SDK"]
     types: [completed]
     branches: ["master"]
 
