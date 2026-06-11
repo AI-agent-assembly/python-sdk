@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 #
-# Build and deploy the docs site under the "latest" alias on every push to master.
+# Deploy the docs site to the live "latest" version on every push to master.
+#
+# "latest" tracks master HEAD: it is re-deployed in place on each push and is
+# NOT a frozen snapshot of any concrete release. Concrete, immutable version
+# snapshots (e.g. 0.1.0) are cut only at release time by
+# deploy-stable-version-documentation.sh — never here.
 #
 # Behaviour:
-#   - Reads the project version from pyproject.toml.
 #   - Runs `mkdocs build --strict` first as a guard so a broken build never
 #     reaches gh-pages.
-#   - Calls `mike deploy --push --update-aliases <version> latest` to publish
-#     under both the concrete version (e.g. 0.0.0) and the "latest" alias.
+#   - Calls `mike deploy --push latest` to publish/overwrite the "latest"
+#     version in place. No concrete version number is minted on master pushes.
 #
 # Required environment:
 #   - GH_TOKEN (or GITHUB_TOKEN) — push access to the gh-pages branch.
@@ -18,20 +22,7 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${PROJECT_ROOT}"
 
-VERSION=$(python3 - <<'PY'
-import re
-import sys
-from pathlib import Path
-
-text = Path("pyproject.toml").read_text(encoding="utf-8")
-match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
-if not match:
-    sys.exit("ERROR: could not find version = \"...\" in pyproject.toml")
-print(match.group(1))
-PY
-)
-
-echo "👷  Deploying docs for version=${VERSION} under alias=latest"
+echo "👷  Deploying docs to the live \"latest\" version (tracks master HEAD)"
 
 # Configure git author for the gh-pages commit mike creates.
 git config --global user.name "github-actions[bot]"
@@ -45,7 +36,8 @@ git fetch remote gh-pages --depth=1 2>/dev/null || \
 # Pre-flight: fail fast if the build itself is broken.
 mkdocs build --strict
 
-# Push the version + retarget the "latest" alias atomically.
-mike deploy --push --update-aliases "${VERSION}" latest
+# Re-deploy "latest" in place. Master pushes never freeze a concrete version;
+# the first frozen snapshot is cut at the v0.1.0 release.
+mike deploy --push latest
 
-echo "🍻 Latest documentation deployed for ${VERSION}."
+echo "🍻 Latest documentation deployed (live, tracking master)."
