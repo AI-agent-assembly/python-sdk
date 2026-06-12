@@ -50,5 +50,5 @@ the selector at the top of the [documentation site](https://ai-agent-assembly.gi
 
 ## Release notes
 
-Release notes are tracked on the [Release notes](../release-notes/index.md) page and the
+Release notes are tracked on the [Release notes](release-notes.md) page and the
 [GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases) feed.
