@@ -45,18 +45,42 @@ When `gateway_url` / `api_key` are not passed explicitly, the SDK resolves each 
 fallback chain (see `agent_assembly.core.gateway_resolver`):
 
 1. **Explicit argument** — the value you pass to `init_assembly()`.
-2. **Environment variable** — `AASM_GATEWAY_URL` / `AASM_API_KEY`.
+2. **Environment variable** — `AAASM_GATEWAY_URL` / `AAASM_API_KEY`.
 3. **Config file** — `~/.aasm/config.yaml`.
 4. **Local default** — probe `http://localhost:7391/healthz`; if no gateway is running, the
    SDK attempts to **auto-start** a local one (`aasm start --mode local --foreground`).
+   Auto-start needs the `aasm` binary on `PATH` — install it via the
+   `agent-assembly[runtime]` extra or the Homebrew tap. Without it the SDK raises
+   `ConfigurationError`.
 
 This means a local development loop often needs no arguments at all — start a gateway with
 `aasm`, or let the SDK start one for you.
 
+For the full gateway configuration surface (policy files, budgets, mTLS) and the complete
+`aasm` CLI reference, see the core
+[Gateway configuration](https://ai-agent-assembly.github.io/agent-assembly/configuration/) and
+[CLI reference](https://ai-agent-assembly.github.io/agent-assembly/cli/) docs.
+
 ```bash
-export AASM_GATEWAY_URL="https://gateway.example.com"
-export AASM_API_KEY="…"
+export AAASM_GATEWAY_URL="https://gateway.example.com"
+export AAASM_API_KEY="…"
 ```
+
+### Config file format
+
+The optional `~/.aasm/config.yaml` reads both values from an `agent:` section:
+
+```yaml
+agent:
+  gateway_url: "https://gateway.example.com"
+  api_key: "…"
+```
+
+Both values are read from the `agent.gateway_url` / `agent.api_key` keys. The file is advisory
+— it is skipped silently when missing, when PyYAML is not installed, or when a key is absent,
+so an explicit argument or environment variable always wins. The API key resolves through the
+**same** four-step chain; if nothing supplies one, it defaults to an empty string, which the
+gateway accepts in local mode.
 
 ## Runtime modes
 
@@ -81,7 +105,11 @@ export AASM_API_KEY="…"
 | `observe` | Dry-run — every action proceeds, but the gateway records would-be violations as shadow audit events. Good for rolling out policy safely. |
 | `disabled` | Policy evaluation skipped entirely. Intended for hermetic tests only. |
 
+For the conceptual difference between `mode` (*where* policy is enforced) and `enforcement_mode`
+(*how hard* a deny bites), see [Core Concepts → Modes and enforcement](concepts/index.md#modes-and-enforcement).
+
 ## Next steps
 
-- [Framework examples](framework-examples.md) — wire the SDK into LangChain, CrewAI, and more.
-- [Troubleshooting](../development/troubleshooting.md) — what each configuration error means.
+- [Framework examples](guides/framework-examples.md) — wire the SDK into LangChain, CrewAI, and more.
+- [Handling allow/deny decisions](guides/handling-decisions.md) — catch and respond to policy denials.
+- [Troubleshooting](troubleshooting.md) — what each configuration error means.

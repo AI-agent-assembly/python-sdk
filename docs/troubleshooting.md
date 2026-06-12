@@ -11,7 +11,7 @@ safe.
 
 | Message | Cause | Fix |
 | --- | --- | --- |
-| `gateway_url is required` | No gateway URL could be resolved (no argument, no `AASM_GATEWAY_URL`, no config file, no local gateway). | Pass `gateway_url=...`, set `AASM_GATEWAY_URL`, or start a local gateway. See [Configuration](../usage/configuration.md#resolution-order). |
+| `gateway_url is required` | No gateway URL could be resolved (no argument, no `AAASM_GATEWAY_URL`, no config file, no local gateway). | Pass `gateway_url=...`, set `AAASM_GATEWAY_URL`, or start a local gateway. See [Configuration](configuration.md#resolution-order). |
 | `mode must be one of: auto, ebpf, proxy, sdk-only` | An unknown `mode` value. | Use one of the four valid modes. |
 | `enforcement_mode must be one of: enforce, observe, disabled` | An unknown `enforcement_mode`. | Use a valid posture or leave it `None`. |
 | `eBPF mode is not supported on this platform.` | `mode="ebpf"` on a non-Linux host. | Use `mode="sdk-only"` or `mode="proxy"` off Linux. |
@@ -24,7 +24,7 @@ network layer but the gateway didn't answer.
 
 - Confirm the gateway is running and the URL is correct — by default the SDK probes
   `http://localhost:7391/healthz`.
-- Check `AASM_GATEWAY_URL` / `AASM_API_KEY` aren't pointing somewhere stale.
+- Check `AAASM_GATEWAY_URL` / `AAASM_API_KEY` aren't pointing somewhere stale.
 - For a quick local loop, run an `aasm` gateway yourself, or let the SDK auto-start one
   (`aasm start --mode local --foreground`). If auto-start fails, ensure the `aasm` binary is
   on `PATH` — install it via the `agent-assembly[runtime]` extra or the Homebrew tap.
@@ -38,6 +38,8 @@ working as intended.
 - To see *what* would be blocked without actually blocking, register the agent with
   `enforcement_mode="observe"` (dry-run) and inspect the shadow audit events.
 - To allow the call, update the policy on the gateway side.
+- For how to catch these in code (and which subtype to catch), see
+  [Handling allow/deny decisions](guides/handling-decisions.md).
 
 ## The native extension isn't loading
 

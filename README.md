@@ -9,7 +9,7 @@ Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agen
 
 ## Why use it
 
-- **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, and MCP servers — drop in, no SDK rewrites required.
+- **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, Google ADK, and MCP servers — drop in, no SDK rewrites required.
 - **Pre-execution policy enforcement** via the `FrameworkAdapter` ABC — block disallowed tool calls before they hit the LLM.
 - **Audit trail** — every tool call, prompt, and policy decision is emitted to the gateway with full agent lineage (parent / root / team).
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need sub-millisecond policy checks.
@@ -94,7 +94,7 @@ from langchain_core.prompts import PromptTemplate
 from agent_assembly import init_assembly
 
 with init_assembly(
-    gateway_url="http://localhost:8080",
+    gateway_url="http://localhost:7391",
     api_key="dev-key",
     agent_id="quickstart-agent",
     mode="sdk-only",
@@ -120,8 +120,8 @@ What this does:
 ## Public API
 
 - `init_assembly(gateway_url, api_key, agent_id=None, mode="auto") -> AssemblyContext`
-- `GatewayClient.register_agent() -> dict`
-- `GatewayClient.check_policy_compliance(action: str) -> dict`
+- `async GatewayClient.register_agent() -> dict`
+- `async GatewayClient.check_policy_compliance(action: str) -> dict`
 - Exceptions: `AssemblyError`, `AgentError`, `PolicyError`, `GatewayError`, `ConfigurationError`
 - Data models: `AgentConfig`, `AgentState`, `PolicyEvaluation`
 
@@ -182,10 +182,13 @@ AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturi
 ## Documentation
 
 - **Project docs (rendered)** — https://ai-agent-assembly.github.io/python-sdk/ *(versioned via `mike`; pick `latest` or `stable` from the version selector)*
-- **Architecture** — [rendered](https://ai-agent-assembly.github.io/python-sdk/latest/architecture/) / [source](./docs/architecture/index.md) — adapter pattern, PyO3 FFI, `init_assembly()` lifecycle, with a Mermaid flow diagram.
-- **Usage guides** — [Configuration](./docs/usage/configuration.md), [Framework examples](./docs/usage/framework-examples.md), [Type checking](./docs/usage/type-checking.md).
+- **Quick Start** — [source](./docs/quick-start.md) — install and govern your first agent in five minutes (offline LangChain example).
+- **Core Concepts** — [source](./docs/concepts/index.md) — the adapter pattern, native FFI vs. pure-Python, the `init_assembly()` lifecycle, and modes/enforcement. Deep dive in [Architecture](./docs/concepts/architecture.md).
+- **Guides** — [Framework examples](./docs/guides/framework-examples.md), [Handling allow/deny decisions](./docs/guides/handling-decisions.md), [Type checking](./docs/guides/type-checking.md).
+- **Configuration** — [source](./docs/configuration.md) — gateway URL / API-key resolution, runtime modes, enforcement modes.
 - **API reference** — [rendered](https://ai-agent-assembly.github.io/python-sdk/latest/api-reference/) / [source](./docs/api-reference/index.md) — auto-generated from package docstrings via `mkdocstrings`. Per-module pages: [Client](./docs/api-reference/client.md), [Exceptions](./docs/api-reference/exceptions.md), [Models](./docs/api-reference/models.md).
-- **Development** — [Troubleshooting](./docs/development/troubleshooting.md), [Compatibility](./docs/development/compatibility.md), [Release process](./docs/development/release-process.md), and [ADRs](./docs/development/adr/) (architecture decision records).
+- **Compatibility & Versioning** — [source](./docs/compatibility/index.md) — Python versions, core-runtime tracking, [release process](./docs/compatibility/release-process.md), and [ADRs](./docs/development/adr/).
+- **Troubleshooting** — [source](./docs/troubleshooting.md) — common integration errors and fixes.
 
 ## Ecosystem
 
@@ -204,8 +207,8 @@ directly:
 The protocol specification and gateway behaviour the SDK targets live in the core runtime
 monorepo; see its [README](https://github.com/ai-agent-assembly/agent-assembly#readme) for the
 spec and architecture. For how this SDK stays in sync with the core runtime, see the
-[Compatibility](https://ai-agent-assembly.github.io/python-sdk/latest/development/compatibility/)
-doc.
+[Compatibility & Versioning](https://ai-agent-assembly.github.io/python-sdk/latest/compatibility/)
+docs.
 
 ## Contributing
 
@@ -214,7 +217,7 @@ Please read [**CONTRIBUTING.md**](./CONTRIBUTING.md) before opening a PR — it 
 ## Support
 
 - **Bugs & feature requests** — open a [GitHub issue](https://github.com/ai-agent-assembly/python-sdk/issues).
-- **Questions & usage help** — start with the [documentation site](https://ai-agent-assembly.github.io/python-sdk/) and the [Troubleshooting](https://ai-agent-assembly.github.io/python-sdk/latest/development/troubleshooting/) guide, then open an issue if you're still stuck.
+- **Questions & usage help** — start with the [documentation site](https://ai-agent-assembly.github.io/python-sdk/) and the [Troubleshooting](https://ai-agent-assembly.github.io/python-sdk/latest/troubleshooting/) guide, then open an issue if you're still stuck.
 - **Security** — please **do not** file public issues for vulnerabilities. Report them privately via [GitHub Security Advisories](https://github.com/ai-agent-assembly/python-sdk/security/advisories/new).
 
 ## License

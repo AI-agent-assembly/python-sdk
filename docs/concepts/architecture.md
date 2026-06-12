@@ -16,7 +16,7 @@ It is aimed at three readers:
 
 ## Adapter pattern
 
-The SDK governs *third-party* agent frameworks (LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, MCP servers) without forcing those frameworks to be aware of Agent Assembly. The mechanism is a three-layer pattern:
+The SDK governs *third-party* agent frameworks (LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, Google ADK, MCP servers) without forcing those frameworks to be aware of Agent Assembly. The mechanism is a three-layer pattern:
 
 ### `FrameworkAdapter` (ABC) — the public interface
 
@@ -33,7 +33,7 @@ Adapter authors target this contract and nothing else. The public boundary is in
 
 `agent_assembly.adapters.registry.AdapterRegistry` enumerates the adapters that ship with the SDK, probes each one to see if its underlying framework is importable in the current process, and returns the available adapters in priority order. `init_assembly()` calls `get_available_adapters_by_priority()` exactly once at startup; this is the **single detection path** (see ADR-0001).
 
-Priority matters because two frameworks can coexist in the same process — e.g., a LangGraph graph that contains a LangChain tool. The registry orders adapters so the more specific one (LangGraph) installs hooks before the more general one (LangChain), preventing duplicate event emission.
+Priority matters because two frameworks can coexist in the same process — e.g., a LangGraph graph that contains a LangChain tool. The registry assigns each framework a fixed rank (`langchain` → `langgraph` → `crewai` → `pydantic_ai` → `openai` → `google_adk`, with `mcp` last as a fallback). LangChain installs first because its callback handler threads through to every adapter that follows; MCP installs last because it backstops any tool-dispatch path the framework-specific adapters did not claim. This ordering prevents duplicate event emission when adapters overlap.
 
 ### Per-framework patches — the actual monkey-patching
 

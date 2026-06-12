@@ -8,13 +8,18 @@ The SDK raises a small, focused exception hierarchy rooted at `AssemblyError`. E
 AssemblyError                       (base)
 ├── AgentError                      (agent registration / lifecycle)
 ├── PolicyError                     (policy evaluation problems)
-│   └── PolicyViolationError        (policy denied an action)
 ├── GatewayError                    (network / HTTP transport)
 ├── ConfigurationError              (bad init_assembly() arguments)
 ├── AdapterValidationError          (adapter ABC contract failure)
-├── ToolExecutionBlockedError       (tool call blocked by policy)
-└── MCPToolBlockedError             (MCP tool call blocked by policy)
+├── OpTerminatedError               (gateway terminated an in-flight op)
+└── ToolExecutionBlockedError       (tool call blocked by policy)
+    ├── MCPToolBlockedError         (MCP tool call blocked by policy)
+    └── PolicyViolationError        (policy denied a tool call)
 ```
+
+`PolicyViolationError` and `MCPToolBlockedError` both derive from
+`ToolExecutionBlockedError`, so `except ToolExecutionBlockedError:` catches every
+policy-blocked tool call regardless of which framework raised it.
 
 ## `agent_assembly.exceptions`
 
