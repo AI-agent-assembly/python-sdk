@@ -1,0 +1,45 @@
+{#-
+  Override of Material's partials/source-file.html.
+
+  Goal: render the last-updater inline with the "last update" date, matching the
+  node-sdk / go-sdk phrasing ("Last updated on <date> by <name>"). The author
+  comes from `mkdocs-git-authors-plugin`, which reads local `git log` (no GitHub
+  token, works on feature branches), exposed as `git_info["page_authors"]`.
+-#}
+{% macro render_updated(date, authors) %}
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="{{ lang.t('source.file.date.updated') }}">
+      {% include ".icons/material/clock-edit-outline.svg" %}
+    </span>
+    {{ date }}
+    {%- if authors %} by {{ authors[0].name }}{%- endif -%}
+  </span>
+{% endmacro %}
+{% macro render_created(date) %}
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="{{ lang.t('source.file.date.created') }}">
+      {% include ".icons/material/clock-plus-outline.svg" %}
+    </span>
+    {{ date }}
+  </span>
+{% endmacro %}
+{% if page.meta %}
+  {% if page.meta.git_revision_date_localized %}
+    {% set updated = page.meta.git_revision_date_localized %}
+  {% elif page.meta.revision_date %}
+    {% set updated = page.meta.revision_date %}
+  {% endif %}
+  {% if page.meta.git_creation_date_localized %}
+    {% set created = page.meta.git_creation_date_localized %}
+  {% endif %}
+{% endif %}
+{% if updated or created %}
+  <aside class="md-source-file">
+    {% if updated %}
+      {{ render_updated(updated, git_info["page_authors"] if git_info else none) }}
+    {% endif %}
+    {% if created %}
+      {{ render_created(created) }}
+    {% endif %}
+  </aside>
+{% endif %}
