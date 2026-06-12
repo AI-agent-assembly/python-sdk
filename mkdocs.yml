@@ -165,24 +165,29 @@ nav:
   - Python SDK: https://ai-agent-assembly.github.io/python-sdk/
   - Node SDK: https://ai-agent-assembly.github.io/node-sdk/
   - Go SDK: https://ai-agent-assembly.github.io/go-sdk/
-  - Home: index.md
-  - Architecture:
-      - architecture/index.md
-  - Usage:
-      - Configuration: usage/configuration.md
-      - Framework examples: usage/framework-examples.md
-      - Type checking: usage/type-checking.md
-  - API reference:
+  - Introduction: index.md
+  - Quick Start: quick-start.md
+  - Core Concepts:
+      - concepts/index.md
+      - Architecture (deep dive): concepts/architecture.md
+  - Guides:
+      - guides/index.md
+      - Framework examples: guides/framework-examples.md
+      - Handling allow/deny decisions: guides/handling-decisions.md
+      - Type checking: guides/type-checking.md
+  - Configuration: configuration.md
+  - API Reference:
       - api-reference/index.md
       - Client: api-reference/client.md
       - Exceptions: api-reference/exceptions.md
       - Models: api-reference/models.md
+  - Compatibility & Versioning:
+      - compatibility/index.md
+      - Runtime compatibility: compatibility/runtime.md
+      - Release process: compatibility/release-process.md
+      - Release notes: compatibility/release-notes.md
+  - Troubleshooting: troubleshooting.md
   - Development:
       - development/index.md
-      - Troubleshooting: development/troubleshooting.md
-      - Compatibility: development/compatibility.md
-      - Release process: development/release-process.md
       - ADR:
           - 0001 — Hook architecture: development/adr/0001-hook-architecture.md
-  - Release notes:
-      - release-notes/index.md
