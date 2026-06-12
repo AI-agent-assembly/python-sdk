@@ -1,9 +1,13 @@
 # Agent Assembly Python SDK
 
-[![PyPI version](https://img.shields.io/pypi/v/agent-assembly.svg)](https://pypi.org/project/agent-assembly/)
-[![Python versions](https://img.shields.io/pypi/pyversions/agent-assembly.svg)](https://pypi.org/project/agent-assembly/)
-[![CI](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/ci.yaml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/ai-agent-assembly/python-sdk/ci.yaml?branch=master&logo=githubactions&logoColor=white&label=CI)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/ci.yaml)
+[![Docs](https://img.shields.io/github/actions/workflow/status/ai-agent-assembly/python-sdk/documentation.yaml?branch=master&logo=readthedocs&logoColor=white&label=docs)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/documentation.yaml)
+[![PyPI version](https://img.shields.io/pypi/v/agent-assembly?logo=pypi&logoColor=white)](https://pypi.org/project/agent-assembly/)
+[![Python versions](https://img.shields.io/pypi/pyversions/agent-assembly?logo=python&logoColor=white)](https://pypi.org/project/agent-assembly/)
+[![Coverage](https://img.shields.io/codecov/c/github/ai-agent-assembly/python-sdk?logo=codecov&logoColor=white)](https://codecov.io/gh/ai-agent-assembly/python-sdk)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow?logo=opensourceinitiative&logoColor=white)](./LICENSE)
+[![Code style: ruff](https://img.shields.io/badge/style-ruff-261230?logo=ruff&logoColor=white)](https://github.com/astral-sh/ruff)
+[![Type-checked: mypy](https://img.shields.io/badge/types-mypy-2a6db2?logo=python&logoColor=white)](https://mypy-lang.org/)
 
 Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agents. One `init_assembly()` call wires your agent into the policy gateway, applies pre-execution allow/deny on tool calls, and emits audit events without changing how the agent itself is written.
 
