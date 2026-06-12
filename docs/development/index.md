@@ -8,9 +8,9 @@ Agent Assembly Python SDK. Start here when contributing code or operating a rele
 | Page | What it covers |
 | --- | --- |
 | [CONTRIBUTING.md](https://github.com/ai-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md) | Dev environment setup, framework adapter authoring, test/lint commands, branch naming, PR checklist. |
-| [Troubleshooting](troubleshooting.md) | Common integration errors, what they mean, and how to fix them. |
-| [Compatibility](compatibility.md) | Supported Python versions and how the SDK tracks the core runtime. |
-| [Release process](release-process.md) | How a version goes from `master` to PyPI and the docs site. |
+| [Architecture](../concepts/architecture.md) | Internals: the adapter/patch layers, the PyO3 FFI layer, and the exact `init_assembly()` bootstrap/teardown order. |
+| [Compatibility & Versioning](../compatibility/index.md) | Supported Python versions, core-runtime tracking, and the release process. |
+| [Troubleshooting](../troubleshooting.md) | Common integration errors, what they mean, and how to fix them. |
 
 ## Architecture decision records
 
