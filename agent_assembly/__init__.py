@@ -8,7 +8,7 @@ import importlib.util
 import sys
 from typing import TYPE_CHECKING, Any
 
-__version__ = "0.0.1a3"
+__version__ = "0.0.2a1"
 
 # AAASM-1696: top-level exports are resolved lazily so that lightweight
 # submodules (e.g. `agent_assembly.runtime`, which is stdlib-only) can be
