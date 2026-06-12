@@ -3,7 +3,7 @@
 Agent Assembly governs *third-party* agent frameworks without those frameworks needing to be
 aware of it. You call `init_assembly()` once; the SDK detects which supported frameworks are
 importable in your process and installs governance hooks for each, in priority order (see
-[Architecture](../architecture/index.md)).
+[Core Concepts](../concepts/index.md#the-adapter-pattern)).
 
 ## The universal pattern
 
