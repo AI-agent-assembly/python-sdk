@@ -10,8 +10,12 @@
 # Behaviour:
 #   - Runs `mkdocs build --strict` first as a guard so a broken build never
 #     reaches gh-pages.
-#   - Calls `mike deploy --push latest` to publish/overwrite the "latest"
-#     version in place. No concrete version number is minted on master pushes.
+#   - Calls `mike deploy --push --update-aliases latest` to publish/overwrite
+#     the "latest" version in place. No concrete version number is minted on
+#     master pushes. `--update-aliases` lets mike reclaim "latest" as a concrete
+#     version even when older gh-pages state still carries it as an alias of a
+#     frozen release (pre-AAASM-2750 the site published "latest" as an alias);
+#     without it mike aborts with `version 'latest' already exists`.
 #
 # Required environment:
 #   - GH_TOKEN (or GITHUB_TOKEN) — push access to the gh-pages branch.
@@ -41,6 +45,6 @@ mkdocs build --strict
 # deploy-release-version-documentation.sh. The title carries the "(master)"
 # suffix so the version selector reads "latest (master)" — making it explicit
 # that this channel tracks master HEAD, not a tagged release.
-mike deploy --push --title "latest (master)" latest
+mike deploy --push --update-aliases --title "latest (master)" latest
 
 echo "🍻 Latest documentation deployed (live, tracking master)."
