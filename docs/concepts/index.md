@@ -16,6 +16,12 @@ For the full, contributor-grade walkthrough of the internals — including the p
 monkey-patch layer and the exact bootstrap/teardown order — see
 [Architecture](architecture.md).
 
+The SDK is the in-process (fastest) layer of a three-layer interception model. For how it
+fits alongside the sidecar proxy and eBPF layers, and the trust boundary the gateway
+enforces, see the core
+[Architecture](https://ai-agent-assembly.github.io/agent-assembly/architecture/) and
+[Security Model](https://ai-agent-assembly.github.io/agent-assembly/security/) docs.
+
 ## The adapter pattern
 
 The SDK governs *third-party* agent frameworks (LangChain, LangGraph, CrewAI, OpenAI Agents,
@@ -46,11 +52,11 @@ adapters don't double-emit events. The order is defined in
 | Priority | Framework key | Why this rank |
 | --- | --- | --- |
 | 0 | `langchain` | **First** — its callback handler threads through to every adapter that follows. |
-| 1 | `langgraph` | |
-| 2 | `crewai` | |
-| 3 | `pydantic_ai` | |
-| 4 | `openai` | OpenAI Agents. |
-| 5 | `google_adk` | |
+| 1 | `langgraph` | Framework-specific adapter; ranked after LangChain since a LangGraph graph commonly wraps LangChain tools. |
+| 2 | `crewai` | Framework-specific adapter; fixed mid-rank so its hooks install deterministically. |
+| 3 | `pydantic_ai` | Framework-specific adapter; fixed mid-rank so its hooks install deterministically. |
+| 4 | `openai` | OpenAI Agents; framework-specific adapter at a fixed mid-rank. |
+| 5 | `google_adk` | Google ADK; framework-specific adapter, the last fixed rank before third-party and MCP. |
 | 99 | `mcp` | **Last** — backstops any tool-dispatch path the framework-specific adapters didn't claim. |
 
 Third-party adapters discovered via the `agent_assembly.adapters` entry-point group get the
