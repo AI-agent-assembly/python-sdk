@@ -28,15 +28,15 @@
   },
   {
     "version": "v0.0.1-alpha.7",
-    "title": "v0.0.1-alpha.7",
-    "aliases": []
+    "title": "pre-release (v0.0.1-alpha.7)",
+    "aliases": [
+      "pre-release"
+    ]
   },
   {
     "version": "v0.0.1-alpha.6",
     "title": "pre-release (v0.0.1-alpha.6)",
-    "aliases": [
-      "pre-release"
-    ]
+    "aliases": []
   },
   {
     "version": "0.0.0",
