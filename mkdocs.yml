@@ -98,10 +98,14 @@ plugins:
       enable_git_follow: true
       enabled: true
       strict: true
-  # Documentation modification info — per-page contributor list.
-  - git-committers:
-      repository: ai-agent-assembly/python-sdk
-      branch: master
+  # Documentation modification info — per-page author from local git history.
+  # Reads `git log` directly (no GitHub token, works on feature branches),
+  # so the last-updater renders immediately without waiting for a merge to master.
+  - git-authors:
+      show_contribution: false
+      show_line_count: false
+      show_email_address: false
+      sort_authors_by: contribution
 
 # Extensions
 markdown_extensions:
