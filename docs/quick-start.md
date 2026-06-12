@@ -35,7 +35,9 @@ decisions. You have three options:
   `http://localhost:7391` and, if nothing answers, runs `aasm start --mode local --foreground`
   for you. This needs the `aasm` binary on your `PATH` (the `agent-assembly[runtime]` extra
   provides it).
-- **Run one yourself** with `aasm start --mode local --foreground` in a separate terminal.
+- **Run one yourself** with `aasm start --mode local --foreground` in a separate terminal. For
+  a full gateway walkthrough, see the core
+  [Run the gateway](https://ai-agent-assembly.github.io/agent-assembly/getting-started/) guide.
 - **Pass an explicit URL**, as the example below does.
 
 See [Configuration](configuration.md) for the full URL/key resolution chain (`7391` is the

@@ -14,6 +14,11 @@ It is two things in one package:
 
 You keep writing agents the way you always have. The SDK is the seatbelt you click in once.
 
+> **New to Agent Assembly?** This SDK is one of three interception layers in the broader
+> platform. For the product overview, the gateway, and the policy model, see the core
+> [Agent Assembly documentation](https://ai-agent-assembly.github.io/agent-assembly/) and the
+> [documentation hub](https://ai-agent-assembly.github.io/agent-assembly-docs/).
+
 ## What it wraps
 
 The SDK does not replace your agent framework — it **intercepts** it. When you call

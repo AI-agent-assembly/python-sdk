@@ -56,6 +56,11 @@ fallback chain (see `agent_assembly.core.gateway_resolver`):
 This means a local development loop often needs no arguments at all — start a gateway with
 `aasm`, or let the SDK start one for you.
 
+For the full gateway configuration surface (policy files, budgets, mTLS) and the complete
+`aasm` CLI reference, see the core
+[Gateway configuration](https://ai-agent-assembly.github.io/agent-assembly/configuration/) and
+[CLI reference](https://ai-agent-assembly.github.io/agent-assembly/cli/) docs.
+
 ```bash
 export AAASM_GATEWAY_URL="https://gateway.example.com"
 export AAASM_API_KEY="…"
