@@ -5,6 +5,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/agent-assembly?logo=pypi&logoColor=white)](https://pypi.org/project/agent-assembly/)
 [![Python versions](https://img.shields.io/pypi/pyversions/agent-assembly?logo=python&logoColor=white)](https://pypi.org/project/agent-assembly/)
 [![Coverage](https://img.shields.io/codecov/c/github/ai-agent-assembly/python-sdk?logo=codecov&logoColor=white)](https://codecov.io/gh/ai-agent-assembly/python-sdk)
+[![Quality Gate](https://img.shields.io/sonar/quality_gate/AI-agent-assembly_python-sdk?server=https%3A%2F%2Fsonarcloud.io&logo=sonarcloud)](https://sonarcloud.io/project/overview?id=AI-agent-assembly_python-sdk)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow?logo=opensourceinitiative&logoColor=white)](./LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/style-ruff-261230?logo=ruff&logoColor=white)](https://github.com/astral-sh/ruff)
 [![Type-checked: mypy](https://img.shields.io/badge/types-mypy-2a6db2?logo=python&logoColor=white)](https://mypy-lang.org/)
