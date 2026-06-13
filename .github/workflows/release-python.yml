@@ -97,6 +97,16 @@ jobs:
             echo "::error::binary_source_tag '$binary_source_tag' does not match v*.*.* (semver) pattern"
             exit 1
           fi
+          # Validate pypi_version against PEP 440 (basic but tight). Rejects
+          # hyphenated forms like "0.0.1-alpha.8.1" — PyPI accepts only
+          # "0.0.1a8.post1" style. Deliberately tight to fail fast on
+          # operator typos that would otherwise produce a wheel filename PyPI
+          # would reject at upload time (after the full build pipeline ran).
+          # https://peps.python.org/pep-0440/
+          if [[ -n "${pypi_version:-}" ]] && [[ ! "$pypi_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)?[0-9]*(\.post[0-9]+)?(\.dev[0-9]+)?$ ]]; then
+            echo "::error::pypi_version '$pypi_version' is not valid PEP 440 (use 0.0.1a8.post1 not 0.0.1-alpha.8.1)"
+            exit 1
+          fi
           {
             echo "binary_source_tag=${binary_source_tag}"
             echo "pypi_version=${pypi_version}"
