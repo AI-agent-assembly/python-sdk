@@ -121,9 +121,19 @@ jobs:
 
   deploy_release_documentation:
     name: Deploy release documentation (channel)
+    # Gate on the SOURCE workflow_run's triggering event. release-python.yml's
+    # `publish-release-tag` job is itself gated on `event_name == 'repository_dispatch'`
+    # (the coordinated-release path), so the `release-tag` artifact only exists when
+    # the source event was `repository_dispatch`. Without this gate, every push to
+    # master that runs release-python via `workflow_dispatch` (e.g. dry-run sign-off
+    # dispatches) triggers this job, which then fails downloading a non-existent
+    # artifact. The asymmetry mirrors the runbook entry from AAASM-2858 section 2:
+    # `workflow_dispatch` publishes don't snapshot docs because there's no upstream
+    # tag to label them with.
     if: |
       github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success'
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'repository_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (full history for mike + git-revision-date plugins)
