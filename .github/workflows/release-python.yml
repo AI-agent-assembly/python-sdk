@@ -125,6 +125,7 @@ jobs:
 
   build-sdist:
     name: Build sdist
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -148,6 +149,7 @@ jobs:
 
   build-linux-x86_64:
     name: Build manylinux_x86_64 wheel
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -158,19 +160,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
-          AASM_TAG: ${{ github.event.client_payload.release_tag }}
+          AASM_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # repository_dispatch supplies the exact upstream tag in the
-          # client_payload; workflow_dispatch (dry-run) leaves it empty
-          # and falls back to the latest release.
-          TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
+          # binary_source_tag is now guaranteed non-empty by the resolve job
+          # (either set explicitly via workflow_dispatch input, defaulted to
+          # the latest agent-assembly release, or derived from
+          # client_payload.release_tag for repository_dispatch).
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see ai-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-x86_64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-x86_64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-x86_64-unknown-linux-gnu.tar.gz -C agent_assembly/bin/
@@ -222,6 +223,7 @@ jobs:
 
   build-linux-aarch64:
     name: Build manylinux_aarch64 wheel
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -232,17 +234,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
-          AASM_TAG: ${{ github.event.client_payload.release_tag }}
+          AASM_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # See linux-x86_64 above for tag-pinning rationale.
-          TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
+          # See linux-x86_64 above for binary_source_tag resolution rationale.
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see ai-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-aarch64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-aarch64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-aarch64-unknown-linux-gnu.tar.gz -C agent_assembly/bin/
@@ -286,6 +286,7 @@ jobs:
 
   build-macos-arm64:
     name: Build macosx_arm64 wheel
+    needs: resolve
     runs-on: macos-14  # Apple silicon runner
     steps:
       - uses: actions/checkout@v6
@@ -296,17 +297,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
-          AASM_TAG: ${{ github.event.client_payload.release_tag }}
+          AASM_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # See linux-x86_64 above for tag-pinning rationale.
-          TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
+          # See linux-x86_64 above for binary_source_tag resolution rationale.
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see ai-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-aarch64-apple-darwin.tar.gz' --dir agent_assembly/bin/
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-aarch64-apple-darwin.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-aarch64-apple-darwin.tar.gz -C agent_assembly/bin/
@@ -333,6 +332,7 @@ jobs:
 
   build-macos-x86_64:
     name: Build macosx_x86_64 wheel
+    needs: resolve
     runs-on: macos-15-intel  # Intel runner (macos-13 sunset 2025-09-19)
     steps:
       - uses: actions/checkout@v6
@@ -343,17 +343,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
-          AASM_TAG: ${{ github.event.client_payload.release_tag }}
+          AASM_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # See linux-x86_64 above for tag-pinning rationale.
-          TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
+          # See linux-x86_64 above for binary_source_tag resolution rationale.
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see ai-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-x86_64-apple-darwin.tar.gz' --dir agent_assembly/bin/
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-x86_64-apple-darwin.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-x86_64-apple-darwin.tar.gz -C agent_assembly/bin/
