@@ -10,11 +10,11 @@ on:
   workflow_dispatch:
     inputs:
       pypi_version:
-        description: "Version to publish to PyPI (e.g. 0.0.1a8.post1, 0.0.1a9). Required when dry-run is false. AAASM-2856: accepted but unused until AAASM-2857 wires it through."
+        description: "Version to publish to PyPI (e.g. 0.0.1a8.post1, 0.0.1a9). Required when dry-run is false."
         required: false
         type: string
       binary_source_tag:
-        description: "agent-assembly tag whose aasm-* binaries to bundle into the wheel (e.g. v0.0.1-alpha.8). Defaults to latest agent-assembly Release. AAASM-2856: accepted but unused until AAASM-2857 wires it through."
+        description: "agent-assembly tag whose aasm-* binaries to bundle into the wheel (e.g. v0.0.1-alpha.8). Defaults to latest agent-assembly Release."
         required: false
         type: string
       dry-run:
@@ -44,18 +44,98 @@ env:
   PROTOC_SHA256_AARCH_64: '4a802ed23d70f7bad7eb19e5a3e724b3aa967250d572cadfd537c1ba939aee6a'
 
 jobs:
+  resolve:
+    name: Resolve release tag and PyPI version
+    runs-on: ubuntu-latest
+    outputs:
+      binary_source_tag: ${{ steps.r.outputs.binary_source_tag }}
+      pypi_version: ${{ steps.r.outputs.pypi_version }}
+      dry_run: ${{ steps.r.outputs.dry_run }}
+    steps:
+      - id: r
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_BINARY_TAG: ${{ inputs.binary_source_tag }}
+          DISPATCH_PYPI_VERSION: ${{ inputs.pypi_version }}
+          DISPATCH_DRY_RUN: ${{ inputs.dry-run }}
+          DISPATCH_PAYLOAD_TAG: ${{ github.event.client_payload.release_tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            # binary_source_tag is optional: when omitted, default to the
+            # latest agent-assembly Release. Mirrors today's default-latest
+            # behaviour of `gh release download` with no tag.
+            if [[ -n "${DISPATCH_BINARY_TAG:-}" ]]; then
+              binary_source_tag="$DISPATCH_BINARY_TAG"
+            else
+              binary_source_tag=$(gh release view --repo ai-agent-assembly/agent-assembly --json tagName --jq .tagName)
+              echo "::notice::binary_source_tag omitted; defaulting to latest agent-assembly release: $binary_source_tag"
+            fi
+            pypi_version="$DISPATCH_PYPI_VERSION"
+            dry_run="$DISPATCH_DRY_RUN"
+          elif [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
+            binary_source_tag="$DISPATCH_PAYLOAD_TAG"
+            # Convert agent-assembly tag (e.g. v0.0.1-alpha.8) to PEP 440 form
+            # (0.0.1a8). Mirrors the sync-version-from-dispatch composite action
+            # so the repository_dispatch path produces identical wheel + version
+            # state to today.
+            stripped="${DISPATCH_PAYLOAD_TAG#v}"
+            pypi_version=$(echo "$stripped" | sed -E 's/-alpha\.([0-9]+)/a\1/; s/-beta\.([0-9]+)/b\1/; s/-rc\.([0-9]+)/rc\1/')
+            # repository_dispatch is always a real publish — it is fired by
+            # agent-assembly after a real upstream release.
+            dry_run="false"
+          else
+            echo "::error::unexpected event_name '$EVENT_NAME'"
+            exit 1
+          fi
+          # Fail fast: a real publish (dry_run != true) MUST have a non-empty
+          # pypi_version. Otherwise the wheel would be stamped with whatever
+          # version is checked in to master (lagging the bumper) and PyPI
+          # would reject the upload as a duplicate of the master version.
+          # See AAASM-2459 for the alpha-4 incident this guards against.
+          if [[ "$dry_run" != "true" && -z "${pypi_version:-}" ]]; then
+            echo "::error::dry-run is false but pypi_version is empty — supply pypi_version when dispatching for a real publish"
+            exit 1
+          fi
+          # Validate binary_source_tag against v*.*.* semver (allows -alpha.N,
+          # -beta.N, -rc.N suffixes). Catches typos like "v0.0.1.alpha.8"
+          # before we waste a 20-minute wheel-build run on a tag that
+          # gh release download will reject.
+          if [[ ! "$binary_source_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "::error::binary_source_tag '$binary_source_tag' does not match v*.*.* (semver) pattern"
+            exit 1
+          fi
+          # Validate pypi_version against PEP 440 (basic but tight). Rejects
+          # hyphenated forms like "0.0.1-alpha.8.1" — PyPI accepts only
+          # "0.0.1a8.post1" style. Deliberately tight to fail fast on
+          # operator typos that would otherwise produce a wheel filename PyPI
+          # would reject at upload time (after the full build pipeline ran).
+          # https://peps.python.org/pep-0440/
+          if [[ -n "${pypi_version:-}" ]] && [[ ! "$pypi_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)?[0-9]*(\.post[0-9]+)?(\.dev[0-9]+)?$ ]]; then
+            echo "::error::pypi_version '$pypi_version' is not valid PEP 440 (use 0.0.1a8.post1 not 0.0.1-alpha.8.1)"
+            exit 1
+          fi
+          {
+            echo "binary_source_tag=${binary_source_tag}"
+            echo "pypi_version=${pypi_version}"
+            echo "dry_run=${dry_run}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved binary_source_tag=${binary_source_tag} pypi_version=${pypi_version} dry_run=${dry_run}"
+
   build-sdist:
     name: Build sdist
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+      - name: Sync version
+        uses: ./.github/actions/sync-version
         with:
-          release_tag: ${{ github.event.client_payload.release_tag }}
+          pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build source distribution
         uses: PyO3/maturin-action@v1
         with:
@@ -69,6 +149,7 @@ jobs:
 
   build-linux-x86_64:
     name: Build manylinux_x86_64 wheel
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -79,29 +160,28 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
-          AASM_TAG: ${{ github.event.client_payload.release_tag }}
+          AASM_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # repository_dispatch supplies the exact upstream tag in the
-          # client_payload; workflow_dispatch (dry-run) leaves it empty
-          # and falls back to the latest release.
-          TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
+          # binary_source_tag is now guaranteed non-empty by the resolve job
+          # (either set explicitly via workflow_dispatch input, defaulted to
+          # the latest agent-assembly release, or derived from
+          # client_payload.release_tag for repository_dispatch).
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see ai-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-x86_64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-x86_64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-x86_64-unknown-linux-gnu.tar.gz -C agent_assembly/bin/
           rm -f agent_assembly/bin/aasm-x86_64-unknown-linux-gnu.tar.gz
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
-      - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+      - name: Sync version
+        uses: ./.github/actions/sync-version
         with:
-          release_tag: ${{ github.event.client_payload.release_tag }}
+          pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -143,6 +223,7 @@ jobs:
 
   build-linux-aarch64:
     name: Build manylinux_aarch64 wheel
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -153,27 +234,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
-          AASM_TAG: ${{ github.event.client_payload.release_tag }}
+          AASM_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # See linux-x86_64 above for tag-pinning rationale.
-          TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
+          # See linux-x86_64 above for binary_source_tag resolution rationale.
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see ai-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-aarch64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-aarch64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-aarch64-unknown-linux-gnu.tar.gz -C agent_assembly/bin/
           rm -f agent_assembly/bin/aasm-aarch64-unknown-linux-gnu.tar.gz
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
-      - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+      - name: Sync version
+        uses: ./.github/actions/sync-version
         with:
-          release_tag: ${{ github.event.client_payload.release_tag }}
+          pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -207,6 +286,7 @@ jobs:
 
   build-macos-arm64:
     name: Build macosx_arm64 wheel
+    needs: resolve
     runs-on: macos-14  # Apple silicon runner
     steps:
       - uses: actions/checkout@v6
@@ -217,17 +297,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
-          AASM_TAG: ${{ github.event.client_payload.release_tag }}
+          AASM_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # See linux-x86_64 above for tag-pinning rationale.
-          TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
+          # See linux-x86_64 above for binary_source_tag resolution rationale.
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see ai-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-aarch64-apple-darwin.tar.gz' --dir agent_assembly/bin/
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-aarch64-apple-darwin.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-aarch64-apple-darwin.tar.gz -C agent_assembly/bin/
@@ -236,10 +314,10 @@ jobs:
           echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
         run: brew install protobuf
-      - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+      - name: Sync version
+        uses: ./.github/actions/sync-version
         with:
-          release_tag: ${{ github.event.client_payload.release_tag }}
+          pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -254,6 +332,7 @@ jobs:
 
   build-macos-x86_64:
     name: Build macosx_x86_64 wheel
+    needs: resolve
     runs-on: macos-15-intel  # Intel runner (macos-13 sunset 2025-09-19)
     steps:
       - uses: actions/checkout@v6
@@ -264,17 +343,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AASM_REPO: ${{ env.AASM_BINARY_RELEASE_REPO }}
-          AASM_TAG: ${{ github.event.client_payload.release_tag }}
+          AASM_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # See linux-x86_64 above for tag-pinning rationale.
-          TAG_ARG=()
-          if [ -n "$AASM_TAG" ]; then TAG_ARG=("$AASM_TAG"); fi
+          # See linux-x86_64 above for binary_source_tag resolution rationale.
           # Hard error on missing binary: the repository_dispatch event
           # guarantees the aasm-* assets exist on the upstream release
           # at this point (see ai-agent-assembly/agent-assembly#842).
-          gh release download "${TAG_ARG[@]}" --repo "$AASM_REPO" --pattern 'aasm-x86_64-apple-darwin.tar.gz' --dir agent_assembly/bin/
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-x86_64-apple-darwin.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-x86_64-apple-darwin.tar.gz -C agent_assembly/bin/
@@ -283,10 +360,10 @@ jobs:
           echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
         run: brew install protobuf
-      - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+      - name: Sync version
+        uses: ./.github/actions/sync-version
         with:
-          release_tag: ${{ github.event.client_payload.release_tag }}
+          pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -302,14 +379,18 @@ jobs:
   publish:
     name: Publish to PyPI (Trusted Publisher)
     needs:
+      - resolve
       - build-sdist
       - build-linux-x86_64
       - build-linux-aarch64
       - build-macos-arm64
       - build-macos-x86_64
     runs-on: ubuntu-latest
-    # Publish only when fired by agent-assembly's repository_dispatch; workflow_dispatch is dry-run.
-    if: github.event_name == 'repository_dispatch'
+    # Publish whenever the resolve job decided this is a real publish (not a
+    # dry-run). repository_dispatch is hardcoded to dry_run='false' in the
+    # resolve step; workflow_dispatch passes through its dry-run input (which
+    # defaults to false after AAASM-2856).
+    if: needs.resolve.outputs.dry_run != 'true'
     environment:
       name: pypi
       url: https://pypi.org/p/agent-assembly

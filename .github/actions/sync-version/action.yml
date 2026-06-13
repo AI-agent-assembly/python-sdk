@@ -1,0 +1,53 @@
+name: Sync version
+description: >-
+  Rewrite the package version in pyproject.toml and agent_assembly/__init__.py
+  to match a pre-resolved PEP 440 version string supplied by the workflow's
+  resolve job, BEFORE maturin reads pyproject.toml.
+
+  Without this, maturin would build whatever version is currently checked in
+  on master (which lags the upstream bumper), so the wheel filename would
+  collide with an already-published PyPI version. See AAASM-2459 for the
+  alpha-4 incident that motivated this action.
+
+  When `pypi_version` is empty (workflow_dispatch dry-run mode), the step is
+  a no-op and the files keep whatever version is on master — useful for local
+  CI smoke tests.
+
+inputs:
+  pypi_version:
+    description: >-
+      Already-resolved PEP 440 version string (e.g. `0.0.1a8`, `0.0.1a8.post1`).
+      Produced by the workflow's resolve job, which validates the format and
+      derives it from either an explicit workflow_dispatch input or from the
+      repository_dispatch client_payload.release_tag. Empty string is allowed
+      and treated as a no-op (dry-run on master version).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Sync pyproject.toml + __init__.py version
+      shell: bash
+      env:
+        PYPI_VERSION: ${{ inputs.pypi_version }}
+      run: |
+        set -euo pipefail
+        if [ -z "${PYPI_VERSION}" ]; then
+          echo "PYPI_VERSION is empty (workflow_dispatch dry-run) — leaving version files untouched."
+          exit 0
+        fi
+        echo "Stamping wheel version as '${PYPI_VERSION}' (pre-resolved by resolve job)"
+
+        # pyproject.toml: line 7 currently `version = "0.0.2"`. sed in place.
+        sed -i.bak "s|^version = \"[^\"]*\"|version = \"${PYPI_VERSION}\"|" pyproject.toml
+        rm -f pyproject.toml.bak
+
+        # __version__ lives in agent_assembly/__init__.py (verified for AAASM-2459).
+        sed -i.bak "s|^__version__ = \"[^\"]*\"|__version__ = \"${PYPI_VERSION}\"|" agent_assembly/__init__.py
+        rm -f agent_assembly/__init__.py.bak
+
+        echo "--- pyproject.toml version line ---"
+        grep -n '^version = ' pyproject.toml
+        echo "--- agent_assembly/__init__.py __version__ line ---"
+        grep -n '^__version__ = ' agent_assembly/__init__.py
+        echo "Version sync complete: building wheel as agent-assembly==${PYPI_VERSION}"
