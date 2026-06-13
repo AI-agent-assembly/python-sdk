@@ -9,6 +9,10 @@ on:
     types: [agent-assembly-release-published]
   workflow_dispatch:
     inputs:
+      pypi_version:
+        description: "Version to publish to PyPI (e.g. 0.0.1a8.post1, 0.0.1a9). Required when dry-run is false. AAASM-2856: accepted but unused until AAASM-2857 wires it through."
+        required: false
+        type: string
       dry-run:
         description: 'Skip PyPI upload, build wheels only'
         type: boolean
