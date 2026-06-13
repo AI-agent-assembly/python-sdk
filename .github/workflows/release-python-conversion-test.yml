@@ -1,0 +1,47 @@
+name: Release-Python conversion tests
+
+# Run the tag → PEP 440 conversion test harness whenever its inputs
+# change: the script under test, the test itself, the release-python
+# workflow that sources the script, or this workflow file. This keeps
+# the matrix in ci.yaml unaffected while still gating the release
+# pipeline's conversion logic on a real CI run.
+#
+# Refs AAASM-2863.
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/scripts/tag-to-pep440.sh"
+      - ".github/scripts/test_tag_to_pep440.sh"
+      - ".github/workflows/release-python.yml"
+      - ".github/workflows/release-python-conversion-test.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/scripts/tag-to-pep440.sh"
+      - ".github/scripts/test_tag_to_pep440.sh"
+      - ".github/workflows/release-python.yml"
+      - ".github/workflows/release-python-conversion-test.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-tag-to-pep440:
+    name: Run tag → PEP 440 fixture suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Lint conversion + test scripts
+        run: |
+          shellcheck .github/scripts/tag-to-pep440.sh
+          shellcheck -x .github/scripts/test_tag_to_pep440.sh
+      - name: Run fixture suite
+        run: bash .github/scripts/test_tag_to_pep440.sh
