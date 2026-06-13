@@ -1,0 +1,107 @@
+name: Documentation backfill
+
+# One-shot manual workflow used to backfill archived release docs snapshots
+# that the automatic deploy pipeline missed. This was first needed for
+# v0.0.1-alpha.4 and v0.0.1-alpha.5 (AAASM-2828): those tags were cut before
+# documentation.yaml's `workflow_run.workflows` was corrected from "release" to
+# the real workflow name "Release Python SDK" (AAASM-2773), so the release-tag
+# branch of the docs pipeline never fired for them.
+#
+# Behaviour
+# ---------
+# Invokes the same `deploy-release-version-documentation.sh` script the real
+# release pipeline runs (so the resulting mike entry is byte-identical with
+# any future automated deploy). The release tag is supplied as a workflow
+# input instead of being pulled from a triggering "Release Python SDK" run's
+# release-tag artifact, because no such run exists for the historical gap.
+#
+# The deploy script's channel resolver recomputes BOTH moving aliases
+# (`stable`, `pre-release`) and the site default from the FULL set of
+# versions already on gh-pages plus the just-deployed historical tag. Because
+# v0.0.1-alpha.4 / v0.0.1-alpha.5 are strictly OLDER (semver precedence) than
+# the current pre-release alias target (v0.0.1-alpha.8), backfilling them
+# adds the frozen `/v0.0.1-alpha.4/` and `/v0.0.1-alpha.5/` paths WITHOUT
+# changing where `pre-release`, `stable`, or the root redirect points.
+#
+# This workflow is intentionally manual-only (`workflow_dispatch`) and only
+# ever expected to run a handful of times. Keep it in tree so the next
+# operational gap can be backfilled the same way.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to backfill (e.g. v0.0.1-alpha.4)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  pages: write
+
+# Share the same concurrency group as the real docs pipeline so a backfill
+# cannot race a live deploy on gh-pages.
+concurrency:
+  group: "pages-mkdocs"
+  cancel-in-progress: false
+
+jobs:
+  backfill_release_documentation:
+    name: Backfill release documentation snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release tag shape
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          # Mirror the tag-shape validation in deploy-release-version-documentation.sh
+          # so we fail fast before mkdocs spends time building.
+          if ! [[ "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-.+)?$ ]]; then
+            echo "::error::release_tag='${RELEASE_TAG}' does not match vX.Y.Z or vX.Y.Z-<pre>"
+            exit 1
+          fi
+          echo "Backfilling docs for release tag: ${RELEASE_TAG}"
+
+      - name: Checkout (full history for mike + git-revision-date plugins)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: master
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install docs dependency group
+        run: uv sync --group docs
+
+      - name: Print tool versions
+        run: |
+          uv run mkdocs --version
+          uv run mike --version
+
+      - name: Build and deploy release documentation (backfill)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          source .venv/bin/activate
+          bash ./scripts/ci/deploy-release-version-documentation.sh
+
+      - name: Deployment summary
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          BASE_URL: "https://ai-agent-assembly.github.io/python-sdk/"
+        run: |
+          {
+            echo "## 📚 Release documentation backfilled"
+            echo "Tag: \`${RELEASE_TAG}\`"
+            echo "🔗 ${BASE_URL}${RELEASE_TAG}/"
+          } >> "$GITHUB_STEP_SUMMARY"
