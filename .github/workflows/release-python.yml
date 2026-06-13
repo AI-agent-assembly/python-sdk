@@ -59,10 +59,19 @@ jobs:
           DISPATCH_PYPI_VERSION: ${{ inputs.pypi_version }}
           DISPATCH_DRY_RUN: ${{ inputs.dry-run }}
           DISPATCH_PAYLOAD_TAG: ${{ github.event.client_payload.release_tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            binary_source_tag="$DISPATCH_BINARY_TAG"
+            # binary_source_tag is optional: when omitted, default to the
+            # latest agent-assembly Release. Mirrors today's default-latest
+            # behaviour of `gh release download` with no tag.
+            if [[ -n "${DISPATCH_BINARY_TAG:-}" ]]; then
+              binary_source_tag="$DISPATCH_BINARY_TAG"
+            else
+              binary_source_tag=$(gh release view --repo ai-agent-assembly/agent-assembly --json tagName --jq .tagName)
+              echo "::notice::binary_source_tag omitted; defaulting to latest agent-assembly release: $binary_source_tag"
+            fi
             pypi_version="$DISPATCH_PYPI_VERSION"
             dry_run="$DISPATCH_DRY_RUN"
           elif [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
