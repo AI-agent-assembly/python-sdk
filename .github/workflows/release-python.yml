@@ -89,6 +89,15 @@ jobs:
             echo "::error::unexpected event_name '$EVENT_NAME'"
             exit 1
           fi
+          # Fail fast: a real publish (dry_run != true) MUST have a non-empty
+          # pypi_version. Otherwise the wheel would be stamped with whatever
+          # version is checked in to master (lagging the bumper) and PyPI
+          # would reject the upload as a duplicate of the master version.
+          # See AAASM-2459 for the alpha-4 incident this guards against.
+          if [[ "$dry_run" != "true" && -z "${pypi_version:-}" ]]; then
+            echo "::error::dry-run is false but pypi_version is empty — supply pypi_version when dispatching for a real publish"
+            exit 1
+          fi
           # Validate binary_source_tag against v*.*.* semver (allows -alpha.N,
           # -beta.N, -rc.N suffixes). Catches typos like "v0.0.1.alpha.8"
           # before we waste a 20-minute wheel-build run on a tag that
