@@ -18,9 +18,9 @@ on:
         required: false
         type: string
       dry-run:
-        description: 'Skip PyPI upload, build wheels only'
+        description: "Skip PyPI upload, build wheels only (overrides pypi_version)"
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
