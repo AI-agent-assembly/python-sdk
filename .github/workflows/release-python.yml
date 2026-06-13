@@ -44,6 +44,30 @@ env:
   PROTOC_SHA256_AARCH_64: '4a802ed23d70f7bad7eb19e5a3e724b3aa967250d572cadfd537c1ba939aee6a'
 
 jobs:
+  resolve:
+    name: Resolve release tag and PyPI version
+    runs-on: ubuntu-latest
+    outputs:
+      binary_source_tag: ${{ steps.r.outputs.binary_source_tag }}
+    steps:
+      - id: r
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_BINARY_TAG: ${{ inputs.binary_source_tag }}
+          DISPATCH_PAYLOAD_TAG: ${{ github.event.client_payload.release_tag }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            binary_source_tag="$DISPATCH_BINARY_TAG"
+          elif [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
+            binary_source_tag="$DISPATCH_PAYLOAD_TAG"
+          else
+            echo "::error::unexpected event_name '$EVENT_NAME'"
+            exit 1
+          fi
+          echo "binary_source_tag=${binary_source_tag}" >> "$GITHUB_OUTPUT"
+          echo "Resolved binary_source_tag=${binary_source_tag}"
+
   build-sdist:
     name: Build sdist
     runs-on: ubuntu-latest
