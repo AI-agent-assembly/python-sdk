@@ -1,24 +1,26 @@
-name: Sync version from dispatch payload
+name: Sync version
 description: >-
   Rewrite the package version in pyproject.toml and agent_assembly/__init__.py
-  to match the upstream agent-assembly release tag carried in the
-  repository_dispatch client_payload, BEFORE maturin reads pyproject.toml.
+  to match a pre-resolved PEP 440 version string supplied by the workflow's
+  resolve job, BEFORE maturin reads pyproject.toml.
 
   Without this, maturin would build whatever version is currently checked in
   on master (which lags the upstream bumper), so the wheel filename would
   collide with an already-published PyPI version. See AAASM-2459 for the
   alpha-4 incident that motivated this action.
 
-  When `release_tag` is empty (workflow_dispatch dry-run mode), the step is a
-  no-op and the files keep whatever version is on master — useful for local
+  When `pypi_version` is empty (workflow_dispatch dry-run mode), the step is
+  a no-op and the files keep whatever version is on master — useful for local
   CI smoke tests.
 
 inputs:
-  release_tag:
+  pypi_version:
     description: >-
-      Upstream agent-assembly release tag from
-      `github.event.client_payload.release_tag` (e.g. `v0.0.1-alpha.4`).
-      Empty string is allowed and treated as a no-op (dry-run).
+      Already-resolved PEP 440 version string (e.g. `0.0.1a8`, `0.0.1a8.post1`).
+      Produced by the workflow's resolve job, which validates the format and
+      derives it from either an explicit workflow_dispatch input or from the
+      repository_dispatch client_payload.release_tag. Empty string is allowed
+      and treated as a no-op (dry-run on master version).
     required: true
 
 runs:
@@ -27,34 +29,25 @@ runs:
     - name: Sync pyproject.toml + __init__.py version
       shell: bash
       env:
-        AASM_TAG: ${{ inputs.release_tag }}
+        PYPI_VERSION: ${{ inputs.pypi_version }}
       run: |
         set -euo pipefail
-        if [ -z "${AASM_TAG}" ]; then
-          echo "AASM_TAG is empty (workflow_dispatch dry-run) — leaving version files untouched."
+        if [ -z "${PYPI_VERSION}" ]; then
+          echo "PYPI_VERSION is empty (workflow_dispatch dry-run) — leaving version files untouched."
           exit 0
         fi
-        # PEP-440 conversion from git tag form:
-        #   v0.0.1-alpha.4 -> 0.0.1a4
-        #   v0.0.1-beta.2  -> 0.0.1b2   (not used today; future-proofing)
-        #   v0.0.1-rc.1    -> 0.0.1rc1  (not used today; future-proofing)
-        #   v1.2.3         -> 1.2.3
-        pep440="${AASM_TAG#v}"
-        pep440="${pep440//-alpha./a}"
-        pep440="${pep440//-beta./b}"
-        pep440="${pep440//-rc./rc}"
-        echo "Mapped upstream tag '${AASM_TAG}' to PEP-440 version '${pep440}'"
+        echo "Stamping wheel version as '${PYPI_VERSION}' (pre-resolved by resolve job)"
 
         # pyproject.toml: line 7 currently `version = "0.0.2"`. sed in place.
-        sed -i.bak "s|^version = \"[^\"]*\"|version = \"${pep440}\"|" pyproject.toml
+        sed -i.bak "s|^version = \"[^\"]*\"|version = \"${PYPI_VERSION}\"|" pyproject.toml
         rm -f pyproject.toml.bak
 
         # __version__ lives in agent_assembly/__init__.py (verified for AAASM-2459).
-        sed -i.bak "s|^__version__ = \"[^\"]*\"|__version__ = \"${pep440}\"|" agent_assembly/__init__.py
+        sed -i.bak "s|^__version__ = \"[^\"]*\"|__version__ = \"${PYPI_VERSION}\"|" agent_assembly/__init__.py
         rm -f agent_assembly/__init__.py.bak
 
         echo "--- pyproject.toml version line ---"
         grep -n '^version = ' pyproject.toml
         echo "--- agent_assembly/__init__.py __version__ line ---"
         grep -n '^__version__ = ' agent_assembly/__init__.py
-        echo "Version sync complete: building wheel as agent-assembly==${pep440}"
+        echo "Version sync complete: building wheel as agent-assembly==${PYPI_VERSION}"
