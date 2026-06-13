@@ -133,7 +133,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+        uses: ./.github/actions/sync-version
         with:
           release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build source distribution
@@ -179,7 +179,7 @@ jobs:
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
       - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+        uses: ./.github/actions/sync-version
         with:
           release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build wheel
@@ -250,7 +250,7 @@ jobs:
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
       - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+        uses: ./.github/actions/sync-version
         with:
           release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build wheel
@@ -315,7 +315,7 @@ jobs:
       - name: Install protoc (macOS)
         run: brew install protobuf
       - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+        uses: ./.github/actions/sync-version
         with:
           release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build wheel
@@ -361,7 +361,7 @@ jobs:
       - name: Install protoc (macOS)
         run: brew install protobuf
       - name: Sync version from dispatch payload
-        uses: ./.github/actions/sync-version-from-dispatch
+        uses: ./.github/actions/sync-version
         with:
           release_tag: ${{ github.event.client_payload.release_tag }}
       - name: Build wheel
