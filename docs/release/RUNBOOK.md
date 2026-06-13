@@ -135,6 +135,31 @@ separate "runtime" package on PyPI to skip. Consequently:
   release's `binary_source_tag` so the bundled `aasm` binary is
   unchanged byte-for-byte.
 
+### Documentation snapshots — `workflow_dispatch` paths skip release-channel docs
+
+`workflow_dispatch` publishes (including SDK-only hotfixes and dry-runs)
+do **not** cut a new release-channel docs snapshot. There is no upstream
+agent-assembly tag to label the snapshot with, and the downstream docs
+workflow has nothing meaningful to deploy. Two gates implement this:
+
+- **AAASM-2857**: the `publish-release-tag` job in `release-python.yml`
+  is gated on `event_name == 'repository_dispatch'`. Only the
+  coordinated-release path uploads the `release-tag` artifact that the
+  docs workflow consumes.
+- **AAASM-2868**: the `Deploy release documentation (channel)` job in
+  `documentation.yaml` is symmetrically gated on
+  `github.event.workflow_run.event == 'repository_dispatch'`. Without
+  this gate, every `workflow_dispatch` source run would trigger a
+  failed download of the (non-existent) `release-tag` artifact.
+
+**Net effect on SDK-only hotfix mode**: the new `pypi_version` is
+published cleanly to PyPI, but no new release-channel docs snapshot
+is cut. The `latest`-channel docs still rebuild and deploy on the next
+master push — that path is unaffected by these gates. If you need
+release-channel docs for an SDK-only hotfix, you must dispatch the
+coordinated agent-assembly release flow instead (which is exactly the
+"when NOT to use SDK-only mode" guidance above).
+
 ### Pre-flight checks
 
 The workflow's `binary_source_tag` resolution step calls the
