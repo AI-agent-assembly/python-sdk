@@ -10,11 +10,11 @@ on:
   workflow_dispatch:
     inputs:
       pypi_version:
-        description: "Version to publish to PyPI (e.g. 0.0.1a8.post1, 0.0.1a9). Required when dry-run is false. AAASM-2856: accepted but unused until AAASM-2857 wires it through."
+        description: "Version to publish to PyPI (e.g. 0.0.1a8.post1, 0.0.1a9). Required when dry-run is false."
         required: false
         type: string
       binary_source_tag:
-        description: "agent-assembly tag whose aasm-* binaries to bundle into the wheel (e.g. v0.0.1-alpha.8). Defaults to latest agent-assembly Release. AAASM-2856: accepted but unused until AAASM-2857 wires it through."
+        description: "agent-assembly tag whose aasm-* binaries to bundle into the wheel (e.g. v0.0.1-alpha.8). Defaults to latest agent-assembly Release."
         required: false
         type: string
       dry-run:
