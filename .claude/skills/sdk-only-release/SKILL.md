@@ -18,6 +18,26 @@ Valid drivers include: bug fix, dependency bump, refactor, doc rebuild, or a
 small SDK-only feature. The skill is **not** hotfix-specific — the rename from
 `sdk-only-hotfix` is deliberate.
 
+## When to use
+
+Use this skill when the `agent-assembly` Python SDK needs a republish for **any**
+reason that does not require cutting a new `agent-assembly` core tag — a new
+SDK feature, a refactor, a dependency bump, a bug fix, a documentation rebuild,
+or a pre-release iteration of the Python surface. The skill is deliberately
+broader than the original "hotfix-only" framing; SDK-only republishes are a
+normal release path, not an emergency one.
+
+## When NOT to use
+
+- A new `agent-assembly` tag is being cut. The upstream `release.yml` workflow
+  fires a `repository_dispatch` event at `python-sdk` automatically, which
+  exercises the same `release-python.yml` workflow. Running this skill
+  on top of that flow would double-publish to PyPI.
+- The operator wants to bump the bundled `aasm` sidecar binary tarball source.
+  That is a `binary_source_tag` change and can be combined with a same-or-new
+  `pypi_version` if needed — but the intent is to refresh the binary, not the
+  Python surface alone. Decide which axis is actually changing before invoking.
+
 ## Type
 
 Command-style. Invoke explicitly when the operator decides to dispatch a
