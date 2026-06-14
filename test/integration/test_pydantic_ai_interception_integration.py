@@ -63,5 +63,51 @@ def test_pydantic_ai_real_tool_class_patch_path_when_available() -> None:
             return {"status": "allow"}
 
     patcher = pydantic_ai_patch.PydanticAIPatch(Interceptor())
+    try:
+        assert patcher.apply() is True
+        # The installed version determines which hook is set: ``Tool._run`` on
+        # <0.3.0, else ``AbstractToolset.call_tool`` on >=0.3.0. Assert that the
+        # version-appropriate hook carries the patched flag on its own class.
+        toolset_cls = pydantic_ai_patch._load_pydantic_ai_toolset_class()
+        tool_flagged = vars(tool_cls).get(pydantic_ai_patch._TOOLS_PATCHED_FLAG, False)
+        toolset_flagged = toolset_cls is not None and vars(toolset_cls).get(
+            pydantic_ai_patch._TOOLS_PATCHED_FLAG, False
+        )
+        assert tool_flagged or toolset_flagged
+    finally:
+        patcher.revert()
+
+
+@pytest.mark.integration
+def test_pydantic_ai_real_function_tool_deny_raises_after_apply() -> None:
+    """End-to-end proof against the real library (AAASM-2943).
+
+    Function tools (``@agent.tool_plain``) execute through
+    ``FunctionToolset.call_tool``, which overrides ``AbstractToolset.call_tool``
+    WITHOUT ``super()``. Before the concrete-class patch, a denied function tool
+    ran without raising. After ``apply()`` patches the concrete class too, the
+    deny path raises ``PolicyViolationError``.
+    """
+    pytest.importorskip("pydantic_ai")
+    from pydantic_ai import Agent
+    from pydantic_ai.models.test import TestModel
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            if kwargs.get("tool_name") == "blocked_tool":
+                return {"status": "deny", "reason": "blocked by policy"}
+            return {"status": "allow"}
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(Interceptor())
     assert patcher.apply() is True
-    assert getattr(tool_cls, pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is True
+    try:
+        agent = Agent(TestModel(call_tools=["blocked_tool"]))
+
+        @agent.tool_plain
+        def blocked_tool() -> str:
+            return "ran"
+
+        with pytest.raises(PolicyViolationError, match="blocked by governance policy: blocked by policy"):
+            agent.run_sync("invoke the tool")
+    finally:
+        patcher.revert()
