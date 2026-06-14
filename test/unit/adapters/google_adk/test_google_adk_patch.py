@@ -362,3 +362,102 @@ def test_apply_proceeds_with_only_tool_when_agent_module_missing(
 
     patcher.revert()
     assert getattr(FakeBaseTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is False
+
+
+def _install_fake_google_adk_with_function_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[type[Any], type[Any]]:
+    """Model ADK 1.x: a concrete ``FunctionTool`` subclass that OVERRIDES
+    ``run_async``, so a patch on ``BaseTool.run_async`` alone never runs for it.
+    """
+
+    class FakeBaseTool:
+        name = "base_tool"
+
+        async def run_async(self, *, args: Any, tool_context: Any, **kwargs: Any) -> dict[str, object]:
+            del kwargs
+            return {"who": "base", "args": args, "tool_context": tool_context}
+
+    class FakeFunctionTool(FakeBaseTool):
+        name = "function_tool"
+
+        # Concrete subclass overrides run_async (its own __dict__ entry).
+        async def run_async(self, *, args: Any, tool_context: Any, **kwargs: Any) -> dict[str, object]:
+            del kwargs
+            return {"who": "function", "args": args, "tool_context": tool_context}
+
+    fake_module = SimpleNamespace(BaseTool=FakeBaseTool, FunctionTool=FakeFunctionTool)
+
+    def fake_import_module(module_name: str) -> object:
+        if module_name == "google.adk.tools":
+            return fake_module
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(google_adk_patch.importlib, "import_module", fake_import_module)
+    return FakeBaseTool, FakeFunctionTool
+
+
+def test_load_concrete_tool_classes_finds_run_async_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeBaseTool, FakeFunctionTool = _install_fake_google_adk_with_function_tool(monkeypatch)
+
+    concrete = google_adk_patch._load_google_adk_concrete_tool_classes(FakeBaseTool)
+
+    # The base class itself is excluded; the overriding subclass is included.
+    assert FakeFunctionTool in concrete
+    assert FakeBaseTool not in concrete
+
+
+@pytest.mark.asyncio
+async def test_apply_patches_concrete_function_tool_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeBaseTool, FakeFunctionTool = _install_fake_google_adk_with_function_tool(monkeypatch)
+
+    patcher = google_adk_patch.GoogleADKPatch(_AllowInterceptor())
+    assert patcher.apply() is True
+
+    # Both the base and the concrete override are patched.
+    assert getattr(FakeBaseTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is True
+    assert getattr(FakeFunctionTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is True
+
+
+@pytest.mark.asyncio
+async def test_function_tool_override_is_intercepted_on_deny(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, FakeFunctionTool = _install_fake_google_adk_with_function_tool(monkeypatch)
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "deny", "reason": "blocked subclass"}
+
+    patcher = google_adk_patch.GoogleADKPatch(Interceptor())
+    assert patcher.apply() is True
+
+    tool = FakeFunctionTool()
+    tool_context = SimpleNamespace(invocation_context=None)
+    # Governance runs on the SUBCLASS run_async, not just the base.
+    with pytest.raises(PolicyViolationError, match="blocked by governance policy: blocked subclass"):
+        await tool.run_async(args={"step": 1}, tool_context=tool_context)
+
+
+@pytest.mark.asyncio
+async def test_revert_restores_concrete_function_tool_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeBaseTool, FakeFunctionTool = _install_fake_google_adk_with_function_tool(monkeypatch)
+    original_base = FakeBaseTool.run_async
+    original_function = FakeFunctionTool.run_async
+
+    patcher = google_adk_patch.GoogleADKPatch(_AllowInterceptor())
+    assert patcher.apply() is True
+    assert FakeFunctionTool.run_async is not original_function
+
+    patcher.revert()
+    assert FakeBaseTool.run_async is original_base
+    assert FakeFunctionTool.run_async is original_function
+    assert getattr(FakeBaseTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is False
+    assert getattr(FakeFunctionTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is False
