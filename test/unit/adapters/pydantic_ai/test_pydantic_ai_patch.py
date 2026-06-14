@@ -373,3 +373,129 @@ async def test_fallback_and_non_awaitable_branches_for_async_helpers() -> None:
         run_id="run-z",
     )
     assert observed_outputs == ["result-value"]
+
+
+def _install_fake_pydantic_ai_v030_modules(
+    monkeypatch: pytest.MonkeyPatch,
+) -> type[Any]:
+    """Model Pydantic AI >=0.3.0: ``Tool`` has no ``_run`` and tool execution
+    routes through ``AbstractToolset.call_tool(self, name, tool_args, ctx, tool)``.
+    """
+
+    class FakeTool:
+        # Note: no `_run` method — mirrors the >=0.3.0 restructure.
+        name = "fake_tool"
+
+    class FakeAbstractToolset:
+        async def call_tool(self, name: Any, tool_args: Any, ctx: Any, tool: Any) -> dict[str, object]:
+            return {"name": name, "tool_args": tool_args, "ctx": ctx, "tool": tool}
+
+    fake_tools_module = SimpleNamespace(Tool=FakeTool)
+    fake_toolsets_module = SimpleNamespace(AbstractToolset=FakeAbstractToolset)
+
+    def fake_import_module(module_name: str) -> object:
+        if module_name == "pydantic_ai.tools":
+            return fake_tools_module
+        if module_name == "pydantic_ai.toolsets":
+            return fake_toolsets_module
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(pydantic_ai_patch.importlib, "import_module", fake_import_module)
+    return FakeAbstractToolset
+
+
+@pytest.mark.asyncio
+async def test_apply_patches_toolset_call_tool_for_v030(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeAbstractToolset = _install_fake_pydantic_ai_v030_modules(monkeypatch)
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(_RecordingInterceptor())
+    assert patcher.apply() is True
+    assert getattr(FakeAbstractToolset, pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is True
+
+    first_ref = FakeAbstractToolset.call_tool
+    # Re-applying is idempotent.
+    assert patcher.apply() is True
+    assert FakeAbstractToolset.call_tool is first_ref
+
+
+@pytest.mark.asyncio
+async def test_v030_toolset_allow_flow_runs_and_records(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeAbstractToolset = _install_fake_pydantic_ai_v030_modules(monkeypatch)
+
+    recorded: list[dict[str, object]] = []
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "allow"}
+
+        async def record_result(self, **kwargs: object) -> None:
+            recorded.append(dict(kwargs))
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(Interceptor())
+    assert patcher.apply() is True
+
+    toolset = FakeAbstractToolset()
+    ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-x"), run_id="run-x")
+    result = await toolset.call_tool("fake_tool", {"q": "hi"}, ctx, object())
+
+    assert result["name"] == "fake_tool"
+    assert len(recorded) == 1
+    assert recorded[0]["tool_name"] == "fake_tool"
+    assert recorded[0]["agent_id"] == "agent-x"
+
+
+@pytest.mark.asyncio
+async def test_v030_toolset_deny_flow_raises_policy_violation(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeAbstractToolset = _install_fake_pydantic_ai_v030_modules(monkeypatch)
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "deny", "reason": "blocked v030"}
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(Interceptor())
+    assert patcher.apply() is True
+
+    toolset = FakeAbstractToolset()
+    ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-x"), run_id="run-x")
+    with pytest.raises(PolicyViolationError, match="blocked by governance policy: blocked v030"):
+        await toolset.call_tool("fake_tool", {"q": "hi"}, ctx, object())
+
+
+def test_v030_revert_restores_toolset_call_tool(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeAbstractToolset = _install_fake_pydantic_ai_v030_modules(monkeypatch)
+    original_call_tool = FakeAbstractToolset.call_tool
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(_RecordingInterceptor())
+    assert patcher.apply() is True
+    assert FakeAbstractToolset.call_tool is not original_call_tool
+
+    patcher.revert()
+    assert FakeAbstractToolset.call_tool is original_call_tool
+    assert getattr(FakeAbstractToolset, pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is False
+
+
+def test_apply_false_when_no_known_tool_hook_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pydantic AI present but exposing neither ``Tool._run`` nor
+    ``AbstractToolset.call_tool`` must no-op (return False), never raise.
+    """
+
+    class FakeTool:
+        name = "fake_tool"  # no `_run`
+
+    class FakeAbstractToolset:
+        pass  # no `call_tool`
+
+    def fake_import_module(module_name: str) -> object:
+        if module_name == "pydantic_ai.tools":
+            return SimpleNamespace(Tool=FakeTool)
+        if module_name == "pydantic_ai.toolsets":
+            return SimpleNamespace(AbstractToolset=FakeAbstractToolset)
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(pydantic_ai_patch.importlib, "import_module", fake_import_module)
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(_RecordingInterceptor())
+    assert patcher.apply() is False
+    assert pydantic_ai_patch._get_process_agent_id() is None

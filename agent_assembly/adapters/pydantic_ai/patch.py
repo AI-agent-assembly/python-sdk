@@ -18,6 +18,7 @@ from agent_assembly.adapters.crewai.patch import (
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 _ORIGINAL_TOOL_RUN = "_agent_assembly_original_pydantic_ai_tool_run"
+_ORIGINAL_TOOLSET_CALL_TOOL = "_agent_assembly_original_pydantic_ai_toolset_call_tool"
 _TOOLS_PATCHED_FLAG = "_agent_assembly_pydantic_ai_tools_patched"
 _ORIGINAL_AGENT_RUN = "_agent_assembly_original_pydantic_ai_agent_run"
 _ORIGINAL_AGENT_RUN_SYNC = "_agent_assembly_original_pydantic_ai_agent_run_sync"
@@ -34,12 +35,28 @@ class PydanticAIPatch:
     process_agent_id: str | None = None
 
     def apply(self) -> bool:
-        """Apply patch wiring and return whether Pydantic AI is available."""
+        """Apply patch wiring and return whether a tool hook was installed.
+
+        Detects the tool-execution hook across Pydantic AI versions: the
+        ``Tool._run`` hook on <0.3.0 and the ``AbstractToolset.call_tool``
+        hook on >=0.3.0. When neither hook point exists, this is a no-op that
+        returns ``False`` instead of raising ``AttributeError``.
+        """
         set_process_agent_id(self.process_agent_id)
+
+        tool_hooked = False
         tool_cls = _load_pydantic_ai_tool_class()
-        if tool_cls is None:
+        if tool_cls is not None:
+            tool_hooked = _apply_tool_run_patch(tool_cls, self.callback_handler)
+        if not tool_hooked:
+            toolset_cls = _load_pydantic_ai_toolset_class()
+            if toolset_cls is not None:
+                tool_hooked = _apply_toolset_call_tool_patch(toolset_cls, self.callback_handler)
+
+        if not tool_hooked:
+            set_process_agent_id(None)
             return False
-        _apply_tool_run_patch(tool_cls, self.callback_handler)
+
         agent_cls = _load_pydantic_ai_agent_class()
         if agent_cls is not None:
             _apply_agent_run_patch(agent_cls, self.process_agent_id)
@@ -53,6 +70,9 @@ class PydanticAIPatch:
         tool_cls = _load_pydantic_ai_tool_class()
         if tool_cls is not None:
             _revert_tool_run_patch(tool_cls)
+        toolset_cls = _load_pydantic_ai_toolset_class()
+        if toolset_cls is not None:
+            _revert_toolset_call_tool_patch(toolset_cls)
         set_process_agent_id(None)
         return None
 
@@ -93,6 +113,23 @@ def _load_pydantic_ai_tool_class() -> type[Any] | None:
     tool_cls = getattr(module, "Tool", None)
     if isinstance(tool_cls, type):
         return tool_cls
+    return None
+
+
+def _load_pydantic_ai_toolset_class() -> type[Any] | None:
+    """Load ``AbstractToolset`` — the >=0.3.0 tool-execution hook point.
+
+    In Pydantic AI >=0.3.0 tool execution routes through
+    ``AbstractToolset.call_tool`` rather than ``Tool._run``.
+    """
+    try:
+        module = importlib.import_module("pydantic_ai.toolsets")
+    except ImportError:
+        return None
+
+    toolset_cls = getattr(module, "AbstractToolset", None)
+    if isinstance(toolset_cls, type):
+        return toolset_cls
     return None
 
 
@@ -170,11 +207,14 @@ def _revert_agent_run_patch(agent_cls: type[Any]) -> None:
     return None
 
 
-def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> None:
+def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> bool:
+    """Patch ``Tool._run`` (the <0.3.0 hook); no-op if it is unavailable."""
     if getattr(tool_cls, _TOOLS_PATCHED_FLAG, False):
-        return None
+        return True
 
-    original_run = tool_cls._run
+    original_run = getattr(tool_cls, "_run", None)
+    if not callable(original_run):
+        return False
 
     @wraps(original_run)
     async def patched_run(self: Any, ctx: Any, args: Any, **kwargs: Any) -> Any:
@@ -233,7 +273,7 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> None:
     setattr(tool_cls, _ORIGINAL_TOOL_RUN, original_run)
     tool_cls._run = patched_run
     setattr(tool_cls, _TOOLS_PATCHED_FLAG, True)
-    return None
+    return True
 
 
 def _revert_tool_run_patch(tool_cls: type[Any]) -> None:
@@ -248,6 +288,90 @@ def _revert_tool_run_patch(tool_cls: type[Any]) -> None:
         delattr(tool_cls, _ORIGINAL_TOOL_RUN)
     if hasattr(tool_cls, _TOOLS_PATCHED_FLAG):
         delattr(tool_cls, _TOOLS_PATCHED_FLAG)
+    return None
+
+
+def _apply_toolset_call_tool_patch(toolset_cls: type[Any], callback_handler: Any) -> bool:
+    """Patch ``AbstractToolset.call_tool`` (the >=0.3.0 hook); no-op if absent."""
+    if getattr(toolset_cls, _TOOLS_PATCHED_FLAG, False):
+        return True
+
+    original_call_tool = getattr(toolset_cls, "call_tool", None)
+    if not callable(original_call_tool):
+        return False
+
+    @wraps(original_call_tool)
+    async def patched_call_tool(self: Any, name: Any, tool_args: Any, ctx: Any, tool: Any, **kwargs: Any) -> Any:
+        tool_name = str(name)
+        serialized_args = _serialize_tool_args(tool_args)
+        agent_id = _resolve_agent_id(ctx)
+        run_id = _resolve_run_id(ctx)
+
+        decision = await _invoke_async_tool_check(
+            callback_handler,
+            tool_name=tool_name,
+            tool_args=serialized_args,
+            agent_id=agent_id,
+            run_id=run_id,
+        )
+        status, reason = _normalize_decision(decision)
+        is_pending_flow = False
+        if status == "pending":
+            is_pending_flow = True
+            timeout_seconds = _get_pending_tool_approval_timeout_seconds(callback_handler)
+            final_decision = await _wait_for_async_tool_approval(
+                callback_handler,
+                tool_name=tool_name,
+                timeout_seconds=timeout_seconds,
+                tool_args=serialized_args,
+                agent_id=agent_id,
+                run_id=run_id,
+            )
+            status, reason = _normalize_decision(final_decision)
+
+        if status == "deny":
+            if is_pending_flow:
+                raise _build_pending_rejected_error(tool_name, reason)
+            raise _build_denied_error(tool_name, reason)
+
+        spawn_ctx = SpawnContext(
+            parent_agent_id=agent_id or "",
+            depth=_current_spawn_depth(),
+            spawned_by_tool=tool_name,
+            delegation_reason=f"tool:{tool_name}",
+        )
+        with spawn_context_scope(spawn_ctx):
+            result = original_call_tool(self, name, tool_args, ctx, tool, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+
+        await _record_async_tool_result(
+            callback_handler,
+            tool_name=tool_name,
+            result=result,
+            agent_id=agent_id,
+            run_id=run_id,
+        )
+        return result
+
+    setattr(toolset_cls, _ORIGINAL_TOOLSET_CALL_TOOL, original_call_tool)
+    toolset_cls.call_tool = patched_call_tool
+    setattr(toolset_cls, _TOOLS_PATCHED_FLAG, True)
+    return True
+
+
+def _revert_toolset_call_tool_patch(toolset_cls: type[Any]) -> None:
+    if not getattr(toolset_cls, _TOOLS_PATCHED_FLAG, False):
+        return None
+
+    original_call_tool = getattr(toolset_cls, _ORIGINAL_TOOLSET_CALL_TOOL, None)
+    if callable(original_call_tool):
+        toolset_cls.call_tool = original_call_tool
+
+    if hasattr(toolset_cls, _ORIGINAL_TOOLSET_CALL_TOOL):
+        delattr(toolset_cls, _ORIGINAL_TOOLSET_CALL_TOOL)
+    if hasattr(toolset_cls, _TOOLS_PATCHED_FLAG):
+        delattr(toolset_cls, _TOOLS_PATCHED_FLAG)
     return None
 
 
