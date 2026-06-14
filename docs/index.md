@@ -63,7 +63,7 @@ flowchart LR
 | --- | --- |
 | Install and govern your first agent in 5 minutes | **[Quick Start](quick-start.md)** |
 | Understand the adapter pattern, modes, and lifecycle | **[Core Concepts](concepts/index.md)** |
-| See real framework integrations and decision handling | **[Guides](guides/framework-examples.md)** |
+| See real framework integrations and decision handling | **[Examples](examples/index.md)** and **[Guides](guides/index.md)** |
 | Configure the gateway URL, API key, and modes | **[Configuration](configuration.md)** |
 | Look up a class, exception, or model | **[API Reference](api-reference/index.md)** |
 | Check Python / core-runtime compatibility and releases | **[Compatibility & Versioning](compatibility/index.md)** |

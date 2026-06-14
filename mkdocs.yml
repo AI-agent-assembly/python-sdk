@@ -176,9 +176,21 @@ nav:
       - Architecture (deep dive): concepts/architecture.md
   - Guides:
       - guides/index.md
-      - Framework examples: guides/framework-examples.md
       - Handling allow/deny decisions: guides/handling-decisions.md
       - Type checking: guides/type-checking.md
+  - Examples:
+      - examples/index.md
+      - Preparing the runtime environment: examples/preparing-the-runtime-environment.md
+      - Framework support: examples/framework-support.md
+      - LangChain — basic agent: examples/langchain-basic-agent.md
+      - LangChain — research agent: examples/langchain-research-agent.md
+      - LangGraph — node-level governance: examples/langgraph.md
+      - CrewAI — multi-agent research crew: examples/crewai-research-crew.md
+      - OpenAI Agents SDK: examples/openai-agents-sdk.md
+      - Pydantic AI: examples/pydantic-ai.md
+      - Google ADK: examples/google-adk.md
+      - LlamaIndex — manual tool policy: examples/llamaindex-tool-policy.md
+      - Custom tool policy (no framework): examples/custom-tool-policy.md
   - Configuration: configuration.md
   - API Reference:
       - api-reference/index.md

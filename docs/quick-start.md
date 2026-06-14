@@ -113,6 +113,6 @@ network/kernel interception — see [Core Concepts → Modes](concepts/index.md#
 
 - **[Core Concepts](concepts/index.md)** — the adapter pattern, the `init_assembly()`
   lifecycle, and the modes/enforcement model.
-- **[Guides](guides/framework-examples.md)** — wire the SDK into the framework you actually use.
+- **[Examples](examples/index.md)** — wire the SDK into the framework you actually use.
 - **[Configuration](configuration.md)** — drop the hard-coded URL and key; let the resolver
   chain find them.
