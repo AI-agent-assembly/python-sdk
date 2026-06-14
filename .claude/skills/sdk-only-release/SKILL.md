@@ -1,6 +1,6 @@
 ---
 name: sdk-only-release
-description: Publish an SDK-only agent-assembly Python release (no agent-assembly core bump) via release-python.yml workflow_dispatch.
+description: Publish an SDK-only agent-assembly Python release via the release-python.yml workflow_dispatch, without cutting a new agent-assembly core tag. Use when the Python SDK needs a republish that does not change the core binaries — a feature, refactor, dependency bump, bug fix, or doc rebuild — supplying pypi_version (PEP 440), binary_source_tag, and a dry-run-first dispatch; the resolve job handles the SemVer-tag-to-PEP-440 conversion.
 ---
 
 # SKILL.md — sdk-only-release
