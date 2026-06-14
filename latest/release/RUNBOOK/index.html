@@ -1723,6 +1723,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#5-automatic-shared-crate-pin-bump-from-agent-assembly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Automatic shared-crate pin bump (from agent-assembly)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1944,6 +1955,25 @@ referenced agent-assembly tag does not yet have all four <code>aasm-*.tar.gz</co
 assets), fix the underlying coordination problem first — usually that
 means running the coordinated release for <code>binary_source_tag</code> before
 attempting the SDK-only hotfix.</p>
+<h2 id="5-automatic-shared-crate-pin-bump-from-agent-assembly">5. Automatic shared-crate pin bump (from agent-assembly)<a class="headerlink" href="#5-automatic-shared-crate-pin-bump-from-agent-assembly" title="Permanent link">&para;</a></h2>
+<p>After each <code>agent-assembly</code> release, <code>agent-assembly</code>'s <code>release.yml</code>
+(<code>update-python-sdk-ffi-pin</code> job) <strong>auto-opens a bot PR on this repo</strong>
+bumping <strong>all three</strong> git-SHA pins (<code>aa-core</code>, <code>aa-proto</code>,
+<code>aa-sdk-client</code>) in <code>native/aa-ffi-python/Cargo.toml</code> to the just-tagged
+commit. Per ADR 0002 / AAASM-2559 the three pins must share a single SHA.</p>
+<p><strong>Merging that PR does NOT republish to PyPI.</strong> <code>release-python.yml</code>
+triggers only on <code>repository_dispatch</code> (<code>agent-assembly-release-published</code>)
+and <code>workflow_dispatch</code> — never on <code>push</code>. The PyPI publish already
+happened at agent-assembly tag time via the coordinated
+<code>repository_dispatch</code> fan-out (see section 1).</p>
+<p>The bump PR is <strong>source-sync only</strong>: it keeps the wheel's pinned crates
+current so the next release — or any from-source <code>maturin</code> build —
+compiles against the right revision.</p>
+<p>To avoid the one-cycle source lag (the wheel published at vX was built
+from the <em>previous</em> pin), merge the bump PR <strong>before</strong> the next
+agent-assembly tag is cut.</p>
+<p>Cross-reference: see <code>agent-assembly</code>'s <code>docs/release/RUNBOOK.md</code>
+sections 3 and 8.</p>
 
 
 
@@ -1962,7 +1992,7 @@ attempting the SDK-only hotfix.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 14, 2026 00:54:53 CST"><span class="timeago" datetime="2026-06-14T00:54:53+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 14, 2026 00:54:53 CST">2026-06-14</span> by Chisanan232</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 14, 2026 14:46:06 CST"><span class="timeago" datetime="2026-06-14T14:46:06+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 14, 2026 14:46:06 CST">2026-06-14</span> by Chisanan232</span>
 
     
     
