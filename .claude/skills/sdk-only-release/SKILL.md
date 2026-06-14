@@ -43,6 +43,42 @@ normal release path, not an emergency one.
 Command-style. Invoke explicitly when the operator decides to dispatch a
 Python-only release. Do not invoke automatically from polling skills.
 
+## How to use
+
+Invoke `release-python.yml` via `workflow_dispatch` against `master`:
+
+```bash
+gh workflow run release-python.yml \
+  --repo ai-agent-assembly/python-sdk \
+  --ref master \
+  -f pypi_version=<X> \
+  -f binary_source_tag=<Y> \
+  -f dry-run=true
+```
+
+The workflow takes three input axes:
+
+- `pypi_version` — the PEP 440 version published on PyPI (e.g. `0.0.1a9.post1`).
+- `binary_source_tag` — the `agent-assembly` core tag (e.g. `v0.0.1-alpha.9`)
+  whose `aasm-*.tar.gz` Release assets are bundled into the wheels.
+- `dry-run` — `true` builds wheels only, `false` performs a real publish.
+
+### Critical conversion: SemVer-ish tag vs PEP 440
+
+The `agent-assembly` core repo uses SemVer-ish tags like `v0.0.1-alpha.N`,
+but PyPI requires PEP 440 (`0.0.1aN`). The `resolve` job in `release-python.yml`
+performs the conversion via `tag_to_pep440` (AAASM-2853 / AAASM-2854). When
+dispatching from `workflow_dispatch`, the operator **supplies the PEP 440
+form directly** in `pypi_version` — the workflow does not re-derive it. Pick
+the PEP 440 form (`0.0.1a9`, `0.0.1a9.post1`, …) up front.
+
+### Trusted Publisher auth
+
+The workflow authenticates to PyPI via Trusted Publisher (OIDC) — no API token
+is needed and none should be supplied. The `pypa/gh-action-pypi-publish` step
+in the workflow handles the OIDC handshake. If auth fails, the fix is on the
+PyPI Trusted Publisher configuration, not the workflow.
+
 ## Inputs (3 axes with non-obvious coupling)
 
 | Input | Purpose |
