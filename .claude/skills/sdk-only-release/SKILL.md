@@ -261,6 +261,37 @@ dispatched separately against the docs pipeline.
   release notes for traceability — the wheel bundles the **unchanged**
   `aasm` binary from `binary_source_tag`, byte-for-byte.
 
+## What's expected when done
+
+Once the publish job is green, the following observable end-state must hold:
+
+- PyPI shows `agent-assembly==<pypi_version>` as the newest **non-yanked**
+  version. Verify with:
+
+  ```bash
+  curl -s "https://pypi.org/pypi/agent-assembly/<pypi_version>/json" \
+    | jq '.info.version'
+  ```
+
+  which must return `"<pypi_version>"`.
+
+- `pip install agent-assembly` in a clean venv resolves to `<pypi_version>` —
+  not a yanked-higher-version shadow. Sanity check with:
+
+  ```bash
+  pip install agent-assembly --dry-run
+  ```
+
+  This is the cross-check for the "yanked-but-higher" gotcha already noted in
+  Post-conditions: PyPI does not skip yanked versions during default
+  resolution if they sort highest, so this dry-run is non-trivial.
+
+- The `Publish release tag for docs` job at the end of `release-python.yml`
+  **did not fire** — this is intentional under `workflow_dispatch` (gated on
+  `repository_dispatch` per AAASM-2868). The release-channel docs snapshot is
+  out of scope for this skill; if a refresh is needed, dispatch the docs
+  pipeline separately.
+
 ## Known quirks (encoded so the operator does not relearn them)
 
 - **cp312-only wheels**. The wheels are built for CPython 3.12 only; there is
