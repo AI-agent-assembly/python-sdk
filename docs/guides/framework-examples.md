@@ -29,18 +29,20 @@ entry points. On exit, all hooks are removed in reverse order.
 ## Supported frameworks
 
 Each framework below ships an adapter under `agent_assembly/adapters/`. The
-**Runnable example** column reflects whether a complete, validated example exists in this
-repository today.
+**Runnable example** column reflects whether a complete, validated example exists today —
+either inline in this guide or as a curated script in the central
+[`agent-assembly-examples`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python)
+repository.
 
 | Framework | Adapter | Runnable example |
 | --- | --- | --- |
-| LangChain | `agent_assembly.adapters.langchain` | ✅ Validated — see [Quick start](#langchain-quick-start) below (runs offline against a mock LLM). |
-| LangGraph | `agent_assembly.adapters.langgraph` | ⏳ Planned — adapter ships; wraps `StateGraph.compile()`. |
-| CrewAI | `agent_assembly.adapters.crewai` | ⏳ Planned — adapter ships. |
-| OpenAI Agents | `agent_assembly.adapters.openai_agents` | ⏳ Planned — adapter ships. |
-| Pydantic AI | `agent_assembly.adapters.pydantic_ai` | ⏳ Planned — adapter ships. |
-| Google ADK | `agent_assembly.adapters.google_adk` | ⏳ Planned — adapter ships. |
-| MCP servers | `agent_assembly.adapters.mcp` | ⏳ Planned — adapter ships. |
+| LangChain | `agent_assembly.adapters.langchain` | ✅ Validated — see [Quick start](#langchain-quick-start) below (runs offline against a mock LLM), plus [`langchain-basic-agent`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-basic-agent) and [`langchain-research-agent`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-research-agent). |
+| LangGraph | `agent_assembly.adapters.langgraph` | ✅ Validated — see [`langgraph`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langgraph) (state-graph governance; wraps `StateGraph.compile()`). |
+| CrewAI | `agent_assembly.adapters.crewai` | ✅ Validated — see [`crewai-research-crew`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/crewai-research-crew) (multi-agent crew). |
+| OpenAI Agents | `agent_assembly.adapters.openai_agents` | ✅ Validated — see [`openai-agents-sdk`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/openai-agents-sdk). |
+| Pydantic AI | `agent_assembly.adapters.pydantic_ai` | ✅ Validated — see [`pydantic-ai`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/pydantic-ai). |
+| Google ADK | `agent_assembly.adapters.google_adk` | ✅ Validated — see [`google-adk`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/google-adk). |
+| MCP servers | `agent_assembly.adapters.mcp` | ⏳ Planned — adapter ships; a curated example is not yet vendored. |
 
 !!! note "Adapter present vs. example present"
     A ⏳ row means the **adapter is implemented and registered** — `init_assembly()` will detect
