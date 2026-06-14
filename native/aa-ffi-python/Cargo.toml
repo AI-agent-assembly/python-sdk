@@ -13,9 +13,9 @@ crate-type = ["cdylib"]
 # Shared crates consumed via git-SHA pin (ADR 0002, AAASM-2559). aa-core,
 # aa-proto, and aa-sdk-client must share one SHA so cargo resolves a single
 # checkout of the agent-assembly workspace.
-aa-core = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "9cf8a033d39c870ba46a0929b62261d125a00a09", package = "aa-core", features = ["serde"] }
-aa-proto = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "9cf8a033d39c870ba46a0929b62261d125a00a09", package = "aa-proto" }
-aa-sdk-client = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "9cf8a033d39c870ba46a0929b62261d125a00a09", package = "aa-sdk-client" }
+aa-core = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "62237d6b469ade830a16bc79b61d3d4edf9df5c4", package = "aa-core", features = ["serde"] }
+aa-proto = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "62237d6b469ade830a16bc79b61d3d4edf9df5c4", package = "aa-proto" }
+aa-sdk-client = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "62237d6b469ade830a16bc79b61d3d4edf9df5c4", package = "aa-sdk-client" }
 prost = "0.14"
 pyo3 = { version = "0.29", features = ["extension-module"] }
 serde = { version = "1.0", features = ["derive"] }
