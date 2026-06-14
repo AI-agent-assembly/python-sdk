@@ -65,11 +65,55 @@
          <lastmod>2026-06-14</lastmod>
     </url>
     <url>
-         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/guides/</loc>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/</loc>
          <lastmod>2026-06-14</lastmod>
     </url>
     <url>
-         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/guides/framework-examples/</loc>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/crewai-research-crew/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/custom-tool-policy/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/framework-support/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/google-adk/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/langchain-basic-agent/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/langchain-research-agent/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/langgraph/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/llamaindex-tool-policy/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/openai-agents-sdk/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/preparing-the-runtime-environment/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/pydantic-ai/</loc>
+         <lastmod>2026-06-14</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/guides/</loc>
          <lastmod>2026-06-14</lastmod>
     </url>
     <url>
