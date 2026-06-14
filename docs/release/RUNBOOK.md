@@ -202,3 +202,28 @@ referenced agent-assembly tag does not yet have all four `aasm-*.tar.gz`
 assets), fix the underlying coordination problem first — usually that
 means running the coordinated release for `binary_source_tag` before
 attempting the SDK-only hotfix.
+
+## 5. Automatic shared-crate pin bump (from agent-assembly)
+
+After each `agent-assembly` release, `agent-assembly`'s `release.yml`
+(`update-python-sdk-ffi-pin` job) **auto-opens a bot PR on this repo**
+bumping **all three** git-SHA pins (`aa-core`, `aa-proto`,
+`aa-sdk-client`) in `native/aa-ffi-python/Cargo.toml` to the just-tagged
+commit. Per ADR 0002 / AAASM-2559 the three pins must share a single SHA.
+
+**Merging that PR does NOT republish to PyPI.** `release-python.yml`
+triggers only on `repository_dispatch` (`agent-assembly-release-published`)
+and `workflow_dispatch` — never on `push`. The PyPI publish already
+happened at agent-assembly tag time via the coordinated
+`repository_dispatch` fan-out (see section 1).
+
+The bump PR is **source-sync only**: it keeps the wheel's pinned crates
+current so the next release — or any from-source `maturin` build —
+compiles against the right revision.
+
+To avoid the one-cycle source lag (the wheel published at vX was built
+from the *previous* pin), merge the bump PR **before** the next
+agent-assembly tag is cut.
+
+Cross-reference: see `agent-assembly`'s `docs/release/RUNBOOK.md`
+sections 3 and 8.
