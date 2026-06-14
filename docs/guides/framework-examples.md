@@ -45,9 +45,11 @@ repository.
 | MCP servers | `agent_assembly.adapters.mcp` | ⏳ Planned — adapter ships; a curated example is not yet vendored. |
 
 !!! note "Adapter present vs. example present"
-    A ⏳ row means the **adapter is implemented and registered** — `init_assembly()` will detect
-    and hook the framework if it's installed — but a curated, end-to-end runnable example is
-    not yet vendored in `examples/`. Contributions adding one are welcome; see
+    Every framework above has an **adapter that is implemented and registered** — `init_assembly()`
+    will detect and hook the framework whenever it's installed, regardless of the example status.
+    A ✅ row additionally has a curated, end-to-end runnable example you can clone and run. A ⏳ row
+    (currently only MCP servers) means the adapter ships but a runnable example is not yet vendored.
+    Contributions adding one are welcome; see
     [CONTRIBUTING.md](https://github.com/ai-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md).
 
 ## LangChain quick start
