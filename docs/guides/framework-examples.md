@@ -89,4 +89,20 @@ with init_assembly(
 
 The same snippet lives in the repository [README](https://github.com/ai-agent-assembly/python-sdk#quick-start)
 and is the canonical, validated example. See the [`examples/`](https://github.com/ai-agent-assembly/python-sdk/tree/master/examples)
-directory for additional runnable scripts and their status.
+directory for additional in-repo runnable scripts and their status.
+
+## More runnable examples
+
+Curated, end-to-end examples for each framework live in the central
+[`agent-assembly-examples`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python)
+repository. Each directory is a self-contained, cloneable project:
+
+- [`langchain-basic-agent`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-basic-agent) — a governed LangChain agent.
+- [`langchain-research-agent`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-research-agent) — a governed LangChain research agent.
+- [`langgraph`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langgraph) — LangGraph state-graph governance.
+- [`crewai-research-crew`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/crewai-research-crew) — a CrewAI multi-agent crew.
+- [`openai-agents-sdk`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/openai-agents-sdk) — the OpenAI Agents SDK.
+- [`pydantic-ai`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/pydantic-ai) — Pydantic AI.
+- [`google-adk`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/google-adk) — Google ADK.
+- [`llamaindex-tool-policy`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/llamaindex-tool-policy) — LlamaIndex tool policy.
+- [`custom-tool-policy`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/custom-tool-policy) — framework-free tool governance.
