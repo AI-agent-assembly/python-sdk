@@ -41,6 +41,11 @@ class PydanticAIPatch:
         ``Tool._run`` hook on <0.3.0 and the ``AbstractToolset.call_tool``
         hook on >=0.3.0. When neither hook point exists, this is a no-op that
         returns ``False`` instead of raising ``AttributeError``.
+
+        On >=0.3.0 the abstract base patch is shadowed by concrete toolsets
+        (e.g. ``FunctionToolset``) that override ``call_tool`` without calling
+        ``super().call_tool(...)``. Such concrete classes are patched directly
+        in addition to the base so function-tool governance still fires.
         """
         set_process_agent_id(self.process_agent_id)
 
@@ -52,6 +57,8 @@ class PydanticAIPatch:
             toolset_cls = _load_pydantic_ai_toolset_class()
             if toolset_cls is not None:
                 tool_hooked = _apply_toolset_call_tool_patch(toolset_cls, self.callback_handler)
+                for concrete_cls in _load_pydantic_ai_concrete_toolset_classes(toolset_cls):
+                    _apply_toolset_call_tool_patch(concrete_cls, self.callback_handler)
 
         if not tool_hooked:
             set_process_agent_id(None)
@@ -72,6 +79,8 @@ class PydanticAIPatch:
             _revert_tool_run_patch(tool_cls)
         toolset_cls = _load_pydantic_ai_toolset_class()
         if toolset_cls is not None:
+            for concrete_cls in _load_pydantic_ai_concrete_toolset_classes(toolset_cls):
+                _revert_toolset_call_tool_patch(concrete_cls)
             _revert_toolset_call_tool_patch(toolset_cls)
         set_process_agent_id(None)
         return None
@@ -131,6 +140,54 @@ def _load_pydantic_ai_toolset_class() -> type[Any] | None:
     if isinstance(toolset_cls, type):
         return toolset_cls
     return None
+
+
+def _load_pydantic_ai_concrete_toolset_classes(base_toolset_cls: type[Any]) -> list[type[Any]]:
+    """Return concrete ``AbstractToolset`` subclasses that OVERRIDE ``call_tool``.
+
+    Function tools (``@agent.tool_plain`` / ``@agent.tool``) execute through
+    ``pydantic_ai.toolsets.function.FunctionToolset.call_tool``, which overrides
+    the abstract base WITHOUT calling ``super().call_tool(...)``. A patch on
+    ``AbstractToolset.call_tool`` is therefore shadowed and never runs for them.
+
+    Load ``FunctionToolset`` explicitly, then generically discover any other
+    concrete toolset in ``pydantic_ai.toolsets`` that defines its own
+    ``call_tool`` (in ``vars(cls)``) so other own-``call_tool`` toolsets are
+    covered. Stays fail-soft when Pydantic AI is absent.
+    """
+    discovered: list[type[Any]] = []
+    seen: set[int] = set()
+
+    def _consider(candidate: Any) -> None:
+        if not isinstance(candidate, type):
+            return
+        if candidate is base_toolset_cls:
+            return
+        if id(candidate) in seen:
+            return
+        if not issubclass(candidate, base_toolset_cls):
+            return
+        if "call_tool" not in vars(candidate):
+            return
+        seen.add(id(candidate))
+        discovered.append(candidate)
+
+    try:
+        function_module = importlib.import_module("pydantic_ai.toolsets.function")
+    except ImportError:
+        function_module = None
+    if function_module is not None:
+        _consider(getattr(function_module, "FunctionToolset", None))
+
+    try:
+        toolsets_module = importlib.import_module("pydantic_ai.toolsets")
+    except ImportError:
+        toolsets_module = None
+    if toolsets_module is not None:
+        for attr_value in vars(toolsets_module).values():
+            _consider(attr_value)
+
+    return discovered
 
 
 def _load_pydantic_ai_agent_class() -> type[Any] | None:
@@ -292,8 +349,14 @@ def _revert_tool_run_patch(tool_cls: type[Any]) -> None:
 
 
 def _apply_toolset_call_tool_patch(toolset_cls: type[Any], callback_handler: Any) -> bool:
-    """Patch ``AbstractToolset.call_tool`` (the >=0.3.0 hook); no-op if absent."""
-    if getattr(toolset_cls, _TOOLS_PATCHED_FLAG, False):
+    """Patch a toolset class's ``call_tool`` (the >=0.3.0 hook); no-op if absent.
+
+    Applies to ``AbstractToolset`` and to each concrete subclass that overrides
+    ``call_tool``. The patched-flag is checked on the class's OWN dict, not
+    inherited state — a concrete subclass whose base is already patched must
+    still be patched directly, otherwise its override shadows governance.
+    """
+    if vars(toolset_cls).get(_TOOLS_PATCHED_FLAG, False):
         return True
 
     original_call_tool = getattr(toolset_cls, "call_tool", None)
@@ -361,16 +424,18 @@ def _apply_toolset_call_tool_patch(toolset_cls: type[Any], callback_handler: Any
 
 
 def _revert_toolset_call_tool_patch(toolset_cls: type[Any]) -> None:
-    if not getattr(toolset_cls, _TOOLS_PATCHED_FLAG, False):
+    # Check the class's OWN dict so reverting the base never clears a concrete
+    # subclass's flag (and vice versa); each class restores its own call_tool.
+    if not vars(toolset_cls).get(_TOOLS_PATCHED_FLAG, False):
         return None
 
-    original_call_tool = getattr(toolset_cls, _ORIGINAL_TOOLSET_CALL_TOOL, None)
+    original_call_tool = vars(toolset_cls).get(_ORIGINAL_TOOLSET_CALL_TOOL, None)
     if callable(original_call_tool):
         toolset_cls.call_tool = original_call_tool
 
-    if hasattr(toolset_cls, _ORIGINAL_TOOLSET_CALL_TOOL):
+    if _ORIGINAL_TOOLSET_CALL_TOOL in vars(toolset_cls):
         delattr(toolset_cls, _ORIGINAL_TOOLSET_CALL_TOOL)
-    if hasattr(toolset_cls, _TOOLS_PATCHED_FLAG):
+    if _TOOLS_PATCHED_FLAG in vars(toolset_cls):
         delattr(toolset_cls, _TOOLS_PATCHED_FLAG)
     return None
 
