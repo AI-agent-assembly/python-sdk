@@ -110,6 +110,6 @@ For the conceptual difference between `mode` (*where* policy is enforced) and `e
 
 ## Next steps
 
-- [Framework examples](guides/framework-examples.md) — wire the SDK into LangChain, CrewAI, and more.
+- [Examples](examples/index.md) — wire the SDK into LangChain, CrewAI, and more.
 - [Handling allow/deny decisions](guides/handling-decisions.md) — catch and respond to policy denials.
 - [Troubleshooting](troubleshooting.md) — what each configuration error means.
