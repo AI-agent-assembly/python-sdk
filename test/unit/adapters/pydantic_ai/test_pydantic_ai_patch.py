@@ -476,6 +476,133 @@ def test_v030_revert_restores_toolset_call_tool(monkeypatch: pytest.MonkeyPatch)
     assert getattr(FakeAbstractToolset, pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is False
 
 
+def _install_fake_pydantic_ai_function_toolset_modules(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[type[Any], type[Any]]:
+    """Model the >=0.3.0 shadowing bug: ``FunctionToolset`` subclasses
+    ``AbstractToolset`` and overrides ``call_tool`` WITHOUT calling ``super()``.
+
+    A patch on ``AbstractToolset.call_tool`` is shadowed for function tools, so
+    the concrete class must be discovered and patched directly. Returns the
+    ``(AbstractToolset, FunctionToolset)`` fakes.
+    """
+
+    class FakeTool:
+        name = "fake_tool"  # no `_run` — mirrors the >=0.3.0 restructure
+
+    class FakeAbstractToolset:
+        async def call_tool(self, name: Any, tool_args: Any, ctx: Any, tool: Any) -> dict[str, object]:
+            return {"src": "abstract", "name": name, "tool_args": tool_args, "ctx": ctx, "tool": tool}
+
+    class FakeFunctionToolset(FakeAbstractToolset):
+        # Overrides call_tool WITHOUT super() — the shadowing that hides the
+        # base-class patch from function tools.
+        async def call_tool(self, name: Any, tool_args: Any, ctx: Any, tool: Any) -> dict[str, object]:
+            return {"src": "function", "name": name, "tool_args": tool_args, "ctx": ctx, "tool": tool}
+
+    fake_tools_module = SimpleNamespace(Tool=FakeTool)
+    fake_toolsets_module = SimpleNamespace(AbstractToolset=FakeAbstractToolset)
+    fake_function_module = SimpleNamespace(FunctionToolset=FakeFunctionToolset)
+
+    def fake_import_module(module_name: str) -> object:
+        if module_name == "pydantic_ai.tools":
+            return fake_tools_module
+        if module_name == "pydantic_ai.toolsets":
+            return fake_toolsets_module
+        if module_name == "pydantic_ai.toolsets.function":
+            return fake_function_module
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(pydantic_ai_patch.importlib, "import_module", fake_import_module)
+    return FakeAbstractToolset, FakeFunctionToolset
+
+
+def test_concrete_toolset_discovery_finds_function_toolset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeAbstractToolset, FakeFunctionToolset = _install_fake_pydantic_ai_function_toolset_modules(monkeypatch)
+
+    discovered = pydantic_ai_patch._load_pydantic_ai_concrete_toolset_classes(FakeAbstractToolset)
+    assert FakeFunctionToolset in discovered
+    # The abstract base itself is never returned as a "concrete overrider".
+    assert FakeAbstractToolset not in discovered
+
+
+@pytest.mark.asyncio
+async def test_apply_patches_both_base_and_concrete_function_toolset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeAbstractToolset, FakeFunctionToolset = _install_fake_pydantic_ai_function_toolset_modules(monkeypatch)
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(_RecordingInterceptor())
+    assert patcher.apply() is True
+
+    # Both classes carry their OWN patched flag — a patched base must not mask
+    # the concrete subclass.
+    assert vars(FakeAbstractToolset).get(pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is True
+    assert vars(FakeFunctionToolset).get(pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is True
+
+
+@pytest.mark.asyncio
+async def test_denied_tool_raises_when_invoked_via_concrete_call_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, FakeFunctionToolset = _install_fake_pydantic_ai_function_toolset_modules(monkeypatch)
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "deny", "reason": "blocked function tool"}
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(Interceptor())
+    assert patcher.apply() is True
+
+    toolset = FakeFunctionToolset()
+    ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-fn"), run_id="run-fn")
+
+    # Governance fires on the concrete override, not just the (shadowed) base.
+    with pytest.raises(PolicyViolationError, match="blocked by governance policy: blocked function tool"):
+        await toolset.call_tool("fake_tool", {"q": "secret"}, ctx, object())
+
+
+@pytest.mark.asyncio
+async def test_revert_restores_concrete_and_base_call_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeAbstractToolset, FakeFunctionToolset = _install_fake_pydantic_ai_function_toolset_modules(monkeypatch)
+    original_base = FakeAbstractToolset.call_tool
+    original_concrete = FakeFunctionToolset.call_tool
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(_RecordingInterceptor())
+    assert patcher.apply() is True
+    assert FakeAbstractToolset.call_tool is not original_base
+    assert FakeFunctionToolset.call_tool is not original_concrete
+
+    patcher.revert()
+    assert FakeAbstractToolset.call_tool is original_base
+    assert FakeFunctionToolset.call_tool is original_concrete
+    assert vars(FakeAbstractToolset).get(pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is False
+    assert vars(FakeFunctionToolset).get(pydantic_ai_patch._TOOLS_PATCHED_FLAG, False) is False
+
+    # Revert is idempotent.
+    patcher.revert()
+    assert FakeFunctionToolset.call_tool is original_concrete
+
+
+def test_concrete_toolset_discovery_fail_soft_without_pydantic_ai(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_import_error(module_name: str) -> object:
+        raise ImportError(module_name)
+
+    monkeypatch.setattr(pydantic_ai_patch.importlib, "import_module", raise_import_error)
+
+    class FakeBase:
+        pass
+
+    assert pydantic_ai_patch._load_pydantic_ai_concrete_toolset_classes(FakeBase) == []
+
+
 def test_apply_false_when_no_known_tool_hook_exists(monkeypatch: pytest.MonkeyPatch) -> None:
     """Pydantic AI present but exposing neither ``Tool._run`` nor
     ``AbstractToolset.call_tool`` must no-op (return False), never raise.
