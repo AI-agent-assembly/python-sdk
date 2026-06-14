@@ -1,9 +1,14 @@
-# Framework examples
+# Framework support
 
 Agent Assembly governs *third-party* agent frameworks without those frameworks needing to be
 aware of it. You call `init_assembly()` once; the SDK detects which supported frameworks are
 importable in your process and installs governance hooks for each, in priority order (see
 [Core Concepts](../concepts/index.md#the-adapter-pattern)).
+
+This page is the adapter ↔ example status reference for the [Examples](index.md) section. For
+the shared run instructions, see [Preparing the runtime environment](preparing-the-runtime-environment.md);
+for a detailed, source-grounded walkthrough of each example, follow the per-framework pages
+linked from the [Examples overview](index.md).
 
 ## The universal pattern
 
@@ -36,12 +41,13 @@ repository.
 
 | Framework | Adapter | Runnable example |
 | --- | --- | --- |
-| LangChain | `agent_assembly.adapters.langchain` | ✅ Validated — see [Quick start](#langchain-quick-start) below (runs offline against a mock LLM), plus [`langchain-basic-agent`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-basic-agent) and [`langchain-research-agent`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-research-agent). |
-| LangGraph | `agent_assembly.adapters.langgraph` | ✅ Validated — see [`langgraph`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langgraph) (state-graph governance; wraps `StateGraph.compile()`). |
-| CrewAI | `agent_assembly.adapters.crewai` | ✅ Validated — see [`crewai-research-crew`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/crewai-research-crew) (multi-agent crew). |
-| OpenAI Agents | `agent_assembly.adapters.openai_agents` | ✅ Validated — see [`openai-agents-sdk`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/openai-agents-sdk). |
-| Pydantic AI | `agent_assembly.adapters.pydantic_ai` | ✅ Validated — see [`pydantic-ai`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/pydantic-ai). |
-| Google ADK | `agent_assembly.adapters.google_adk` | ✅ Validated — see [`google-adk`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/google-adk). |
+| LangChain | `agent_assembly.adapters.langchain` | ✅ Validated — see [Quick start](#langchain-quick-start) below (runs offline against a mock LLM), plus the [LangChain basic agent](langchain-basic-agent.md) and [LangChain research agent](langchain-research-agent.md) pages. |
+| LangGraph | `agent_assembly.adapters.langgraph` | ✅ Validated — see [LangGraph node-level governance](langgraph.md) (state-graph governance; wraps the compiled `StateGraph`). |
+| CrewAI | `agent_assembly.adapters.crewai` | ✅ Validated — see [CrewAI research crew](crewai-research-crew.md) (multi-agent crew). |
+| OpenAI Agents | `agent_assembly.adapters.openai_agents` | ✅ Validated — see [OpenAI Agents SDK](openai-agents-sdk.md). |
+| Pydantic AI | `agent_assembly.adapters.pydantic_ai` | ✅ Validated — see [Pydantic AI](pydantic-ai.md). |
+| Google ADK | `agent_assembly.adapters.google_adk` | ✅ Validated — see [Google ADK](google-adk.md). |
+| LlamaIndex | _no native adapter_ | ✅ Validated (manual wrapper) — see [LlamaIndex — manual tool policy](llamaindex-tool-policy.md); governs `FunctionTool` calls via `GovernedToolRunner`. |
 | MCP servers | `agent_assembly.adapters.mcp` | ⏳ Planned — adapter ships; a curated example is not yet vendored. |
 
 !!! note "Adapter present vs. example present"
@@ -95,14 +101,16 @@ directory for additional in-repo runnable scripts and their status.
 
 Curated, end-to-end examples for each framework live in the central
 [`agent-assembly-examples`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python)
-repository. Each directory is a self-contained, cloneable project:
+repository. Each directory is a self-contained, cloneable project. This section documents each
+one in detail — start with [Preparing the runtime environment](preparing-the-runtime-environment.md),
+then follow the per-framework page:
 
-- [`langchain-basic-agent`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-basic-agent) — a governed LangChain agent.
-- [`langchain-research-agent`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-research-agent) — a governed LangChain research agent.
-- [`langgraph`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langgraph) — LangGraph state-graph governance.
-- [`crewai-research-crew`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/crewai-research-crew) — a CrewAI multi-agent crew.
-- [`openai-agents-sdk`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/openai-agents-sdk) — the OpenAI Agents SDK.
-- [`pydantic-ai`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/pydantic-ai) — Pydantic AI.
-- [`google-adk`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/google-adk) — Google ADK.
-- [`llamaindex-tool-policy`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/llamaindex-tool-policy) — LlamaIndex tool policy.
-- [`custom-tool-policy`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/custom-tool-policy) — framework-free tool governance.
+- [LangChain — basic agent](langchain-basic-agent.md) — a governed LangChain agent.
+- [LangChain — research agent](langchain-research-agent.md) — a governed LangChain ReAct research agent with a balanced policy.
+- [LangGraph — node-level governance](langgraph.md) — LangGraph state-graph governance.
+- [CrewAI — multi-agent research crew](crewai-research-crew.md) — a CrewAI multi-agent crew with delegation tracking.
+- [OpenAI Agents SDK](openai-agents-sdk.md) — the OpenAI Agents SDK.
+- [Pydantic AI](pydantic-ai.md) — Pydantic AI.
+- [Google ADK](google-adk.md) — Google ADK.
+- [LlamaIndex — manual tool policy](llamaindex-tool-policy.md) — the manual wrapper pattern for a framework with no native adapter.
+- [Custom tool policy (no framework)](custom-tool-policy.md) — framework-free tool governance.
