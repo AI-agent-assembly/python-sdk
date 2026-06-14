@@ -33,12 +33,19 @@ class GoogleADKPatch:
     process_agent_id: str | None = None
 
     def apply(self) -> bool:
-        """Apply patch wiring and return whether Google ADK is available."""
+        """Apply patch wiring and return whether Google ADK is available.
+
+        Patches ``BaseTool.run_async`` and every concrete tool class that
+        overrides ``run_async`` (e.g. ``FunctionTool``), so interception still
+        runs for ADK 1.x tools whose subclass shadows the base method.
+        """
         set_process_agent_id(self.process_agent_id)
         tool_cls = _load_google_adk_base_tool_class()
         if tool_cls is None:
             return False
         _apply_tool_run_async_patch(tool_cls, self.callback_handler)
+        for concrete_cls in _load_google_adk_concrete_tool_classes(tool_cls):
+            _apply_tool_run_async_patch(concrete_cls, self.callback_handler)
         agent_cls = _load_google_adk_base_agent_class()
         if agent_cls is not None:
             _apply_agent_run_async_patch(agent_cls, self.process_agent_id)
@@ -51,6 +58,8 @@ class GoogleADKPatch:
             _revert_agent_run_async_patch(agent_cls)
         tool_cls = _load_google_adk_base_tool_class()
         if tool_cls is not None:
+            for concrete_cls in _load_google_adk_concrete_tool_classes(tool_cls):
+                _revert_tool_run_async_patch(concrete_cls)
             _revert_tool_run_async_patch(tool_cls)
         set_process_agent_id(None)
         return None
@@ -66,6 +75,32 @@ def _load_google_adk_base_tool_class() -> type[Any] | None:
     if isinstance(tool_cls, type):
         return tool_cls
     return None
+
+
+def _load_google_adk_concrete_tool_classes(base_tool_cls: type[Any]) -> list[type[Any]]:
+    """Return concrete ADK tool classes that OVERRIDE ``run_async``.
+
+    Concrete ADK 1.x tools (e.g. ``FunctionTool``) define their own
+    ``run_async`` on the subclass, so a patch on ``BaseTool.run_async`` never
+    runs for them. Discover such classes in ``google.adk.tools`` so they can be
+    patched directly.
+    """
+    try:
+        module = importlib.import_module("google.adk.tools")
+    except ImportError:
+        return []
+
+    concrete: list[type[Any]] = []
+    for attr_value in vars(module).values():
+        if not isinstance(attr_value, type):
+            continue
+        if attr_value is base_tool_cls:
+            continue
+        if not issubclass(attr_value, base_tool_cls):
+            continue
+        if "run_async" in vars(attr_value):
+            concrete.append(attr_value)
+    return concrete
 
 
 def _load_google_adk_base_agent_class() -> type[Any] | None:
@@ -124,7 +159,9 @@ def _revert_agent_run_async_patch(agent_cls: type[Any]) -> None:
 
 
 def _apply_tool_run_async_patch(tool_cls: type[Any], callback_handler: Any) -> None:
-    if getattr(tool_cls, _TOOLS_PATCHED_FLAG, False):
+    # Check the class's OWN dict, not inherited state — a concrete subclass that
+    # overrides run_async must be patched even when its base is already patched.
+    if vars(tool_cls).get(_TOOLS_PATCHED_FLAG, False):
         return None
 
     original_run_async = tool_cls.run_async
@@ -190,16 +227,17 @@ def _apply_tool_run_async_patch(tool_cls: type[Any], callback_handler: Any) -> N
 
 
 def _revert_tool_run_async_patch(tool_cls: type[Any]) -> None:
-    if not getattr(tool_cls, _TOOLS_PATCHED_FLAG, False):
+    # Inspect OWN dict so reverting one class never acts on inherited state.
+    if not vars(tool_cls).get(_TOOLS_PATCHED_FLAG, False):
         return None
 
-    original_run_async = getattr(tool_cls, _ORIGINAL_TOOL_RUN_ASYNC, None)
+    original_run_async = vars(tool_cls).get(_ORIGINAL_TOOL_RUN_ASYNC)
     if callable(original_run_async):
         tool_cls.run_async = original_run_async
 
-    if hasattr(tool_cls, _ORIGINAL_TOOL_RUN_ASYNC):
+    if _ORIGINAL_TOOL_RUN_ASYNC in vars(tool_cls):
         delattr(tool_cls, _ORIGINAL_TOOL_RUN_ASYNC)
-    if hasattr(tool_cls, _TOOLS_PATCHED_FLAG):
+    if _TOOLS_PATCHED_FLAG in vars(tool_cls):
         delattr(tool_cls, _TOOLS_PATCHED_FLAG)
     return None
 
