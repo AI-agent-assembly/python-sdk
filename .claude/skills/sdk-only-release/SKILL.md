@@ -292,6 +292,31 @@ Once the publish job is green, the following observable end-state must hold:
   out of scope for this skill; if a refresh is needed, dispatch the docs
   pipeline separately.
 
+## What's auto-handled (do NOT manually run)
+
+The workflow already covers the steps below. Do **not** run them by hand —
+duplicate execution causes Trusted Publisher conflicts, duplicate-tag errors,
+or drifted wheels.
+
+- **`python -m build` / `maturin build`.** Wheel and sdist construction
+  (including the bundled `aasm` binary download from `binary_source_tag`)
+  happens inside the workflow matrix. Do not pre-build locally and upload.
+- **`twine upload`.** The workflow's `pypa/gh-action-pypi-publish` step
+  performs the upload using OIDC-issued Trusted Publisher credentials. There
+  is no API token. Do not run `twine` locally — it will fail without a token,
+  and even with one would skew the published artifact set.
+- **`git tag`.** SDK-only releases do **not** cut an `agent-assembly` core
+  tag. Do not push a `v0.0.1-alpha.N` tag for a Python-only republish — that
+  would trigger the full coordinated release pipeline and double-publish.
+- **Docs version snapshot.** The `Publish release tag for docs` job is gated
+  on `repository_dispatch` (AAASM-2868) and intentionally **does not fire**
+  under `workflow_dispatch`. If a docs refresh is required, dispatch the
+  docs pipeline manually — do not work around this gate inside the workflow.
+- **Yanking lower versions.** This skill does not yank. If a prior version
+  needs to be yanked (e.g. it was published in error), perform that step
+  manually in the PyPI web UI after the fact. Do not script yanks into the
+  release path.
+
 ## Known quirks (encoded so the operator does not relearn them)
 
 - **cp312-only wheels**. The wheels are built for CPython 3.12 only; there is
