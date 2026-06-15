@@ -3,6 +3,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/ai-agent-assembly/python-sdk/ci.yaml?branch=master&logo=githubactions&logoColor=white&label=CI)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/ci.yaml)
 [![Docs](https://img.shields.io/github/actions/workflow/status/ai-agent-assembly/python-sdk/documentation.yaml?branch=master&logo=readthedocs&logoColor=white&label=docs)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/documentation.yaml)
 [![PyPI version](https://img.shields.io/pypi/v/agent-assembly?logo=pypi&logoColor=white)](https://pypi.org/project/agent-assembly/)
+[![GitHub release](https://img.shields.io/github/v/release/ai-agent-assembly/python-sdk?include_prereleases&sort=semver&label=release&logo=github)](https://github.com/ai-agent-assembly/python-sdk/releases)
 [![Python versions](https://img.shields.io/pypi/pyversions/agent-assembly?logo=python&logoColor=white)](https://pypi.org/project/agent-assembly/)
 [![Coverage](https://img.shields.io/codecov/c/github/ai-agent-assembly/python-sdk?logo=codecov&logoColor=white)](https://codecov.io/gh/ai-agent-assembly/python-sdk)
 [![Quality Gate](https://img.shields.io/sonar/quality_gate/AI-agent-assembly_python-sdk?server=https%3A%2F%2Fsonarcloud.io&logo=sonarcloud)](https://sonarcloud.io/project/overview?id=AI-agent-assembly_python-sdk)
