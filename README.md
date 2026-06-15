@@ -125,11 +125,34 @@ What this does:
 
 ## Public API
 
-- `init_assembly(gateway_url, api_key, agent_id=None, mode="auto") -> AssemblyContext`
+- `init_assembly(gateway_url, api_key, agent_id=None, mode="auto", *, control_plane_url=None) -> AssemblyContext`
 - `async GatewayClient.register_agent() -> dict`
 - `async GatewayClient.check_policy_compliance(action: str) -> dict`
 - Exceptions: `AssemblyError`, `AgentError`, `PolicyError`, `GatewayError`, `ConfigurationError`
 - Data models: `AgentConfig`, `AgentState`, `PolicyEvaluation`
+
+### Control-plane routing
+
+By default the SDK issues its HTTP routes (agent registration, policy checks,
+topology edges) against `gateway_url` — the single-host OSS dev setup. Pass
+`control_plane_url` to route those HTTP calls to a separate control-plane host
+while `gateway_url` continues to serve the gRPC data path:
+
+```python
+init_assembly(
+    gateway_url="http://gateway:7391",
+    control_plane_url="http://control-plane:9000",
+    api_key="dev-key",
+)
+```
+
+Both URLs also resolve from the environment when their kwargs are omitted.
+Resolution order is **explicit kwarg > env-var > unset**:
+
+| Argument | Env-var fallback |
+|---|---|
+| `gateway_url` | `AA_GATEWAY_URL` |
+| `control_plane_url` | `AA_CONTROL_PLANE_URL` |
 
 ## Error Handling
 
