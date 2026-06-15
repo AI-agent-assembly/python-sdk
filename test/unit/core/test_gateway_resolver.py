@@ -26,7 +26,7 @@ class TestProbeHealthz:
         with patch(f"{_RESOLVER_MOD}.httpx.get", side_effect=httpx.ConnectError("refused")):
             assert gateway_resolver._probe_healthz("http://localhost:7391") is False
 
-    @pytest.mark.parametrize("status", [400, 404, 500, 503])  # type: ignore[misc]
+    @pytest.mark.parametrize("status", [400, 404, 500, 503])
     def test_returns_false_on_non_2xx(self, status: int) -> None:
         fake_response = MagicMock(status_code=status)
         with patch(f"{_RESOLVER_MOD}.httpx.get", return_value=fake_response):
