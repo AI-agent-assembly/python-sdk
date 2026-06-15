@@ -177,6 +177,7 @@ nav:
   - Guides:
       - guides/index.md
       - Handling allow/deny decisions: guides/handling-decisions.md
+      - Authoring a framework adapter: guides/authoring-adapters.md
       - Type checking: guides/type-checking.md
   - Examples:
       - examples/index.md
