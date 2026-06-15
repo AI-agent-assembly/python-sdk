@@ -96,7 +96,7 @@ class GatewayClient:
         """Context manager exit."""
         self.close()
 
-    async def register_agent(self) -> dict:
+    async def register_agent(self) -> dict[str, Any]:
         """
         Register the agent with the governance gateway.
 
@@ -125,11 +125,12 @@ class GatewayClient:
                 json=body if body else None,
             )
             response.raise_for_status()
-            return response.json()
+            data: dict[str, Any] = response.json()
+            return data
         except httpx.HTTPError as e:
             raise GatewayError(f"Failed to register agent: {e}") from e
 
-    async def check_policy_compliance(self, action: str) -> dict:
+    async def check_policy_compliance(self, action: str) -> dict[str, Any]:
         """
         Check if an action complies with governance policies.
 
@@ -148,7 +149,8 @@ class GatewayClient:
                 json={"action": action},
             )
             response.raise_for_status()
-            return response.json()
+            data: dict[str, Any] = response.json()
+            return data
         except httpx.HTTPError as e:
             raise GatewayError(f"Failed to check policy compliance: {e}") from e
 
@@ -157,8 +159,8 @@ class GatewayClient:
         source_agent_id: str,
         target_agent_id: str,
         edge_type: str,
-        metadata: dict | None = None,
-    ) -> dict:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Report a directed edge between two agents to the topology store.
 
@@ -176,7 +178,7 @@ class GatewayClient:
         """
         import json as _json
 
-        body: dict = {
+        body: dict[str, str] = {
             "source_agent_id": source_agent_id,
             "target_agent_id": target_agent_id,
             "edge_type": edge_type,
@@ -186,7 +188,8 @@ class GatewayClient:
         try:
             response = self.client.post("/topology/edges", json=body)
             response.raise_for_status()
-            return response.json()
+            data: dict[str, Any] = response.json()
+            return data
         except httpx.HTTPError as e:
             raise GatewayError(f"Failed to report edge: {e}") from e
 
