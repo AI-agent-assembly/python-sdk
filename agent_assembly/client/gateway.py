@@ -20,6 +20,7 @@ class GatewayClient:
         api_key: str | None = None,
         timeout: int = 30,
         *,
+        control_plane_url: str | None = None,
         parent_agent_id: str | None = None,
         team_id: str | None = None,
         delegation_reason: str | None = None,
@@ -35,6 +36,11 @@ class GatewayClient:
             agent_id: Unique identifier for the agent
             api_key: Optional API key for authentication
             timeout: Request timeout in seconds
+            control_plane_url: Optional URL of the control-plane HTTP API. When
+                set, the HTTP routes (``/agents/{id}/register``, ``/policy/check``,
+                ``/topology/edges``) are issued against it; when ``None`` (the
+                default) they fall back to ``gateway_url`` — the backwards-compatible
+                single-host OSS dev setup.
             parent_agent_id: Parent agent ID for topology tracking
             team_id: Team ID this agent belongs to
             delegation_reason: Human-readable reason for delegation
@@ -46,6 +52,7 @@ class GatewayClient:
                 as before; the gateway then defaults to live enforcement.
         """
         self.gateway_url = gateway_url.rstrip("/")
+        self.control_plane_url = control_plane_url.rstrip("/") if control_plane_url else None
         self.agent_id = agent_id
         self.api_key = api_key
         self.timeout = timeout
@@ -59,13 +66,17 @@ class GatewayClient:
 
     @property
     def client(self) -> httpx.Client:
-        """Get or create the HTTP client."""
+        """Get or create the HTTP client.
+
+        The base URL is ``control_plane_url`` when one was supplied, otherwise
+        it falls back to ``gateway_url`` (single-host OSS dev).
+        """
         if self._client is None:
             headers = {}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
             self._client = httpx.Client(
-                base_url=self.gateway_url,
+                base_url=self.control_plane_url or self.gateway_url,
                 headers=headers,
                 timeout=self.timeout,
             )
