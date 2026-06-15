@@ -70,11 +70,18 @@ def _agent(name: str = "agent-7") -> common_pb2.AgentId:
 
 
 def _msg(op_id: str, signal: int, sequence: int = 0) -> policy_pb2.OpControlMessage:
-    return policy_pb2.OpControlMessage(op_id=op_id, signal=signal, sequence=sequence)
+    # The generated proto stub types `signal` as `OpControlSignal | str | None`,
+    # but the OP_CONTROL_SIGNAL_* constants are plain ints at runtime.
+    return policy_pb2.OpControlMessage(op_id=op_id, signal=signal, sequence=sequence)  # type: ignore[arg-type]
+
+
+# What the `subscriber` fixture yields: the subscriber under test plus the
+# queue-backed stream and stub the test drives it through.
+_Subscriber = tuple[OpControlSubscriber, "_QueueStream", "_FakeStub"]
 
 
 @pytest.fixture
-def subscriber():
+def subscriber() -> Iterator[_Subscriber]:
     stream = _QueueStream()
     stub = _FakeStub(stream)
     sub = OpControlSubscriber(stub, _agent())
@@ -86,13 +93,13 @@ def subscriber():
         sub.close()
 
 
-def test_await_op_returns_immediately_for_unknown_op(subscriber):
+def test_await_op_returns_immediately_for_unknown_op(subscriber: _Subscriber) -> None:
     sub, _, _ = subscriber
     # No signal ever arrived for this op_id; await_op should be a no-op.
     sub.await_op("never-seen", timeout=0.1)
 
 
-def test_pause_blocks_until_resume(subscriber):
+def test_pause_blocks_until_resume(subscriber: _Subscriber) -> None:
     sub, stream, _ = subscriber
     stream.push(_msg("op-1", policy_pb2.OP_CONTROL_SIGNAL_PAUSE))
     # Give the reader a moment to dispatch the pause.
@@ -120,7 +127,7 @@ def test_pause_blocks_until_resume(subscriber):
     assert not sub.is_paused("op-1")
 
 
-def test_terminate_raises_op_terminated_error(subscriber):
+def test_terminate_raises_op_terminated_error(subscriber: _Subscriber) -> None:
     sub, stream, _ = subscriber
     stream.push(_msg("op-2", policy_pb2.OP_CONTROL_SIGNAL_TERMINATE))
     for _ in range(50):
@@ -134,7 +141,7 @@ def test_terminate_raises_op_terminated_error(subscriber):
     assert exc_info.value.op_id == "op-2"
 
 
-def test_terminate_unblocks_waiter_and_raises(subscriber):
+def test_terminate_unblocks_waiter_and_raises(subscriber: _Subscriber) -> None:
     sub, stream, _ = subscriber
     stream.push(_msg("op-3", policy_pb2.OP_CONTROL_SIGNAL_PAUSE))
     for _ in range(50):
@@ -163,7 +170,7 @@ def test_terminate_unblocks_waiter_and_raises(subscriber):
     assert captured[0].op_id == "op-3"
 
 
-def test_signal_for_unknown_op_is_buffered_until_first_await(subscriber):
+def test_signal_for_unknown_op_is_buffered_until_first_await(subscriber: _Subscriber) -> None:
     sub, stream, _ = subscriber
     # Pause arrives before anyone is awaiting — must still be remembered.
     stream.push(_msg("op-4", policy_pb2.OP_CONTROL_SIGNAL_PAUSE))
@@ -188,7 +195,7 @@ def test_signal_for_unknown_op_is_buffered_until_first_await(subscriber):
     t.join(timeout=1.0)
 
 
-def test_subscribe_request_carries_composite_agent_id(subscriber):
+def test_subscribe_request_carries_composite_agent_id(subscriber: _Subscriber) -> None:
     _, _, stub = subscriber
     assert stub.last_request is not None
     assert stub.last_request.agent_id.org_id == "org"
@@ -196,7 +203,7 @@ def test_subscribe_request_carries_composite_agent_id(subscriber):
     assert stub.last_request.agent_id.agent_id == "agent-7"
 
 
-def test_close_marks_stream_dead_and_wakes_waiters(subscriber):
+def test_close_marks_stream_dead_and_wakes_waiters(subscriber: _Subscriber) -> None:
     sub, stream, _ = subscriber
     stream.push(_msg("op-5", policy_pb2.OP_CONTROL_SIGNAL_PAUSE))
     for _ in range(50):
