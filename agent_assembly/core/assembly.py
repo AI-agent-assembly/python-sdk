@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass, field
 from threading import Lock
@@ -29,6 +30,9 @@ EnforcementMode = Literal["enforce", "observe", "disabled"]
 
 Mirrors ``aa_core::EnforcementMode`` on the wire; uses the same snake_case
 tokens the gateway expects in the registration body."""
+
+ENV_GATEWAY_URL = "AA_GATEWAY_URL"
+ENV_CONTROL_PLANE_URL = "AA_CONTROL_PLANE_URL"
 
 _DEFAULT_AGENT_ID = "agent-assembly-default"
 _VALID_RUNTIME_MODES = {"auto", "ebpf", "proxy", "sdk-only"}
@@ -232,11 +236,18 @@ def _validate_inputs(
     control_plane_url: str | None = None,
     enforcement_mode: EnforcementMode | None = None,
 ) -> tuple[str, str | None]:
-    """Validate inputs.
+    """Validate inputs and apply env-var fallbacks.
 
-    Returns the resolved ``(gateway_url, control_plane_url)`` pair so the
-    caller threads both URLs into the ``GatewayClient``.
+    Resolution order for each URL is explicit kwarg > env-var > unset:
+    ``gateway_url`` falls back to ``AA_GATEWAY_URL`` and ``control_plane_url``
+    falls back to ``AA_CONTROL_PLANE_URL``. Returns the resolved
+    ``(gateway_url, control_plane_url)`` pair.
     """
+    if not gateway_url:
+        gateway_url = os.environ.get(ENV_GATEWAY_URL, "")
+    if control_plane_url is None:
+        control_plane_url = os.environ.get(ENV_CONTROL_PLANE_URL) or None
+
     if not gateway_url:
         raise ConfigurationError("gateway_url is required")
     if mode not in _VALID_RUNTIME_MODES:
