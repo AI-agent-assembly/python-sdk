@@ -107,5 +107,5 @@ def test_call_stack_node_kind_outside_literal_round_trips_unchanged() -> None:
 
     decoded = AuditEvent.from_wire_bytes(original.to_wire_bytes())
 
-    assert decoded.call_stack[0].kind == "unknown"
+    assert decoded.call_stack[0].kind == "unknown"  # type: ignore[comparison-overlap]  # round-trip yields out-of-enum "unknown" wire fallback
     assert decoded == original
