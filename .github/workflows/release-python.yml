@@ -51,11 +51,13 @@ jobs:
       binary_source_tag: ${{ steps.r.outputs.binary_source_tag }}
       pypi_version: ${{ steps.r.outputs.pypi_version }}
       dry_run: ${{ steps.r.outputs.dry_run }}
+      release_tag: ${{ steps.r.outputs.release_tag }}
     steps:
       # Need the working tree on disk so the resolve step can source the
-      # tag → PEP 440 conversion script (.github/scripts/tag-to-pep440.sh).
-      # That script is the single source of truth for the conversion,
-      # shared with the AAASM-2863 unit tests.
+      # tag → PEP 440 conversion script (.github/scripts/tag-to-pep440.sh)
+      # and its inverse (.github/scripts/pep440-to-tag.sh). Those scripts
+      # are the single source of truth for the conversion, shared with the
+      # AAASM-2863 / AAASM-2956 unit tests.
       - uses: actions/checkout@v6
       - id: r
         env:
@@ -124,12 +126,32 @@ jobs:
             echo "::error::pypi_version '$pypi_version' is not valid PEP 440 (use 0.0.1a8.post1 not 0.0.1-alpha.8.1)"
             exit 1
           fi
+          # Resolve the canonical SemVer release tag the create-github-release
+          # job will cut at the published version (AAASM-2956). The
+          # repository_dispatch event already carries the canonical tag, so use
+          # it verbatim. The workflow_dispatch path only has the PEP 440
+          # pypi_version, so derive the tag from it via the single-source-of-
+          # truth inverse converter. .post/.dev republish forms have no own
+          # GitHub Release tag, so leave release_tag empty for those.
+          release_tag=""
+          if [[ "$dry_run" != "true" ]]; then
+            if [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
+              release_tag="$DISPATCH_PAYLOAD_TAG"
+            elif [[ "$pypi_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)?[0-9]*$ ]]; then
+              # shellcheck source=.github/scripts/pep440-to-tag.sh
+              source "${GITHUB_WORKSPACE}/.github/scripts/pep440-to-tag.sh"
+              release_tag="$(pep440_to_tag "$pypi_version")"
+            else
+              echo "::notice::pypi_version '$pypi_version' is a post/dev republish — no GitHub Release tag will be cut"
+            fi
+          fi
           {
             echo "binary_source_tag=${binary_source_tag}"
             echo "pypi_version=${pypi_version}"
             echo "dry_run=${dry_run}"
+            echo "release_tag=${release_tag}"
           } >> "$GITHUB_OUTPUT"
-          echo "Resolved binary_source_tag=${binary_source_tag} pypi_version=${pypi_version} dry_run=${dry_run}"
+          echo "Resolved binary_source_tag=${binary_source_tag} pypi_version=${pypi_version} dry_run=${dry_run} release_tag=${release_tag}"
 
   build-sdist:
     name: Build sdist
@@ -414,6 +436,60 @@ jobs:
       - name: Publish via PyPI Trusted Publisher
         uses: pypa/gh-action-pypi-publish@release/v1
         # No `with: password:` — Trusted Publisher uses OIDC, no token stored.
+
+  # Cut python-sdk's own GitHub Release at the just-published version so the
+  # repo's release line tracks PyPI (and the README `github/v/release` badge
+  # resolves) instead of drifting onto a separate source-of-truth tag like
+  # v0.0.2a1. Runs only on the real-publish path, gated on `publish` so the
+  # tag is never created for a wheel that failed to upload. See AAASM-2956.
+  create-github-release:
+    name: Cut GitHub Release at published version
+    needs:
+      - resolve
+      - publish
+    runs-on: ubuntu-latest
+    # Real publish only, and only when resolve produced a SemVer tag (empty
+    # for .post/.dev republishes, which do not get their own Release).
+    if: needs.resolve.outputs.dry_run != 'true' && needs.resolve.outputs.release_tag != ''
+    permissions:
+      contents: write  # create the git tag + GitHub Release
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # client_payload is attacker-controllable on repository_dispatch;
+          # RELEASE_TAG was validated as a SemVer tag by the resolve job and
+          # is only ever passed through env (never inlined into a run: body).
+          RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
+          PYPI_VERSION: ${{ needs.resolve.outputs.pypi_version }}
+        run: |
+          set -euo pipefail
+          # Defence in depth: re-validate the tag shape here so a future
+          # change to resolve cannot smuggle an arbitrary string into the
+          # tag/gh commands below.
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$ ]]; then
+            echo "::error::release_tag '$RELEASE_TAG' is not a valid SemVer release tag"
+            exit 1
+          fi
+          # Idempotent: skip if a Release already exists for this tag (e.g. a
+          # re-run after a partial failure), so the job never errors on retry.
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::GitHub Release $RELEASE_TAG already exists — nothing to do"
+            exit 0
+          fi
+          prerelease_flag=""
+          if [[ "$RELEASE_TAG" =~ -(alpha|beta|rc)\. ]]; then
+            prerelease_flag="--prerelease"
+          fi
+          # `gh release create` creates the annotated tag at the current
+          # commit (the workflow ref) when the tag does not yet exist.
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            $prerelease_flag \
+            --title "$RELEASE_TAG" \
+            --notes "python-sdk agent-assembly==${PYPI_VERSION} — coordinated with agent-assembly ${RELEASE_TAG}."
+          echo "Created GitHub Release $RELEASE_TAG (agent-assembly==${PYPI_VERSION})"
 
   # Publish the *real* release tag as a tiny artifact so the documentation
   # workflow (which is triggered by `workflow_run` after this workflow

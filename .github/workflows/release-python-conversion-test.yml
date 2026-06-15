@@ -15,6 +15,8 @@ on:
     paths:
       - ".github/scripts/tag-to-pep440.sh"
       - ".github/scripts/test_tag_to_pep440.sh"
+      - ".github/scripts/pep440-to-tag.sh"
+      - ".github/scripts/test_pep440_to_tag.sh"
       - ".github/workflows/release-python.yml"
       - ".github/workflows/release-python-conversion-test.yml"
   pull_request:
@@ -23,6 +25,8 @@ on:
     paths:
       - ".github/scripts/tag-to-pep440.sh"
       - ".github/scripts/test_tag_to_pep440.sh"
+      - ".github/scripts/pep440-to-tag.sh"
+      - ".github/scripts/test_pep440_to_tag.sh"
       - ".github/workflows/release-python.yml"
       - ".github/workflows/release-python-conversion-test.yml"
 
@@ -43,5 +47,9 @@ jobs:
         run: |
           shellcheck .github/scripts/tag-to-pep440.sh
           shellcheck -x .github/scripts/test_tag_to_pep440.sh
-      - name: Run fixture suite
+          shellcheck .github/scripts/pep440-to-tag.sh
+          shellcheck -x .github/scripts/test_pep440_to_tag.sh
+      - name: Run tag → PEP 440 fixture suite
         run: bash .github/scripts/test_tag_to_pep440.sh
+      - name: Run PEP 440 → tag fixture suite
+        run: bash .github/scripts/test_pep440_to_tag.sh
