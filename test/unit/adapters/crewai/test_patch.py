@@ -416,4 +416,4 @@ def test_thread_local_agent_id_isolated_across_concurrent_tasks(
         assert future_a.result() == {"args": (), "kwargs": {}}
         assert future_b.result() == {"args": (), "kwargs": {}}
 
-    assert sorted(observed_agent_ids) == ["agent-A", "agent-B"]
+    assert sorted(observed_agent_ids) == ["agent-A", "agent-B"]  # type: ignore[type-var]  # data is str | None statically but never None here
