@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass, field
 from threading import Lock
@@ -29,6 +30,9 @@ EnforcementMode = Literal["enforce", "observe", "disabled"]
 
 Mirrors ``aa_core::EnforcementMode`` on the wire; uses the same snake_case
 tokens the gateway expects in the registration body."""
+
+ENV_GATEWAY_URL = "AA_GATEWAY_URL"
+ENV_CONTROL_PLANE_URL = "AA_CONTROL_PLANE_URL"
 
 _DEFAULT_AGENT_ID = "agent-assembly-default"
 _VALID_RUNTIME_MODES = {"auto", "ebpf", "proxy", "sdk-only"}
@@ -122,6 +126,7 @@ def init_assembly(
     agent_id: str | None = None,
     mode: RuntimeMode = "auto",
     *,
+    control_plane_url: str | None = None,
     parent_agent_id: str | None = None,
     team_id: str | None = None,
     delegation_reason: str | None = None,
@@ -139,6 +144,12 @@ def init_assembly(
     optional auto-start) per Epic 17 S-G — see
     ``agent_assembly.core.gateway_resolver``.
 
+    :param control_plane_url: Optional URL of the control-plane HTTP API. When
+        supplied, the SDK issues its HTTP routes (agent registration, policy
+        checks, topology edges) against it instead of ``gateway_url``. When
+        omitted it falls back to ``gateway_url`` — the backwards-compatible
+        single-host OSS dev setup. Resolution order: explicit kwarg >
+        ``AA_CONTROL_PLANE_URL`` env-var > unset (falls back to ``gateway_url``).
     :param enforcement_mode: Per-agent governance posture sent to the gateway
         at registration (see :data:`EnforcementMode`). Defaults to ``None``,
         which omits the field from the registration body — the gateway then
@@ -149,7 +160,12 @@ def init_assembly(
     """
     gateway_url = resolve_gateway_url(gateway_url)
     api_key = resolve_api_key(api_key)
-    _validate_inputs(gateway_url=gateway_url, mode=mode, enforcement_mode=enforcement_mode)
+    gateway_url, control_plane_url = _validate_inputs(
+        gateway_url=gateway_url,
+        mode=mode,
+        control_plane_url=control_plane_url,
+        enforcement_mode=enforcement_mode,
+    )
     if delegation_reason is not None and len(delegation_reason) > 256:
         raise ValueError("delegation_reason must be <= 256 characters")
 
@@ -180,6 +196,7 @@ def init_assembly(
             gateway_url=gateway_url,
             agent_id=resolved_agent_id,
             api_key=api_key,
+            control_plane_url=control_plane_url,
             parent_agent_id=parent_agent_id,
             team_id=team_id,
             delegation_reason=delegation_reason,
@@ -213,8 +230,24 @@ def init_assembly(
 
 
 def _validate_inputs(
-    *, gateway_url: str, mode: RuntimeMode, enforcement_mode: EnforcementMode | None = None
-) -> None:
+    *,
+    gateway_url: str,
+    mode: RuntimeMode,
+    control_plane_url: str | None = None,
+    enforcement_mode: EnforcementMode | None = None,
+) -> tuple[str, str | None]:
+    """Validate inputs and apply env-var fallbacks.
+
+    Resolution order for each URL is explicit kwarg > env-var > unset:
+    ``gateway_url`` falls back to ``AA_GATEWAY_URL`` and ``control_plane_url``
+    falls back to ``AA_CONTROL_PLANE_URL``. Returns the resolved
+    ``(gateway_url, control_plane_url)`` pair.
+    """
+    if not gateway_url:
+        gateway_url = os.environ.get(ENV_GATEWAY_URL, "")
+    if control_plane_url is None:
+        control_plane_url = os.environ.get(ENV_CONTROL_PLANE_URL) or None
+
     if not gateway_url:
         raise ConfigurationError("gateway_url is required")
     if mode not in _VALID_RUNTIME_MODES:
@@ -223,6 +256,7 @@ def _validate_inputs(
         raise ConfigurationError(
             f"enforcement_mode must be one of: enforce, observe, disabled (got: {enforcement_mode!r})"
         )
+    return gateway_url, control_plane_url
 
 
 def _register_adapters(
