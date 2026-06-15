@@ -13,7 +13,7 @@ class IncompleteAdapter(FrameworkAdapter):
 
 def test_framework_adapter_requires_all_abstract_methods() -> None:
     with pytest.raises(TypeError):
-        IncompleteAdapter()
+        IncompleteAdapter()  # type: ignore[abstract]  # deliberately instantiate abstract class to assert TypeError
 
 
 class AvailableFrameworkAdapter(FrameworkAdapter):
