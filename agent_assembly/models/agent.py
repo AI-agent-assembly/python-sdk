@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -25,7 +25,7 @@ class AgentState(BaseModel):
     agent_id: str = Field(..., description="Unique identifier for the agent")
     status: str = Field(default="idle", description="Current status of the agent")
     last_activity: Optional[datetime] = Field(None, description="Last activity timestamp")
-    metadata: dict = Field(default_factory=dict, description="Additional state metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional state metadata")
 
 
 class PolicyEvaluation(BaseModel):
