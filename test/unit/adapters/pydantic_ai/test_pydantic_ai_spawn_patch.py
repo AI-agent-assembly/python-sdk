@@ -28,10 +28,10 @@ _FAKE_AGENT_ORIGINAL_RUN_SYNC = None
 class FakeAgent:
     model = "fake-model"
 
-    async def run(self, *_args: object, **_kwargs: object) -> str:
+    async def run(self: object, *_args: object, **_kwargs: object) -> str:
         return "agent-result"
 
-    def run_sync(self, *_args: object, **_kwargs: object) -> str:
+    def run_sync(self: object, *_args: object, **_kwargs: object) -> str:
         return "sync-result"
 
 
@@ -41,38 +41,38 @@ _FAKE_AGENT_ORIGINAL_RUN_SYNC = FakeAgent.__dict__["run_sync"]
 
 
 class TestLoadPydanticAiAgentClass:
-    def test_returns_none_when_not_installed(self):
+    def test_returns_none_when_not_installed(self) -> None:
         with patch("importlib.import_module", side_effect=ImportError):
             assert _load_pydantic_ai_agent_class() is None
 
 
 class TestApplyAgentRunPatch:
-    def setup_method(self):
+    def setup_method(self) -> None:
         set_process_agent_id("pydantic-parent")
-        FakeAgent.run = _FAKE_AGENT_ORIGINAL_RUN
-        FakeAgent.run_sync = _FAKE_AGENT_ORIGINAL_RUN_SYNC
+        FakeAgent.run = _FAKE_AGENT_ORIGINAL_RUN  # type: ignore[assignment,method-assign]  # fake method swap
+        FakeAgent.run_sync = _FAKE_AGENT_ORIGINAL_RUN_SYNC  # type: ignore[assignment,method-assign]
         for attr in (_AGENT_PATCHED_FLAG, _ORIGINAL_AGENT_RUN, _ORIGINAL_AGENT_RUN_SYNC):
             if hasattr(FakeAgent, attr):
                 delattr(FakeAgent, attr)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         _revert_agent_run_patch(FakeAgent)
         set_process_agent_id(None)
-        FakeAgent.run = _FAKE_AGENT_ORIGINAL_RUN
-        FakeAgent.run_sync = _FAKE_AGENT_ORIGINAL_RUN_SYNC
+        FakeAgent.run = _FAKE_AGENT_ORIGINAL_RUN  # type: ignore[assignment,method-assign]  # fake method swap
+        FakeAgent.run_sync = _FAKE_AGENT_ORIGINAL_RUN_SYNC  # type: ignore[assignment,method-assign]
         for attr in (_AGENT_PATCHED_FLAG, _ORIGINAL_AGENT_RUN, _ORIGINAL_AGENT_RUN_SYNC):
             if hasattr(FakeAgent, attr):
                 delattr(FakeAgent, attr)
 
     @pytest.mark.asyncio
-    async def test_async_run_sets_spawn_ctx(self):
+    async def test_async_run_sets_spawn_ctx(self) -> None:
         captured: list[SpawnContext | None] = []
 
-        async def capturing_run(self, *args, **kwargs):
+        async def capturing_run(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeAgent.run = capturing_run
+        FakeAgent.run = capturing_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
         agent = FakeAgent()
@@ -83,14 +83,14 @@ class TestApplyAgentRunPatch:
         assert captured[0].depth == 1
         assert captured[0].spawned_by_tool == "pydantic_ai_agent"
 
-    def test_sync_run_sets_spawn_ctx(self):
+    def test_sync_run_sets_spawn_ctx(self) -> None:
         captured: list[SpawnContext | None] = []
 
-        def capturing_run_sync(self, *args, **kwargs):
+        def capturing_run_sync(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "sync-ok"
 
-        FakeAgent.run_sync = capturing_run_sync
+        FakeAgent.run_sync = capturing_run_sync  # type: ignore[method-assign]  # fake method swap
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
         agent = FakeAgent()
@@ -100,35 +100,35 @@ class TestApplyAgentRunPatch:
         assert captured[0].parent_agent_id == "pydantic-parent"
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_reset_after_async_run(self):
+    async def test_spawn_ctx_reset_after_async_run(self) -> None:
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
         agent = FakeAgent()
         await agent.run("x")
         assert _SPAWN_CTX.get() is None
 
-    def test_spawn_ctx_reset_after_sync_run(self):
+    def test_spawn_ctx_reset_after_sync_run(self) -> None:
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
         agent = FakeAgent()
         agent.run_sync("x")
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_reset_on_exception_async(self):
-        async def failing_run(self, *args, **kwargs):
+    async def test_spawn_ctx_reset_on_exception_async(self) -> None:
+        async def failing_run(self: object, *args: object, **kwargs: object) -> str:
             raise RuntimeError("agent error")
 
-        FakeAgent.run = failing_run
+        FakeAgent.run = failing_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
         with pytest.raises(RuntimeError):
             await FakeAgent().run("x")
         assert _SPAWN_CTX.get() is None
 
-    def test_spawn_ctx_reset_on_exception_sync(self):
-        def failing_run_sync(self, *args, **kwargs):
+    def test_spawn_ctx_reset_on_exception_sync(self) -> None:
+        def failing_run_sync(self: object, *args: object, **kwargs: object) -> str:
             raise RuntimeError("sync agent error")
 
-        FakeAgent.run_sync = failing_run_sync
+        FakeAgent.run_sync = failing_run_sync  # type: ignore[method-assign]  # fake method swap
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
         with pytest.raises(RuntimeError):
@@ -136,14 +136,14 @@ class TestApplyAgentRunPatch:
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_nested_depth_propagation(self):
+    async def test_nested_depth_propagation(self) -> None:
         captured: list[SpawnContext | None] = []
 
-        async def capturing_run(self, *args, **kwargs):
+        async def capturing_run(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeAgent.run = capturing_run
+        FakeAgent.run = capturing_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
         _apply_agent_run_patch(FakeAgent, "process-agent")
 
         outer_ctx = SpawnContext(parent_agent_id="grandparent", depth=2, spawned_by_tool="outer")
@@ -156,13 +156,13 @@ class TestApplyAgentRunPatch:
         assert captured[0] is not None
         assert captured[0].depth == 3
 
-    def test_idempotent_apply(self):
+    def test_idempotent_apply(self) -> None:
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
         first_original = getattr(FakeAgent, _ORIGINAL_AGENT_RUN, None)
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
         assert getattr(FakeAgent, _ORIGINAL_AGENT_RUN, None) is first_original
 
-    def test_revert_restores_original(self):
+    def test_revert_restores_original(self) -> None:
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
         _revert_agent_run_patch(FakeAgent)
         assert not hasattr(FakeAgent, _AGENT_PATCHED_FLAG)
@@ -213,14 +213,14 @@ _FAKE_TOOL_ORIGINAL_RUN = FakeTool.__dict__["_run"]
 
 class TestApplyToolRunPatch:
     def setup_method(self) -> None:
-        FakeTool._run = _FAKE_TOOL_ORIGINAL_RUN
+        FakeTool._run = _FAKE_TOOL_ORIGINAL_RUN  # type: ignore[assignment,method-assign]  # fake method swap
         for attr in (_TOOLS_PATCHED_FLAG, _ORIGINAL_TOOL_RUN):
             if hasattr(FakeTool, attr):
                 delattr(FakeTool, attr)
 
     def teardown_method(self) -> None:
         _revert_tool_run_patch(FakeTool)
-        FakeTool._run = _FAKE_TOOL_ORIGINAL_RUN
+        FakeTool._run = _FAKE_TOOL_ORIGINAL_RUN  # type: ignore[assignment,method-assign]  # fake method swap
         for attr in (_TOOLS_PATCHED_FLAG, _ORIGINAL_TOOL_RUN):
             if hasattr(FakeTool, attr):
                 delattr(FakeTool, attr)
@@ -233,7 +233,7 @@ class TestApplyToolRunPatch:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeTool._run = capturing_run
+        FakeTool._run = capturing_run  # type: ignore[assignment,method-assign]  # fake method swap
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         await FakeTool()._run(_FakeCtx(), {})
@@ -249,7 +249,7 @@ class TestApplyToolRunPatch:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeTool._run = capturing_run
+        FakeTool._run = capturing_run  # type: ignore[assignment,method-assign]  # fake method swap
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         await FakeTool()._run(_FakeCtx(), {})
@@ -265,7 +265,7 @@ class TestApplyToolRunPatch:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeTool._run = capturing_run
+        FakeTool._run = capturing_run  # type: ignore[assignment,method-assign]  # fake method swap
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         await FakeTool()._run(_FakeCtx(), {})
@@ -284,7 +284,7 @@ class TestApplyToolRunPatch:
         async def failing_run(self: object, ctx: object, args: object, **kw: object) -> str:
             raise RuntimeError("tool broke")
 
-        FakeTool._run = failing_run
+        FakeTool._run = failing_run  # type: ignore[assignment,method-assign]  # fake method swap
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         with pytest.raises(RuntimeError):
@@ -299,7 +299,7 @@ class TestApplyToolRunPatch:
             called.append(True)
             return "should-not-run"
 
-        FakeTool._run = should_not_be_called
+        FakeTool._run = should_not_be_called  # type: ignore[assignment,method-assign]  # fake method swap
         _apply_tool_run_patch(FakeTool, _FakeDenyHandler())
 
         from agent_assembly.exceptions import PolicyViolationError
@@ -318,7 +318,7 @@ class TestApplyToolRunPatch:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeTool._run = capturing_run
+        FakeTool._run = capturing_run  # type: ignore[assignment,method-assign]  # fake method swap
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         outer = SpawnContext(parent_agent_id="parent", depth=3, spawned_by_tool="outer")
