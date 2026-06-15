@@ -98,3 +98,17 @@ PY
 
 echo "aa-ffi git deps pinned to ${sha}:"
 grep -nE '^aa-(core|proto|sdk-client)[[:space:]]*=' "$CARGO_TOML"
+
+# Sync the sibling Cargo.lock so it agrees with the freshly-pinned rev.
+# Without this the manifest points at the new core commit while the lock
+# still records the old one; the wheel build only tolerates that because it
+# does not run `--locked` (cargo silently re-resolves). Syncing keeps the
+# lock honest and lets the build be hardened with `--locked` later. The
+# maturin build mounts this same checkout, so the synced lock is what it uses.
+LOCKFILE="$(dirname "$CARGO_TOML")/Cargo.lock"
+if [[ -f "$LOCKFILE" ]] && command -v cargo >/dev/null 2>&1; then
+  echo "::notice::Syncing ${LOCKFILE} to ${sha}"
+  cargo update --manifest-path "$CARGO_TOML" -p aa-core -p aa-proto -p aa-sdk-client
+else
+  echo "::warning::skipped Cargo.lock sync (cargo or ${LOCKFILE} missing); build will re-resolve"
+fi
