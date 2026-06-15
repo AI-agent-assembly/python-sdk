@@ -9,6 +9,7 @@ import threading
 import time
 import tracemalloc
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -150,14 +151,14 @@ def make_audit_entry_payload(index: int, *, worker_id: int = 0) -> str:
 
 
 @pytest.fixture()
-def native_core():
+def native_core() -> Any:
     if os.getenv("AAASM_RUN_NATIVE_CORE_TESTS") != "1":
         pytest.skip("Set AAASM_RUN_NATIVE_CORE_TESTS=1 to run native core runtime tests.")
     return pytest.importorskip("agent_assembly._core")
 
 
 @pytest.mark.integration
-def test_send_event_is_non_blocking(native_core) -> None:
+def test_send_event_is_non_blocking(native_core: Any) -> None:
     server = MockRuntimeServer()
     server.start()
 
@@ -175,7 +176,7 @@ def test_send_event_is_non_blocking(native_core) -> None:
 
 
 @pytest.mark.integration
-def test_runtime_client_has_no_thread_deadlock(native_core) -> None:
+def test_runtime_client_has_no_thread_deadlock(native_core: Any) -> None:
     server = MockRuntimeServer()
     server.start()
 
@@ -204,7 +205,7 @@ def test_runtime_client_has_no_thread_deadlock(native_core) -> None:
 
 
 @pytest.mark.integration
-def test_runtime_client_tracemalloc_leak_guard(native_core) -> None:
+def test_runtime_client_tracemalloc_leak_guard(native_core: Any) -> None:
     server = MockRuntimeServer()
     server.start()
 
