@@ -23,7 +23,7 @@ _ORIGINAL_HANDOFF_CALL = "_agent_assembly_original_openai_agents_handoff_call"
 
 
 class TestLoadRunnerClass:
-    def test_returns_none_when_openai_agents_not_installed(self):
+    def test_returns_none_when_openai_agents_not_installed(self) -> None:
         with patch("importlib.import_module", side_effect=ImportError):
             result = _load_openai_agents_runner_class()
         assert result is None
@@ -41,15 +41,15 @@ _FAKE_RUNNER_ORIGINAL_RUN = FakeRunner.__dict__["run"]
 
 
 class TestApplyRunnerRunPatch:
-    def setup_method(self):
+    def setup_method(self) -> None:
         set_process_agent_id("process-agent-001")
         for attr in (_RUNNER_PATCHED_FLAG, _ORIGINAL_RUNNER_RUN):
             if hasattr(FakeRunner, attr):
                 delattr(FakeRunner, attr)
         # Restore to the original classmethod captured at class-definition time
-        FakeRunner.run = _FAKE_RUNNER_ORIGINAL_RUN
+        FakeRunner.run = _FAKE_RUNNER_ORIGINAL_RUN  # type: ignore[method-assign]  # fake method swap
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         _revert_runner_run_patch(FakeRunner)
         set_process_agent_id(None)
         for attr in (_RUNNER_PATCHED_FLAG, _ORIGINAL_RUNNER_RUN):
@@ -57,14 +57,14 @@ class TestApplyRunnerRunPatch:
                 delattr(FakeRunner, attr)
 
     @pytest.mark.asyncio
-    async def test_patched_run_sets_spawn_ctx(self):
+    async def test_patched_run_sets_spawn_ctx(self) -> None:
         captured: list[SpawnContext | None] = []
 
-        async def capturing_run(agent, *, input, **kwargs):
+        async def capturing_run(agent: object, *, input: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeRunner.run = classmethod(capturing_run)
+        FakeRunner.run = classmethod(capturing_run)  # type: ignore[arg-type,assignment,method-assign]
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
 
         await FakeRunner.run(MagicMock(), input="hello")
@@ -77,35 +77,35 @@ class TestApplyRunnerRunPatch:
         assert sc.spawned_by_tool == "openai_agents_runner"
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_is_reset_after_run(self):
-        async def passthrough_run(agent, *, input, **kwargs):
+    async def test_spawn_ctx_is_reset_after_run(self) -> None:
+        async def passthrough_run(agent: object, *, input: object, **kwargs: object) -> str:
             return "ok"
 
-        FakeRunner.run = classmethod(passthrough_run)
+        FakeRunner.run = classmethod(passthrough_run)  # type: ignore[arg-type,assignment,method-assign]
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
 
         await FakeRunner.run(MagicMock(), input="x")
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_reset_on_exception(self):
-        async def failing_run(agent, *, input, **kwargs):
+    async def test_spawn_ctx_reset_on_exception(self) -> None:
+        async def failing_run(agent: object, *, input: object, **kwargs: object) -> str:
             raise RuntimeError("runner failed")
 
-        FakeRunner.run = classmethod(failing_run)
+        FakeRunner.run = classmethod(failing_run)  # type: ignore[arg-type,assignment,method-assign]
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
 
         with pytest.raises(RuntimeError):
             await FakeRunner.run(MagicMock(), input="x")
         assert _SPAWN_CTX.get() is None
 
-    def test_idempotent_apply(self):
+    def test_idempotent_apply(self) -> None:
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
         original_run = getattr(FakeRunner, _ORIGINAL_RUNNER_RUN, None)
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
         assert getattr(FakeRunner, _ORIGINAL_RUNNER_RUN, None) is original_run
 
-    def test_revert_restores_original(self):
+    def test_revert_restores_original(self) -> None:
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
         _revert_runner_run_patch(FakeRunner)
         assert not hasattr(FakeRunner, _RUNNER_PATCHED_FLAG)
@@ -117,38 +117,38 @@ class TestApplyRunnerRunPatch:
 
 
 class TestLoadHandoffClass:
-    def test_returns_none_when_openai_agents_not_installed(self):
+    def test_returns_none_when_openai_agents_not_installed(self) -> None:
         with patch("importlib.import_module", side_effect=ImportError):
             result = _load_openai_agents_handoff_class()
         assert result is None
 
 
 class TestExtractHandoffDelegationReason:
-    def test_reads_tool_description(self):
+    def test_reads_tool_description(self) -> None:
         obj = MagicMock()
         obj.tool_description = "Transfer control to agent B"
         assert _extract_handoff_delegation_reason(obj) == "Transfer control to agent B"
 
-    def test_falls_back_to_description(self):
+    def test_falls_back_to_description(self) -> None:
         obj = MagicMock(spec=["description"])
         obj.description = "Handoff description"
         assert _extract_handoff_delegation_reason(obj) == "Handoff description"
 
-    def test_falls_back_to_reason(self):
+    def test_falls_back_to_reason(self) -> None:
         obj = MagicMock(spec=["reason"])
         obj.reason = "some reason"
         assert _extract_handoff_delegation_reason(obj) == "some reason"
 
-    def test_fallback_when_no_description_attrs(self):
+    def test_fallback_when_no_description_attrs(self) -> None:
         obj = MagicMock(spec=[])
         assert _extract_handoff_delegation_reason(obj) == "handoff"
 
-    def test_fallback_when_tool_description_is_empty_string(self):
+    def test_fallback_when_tool_description_is_empty_string(self) -> None:
         obj = MagicMock(spec=["tool_description"])
         obj.tool_description = "   "
         assert _extract_handoff_delegation_reason(obj) == "handoff"
 
-    def test_truncates_to_256_chars(self):
+    def test_truncates_to_256_chars(self) -> None:
         obj = MagicMock()
         obj.tool_description = "x" * 300
         result = _extract_handoff_delegation_reason(obj)
@@ -180,7 +180,7 @@ class TestApplyHandoffCallPatch:
                 delattr(FakeHandoff, attr)
 
     @pytest.mark.asyncio
-    async def test_patched_handoff_sets_spawn_ctx(self):
+    async def test_patched_handoff_sets_spawn_ctx(self) -> None:
         captured: list[SpawnContext | None] = []
 
         class CapturingHandoff(FakeHandoff):
@@ -199,7 +199,7 @@ class TestApplyHandoffCallPatch:
         assert sc.depth == 1
 
     @pytest.mark.asyncio
-    async def test_spawned_by_tool_is_none_for_handoff(self):
+    async def test_spawned_by_tool_is_none_for_handoff(self) -> None:
         captured: list[SpawnContext | None] = []
 
         class CapturingHandoff(FakeHandoff):
@@ -214,7 +214,7 @@ class TestApplyHandoffCallPatch:
         assert captured[0].spawned_by_tool is None
 
     @pytest.mark.asyncio
-    async def test_delegation_reason_from_tool_description(self):
+    async def test_delegation_reason_from_tool_description(self) -> None:
         captured: list[SpawnContext | None] = []
 
         class CapturingHandoff(FakeHandoff):
@@ -230,7 +230,7 @@ class TestApplyHandoffCallPatch:
         assert captured[0].delegation_reason == "Transfer to agent B"
 
     @pytest.mark.asyncio
-    async def test_delegation_reason_fallback_when_no_description(self):
+    async def test_delegation_reason_fallback_when_no_description(self) -> None:
         captured: list[SpawnContext | None] = []
 
         class CapturingHandoff(FakeHandoff):
@@ -248,14 +248,14 @@ class TestApplyHandoffCallPatch:
         assert captured[0].delegation_reason == "handoff"
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_reset_after_handoff(self):
+    async def test_spawn_ctx_reset_after_handoff(self) -> None:
         _apply_handoff_call_patch(FakeHandoff, "process-agent-001")
         h = FakeHandoff()
         await h()
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_reset_on_exception(self):
+    async def test_spawn_ctx_reset_on_exception(self) -> None:
         class FailingHandoff(FakeHandoff):
             async def __call__(self, *_args: object, **_kwargs: object) -> str:
                 raise RuntimeError("handoff failed")
@@ -265,20 +265,20 @@ class TestApplyHandoffCallPatch:
             await FailingHandoff()()
         assert _SPAWN_CTX.get() is None
 
-    def test_idempotent_apply(self):
+    def test_idempotent_apply(self) -> None:
         _apply_handoff_call_patch(FakeHandoff, "process-agent-001")
         original = getattr(FakeHandoff, _ORIGINAL_HANDOFF_CALL, None)
         _apply_handoff_call_patch(FakeHandoff, "process-agent-001")
         assert getattr(FakeHandoff, _ORIGINAL_HANDOFF_CALL, None) is original
 
-    def test_revert_restores_original(self):
+    def test_revert_restores_original(self) -> None:
         _apply_handoff_call_patch(FakeHandoff, "process-agent-001")
         _revert_handoff_call_patch(FakeHandoff)
         assert not hasattr(FakeHandoff, _HANDOFF_PATCHED_FLAG)
         assert not hasattr(FakeHandoff, _ORIGINAL_HANDOFF_CALL)
 
     @pytest.mark.asyncio
-    async def test_depth_increments_when_inside_existing_spawn_ctx(self):
+    async def test_depth_increments_when_inside_existing_spawn_ctx(self) -> None:
         from agent_assembly.core.spawn import spawn_context_scope
 
         captured: list[SpawnContext | None] = []

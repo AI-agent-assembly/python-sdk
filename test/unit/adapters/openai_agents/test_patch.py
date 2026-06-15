@@ -314,7 +314,7 @@ async def test_helper_fallback_branches_for_check_wait_record_and_result_build(
         agent_id=None,
         ctx=SimpleNamespace(),
     )
-    assert fallback_wait["status"] == "deny"
+    assert fallback_wait["status"] == "deny"  # type: ignore[index]  # fallback branch returns a dict (helper typed object)
 
     class SyncWait:
         def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:

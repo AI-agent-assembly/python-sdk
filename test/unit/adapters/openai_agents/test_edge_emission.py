@@ -21,9 +21,9 @@ class RecordingEdgeEmitter:
     """Synchronous test double that records emitted edges."""
 
     def __init__(self) -> None:
-        self.edges: list[tuple[str, str, str, dict | None]] = []
+        self.edges: list[tuple[str, str, str, dict[str, Any] | None]] = []
 
-    def emit(self, source: str, target: str, edge_type: str, metadata: dict | None = None) -> None:
+    def emit(self, source: str, target: str, edge_type: str, metadata: dict[str, Any] | None = None) -> None:
         self.edges.append((source, target, edge_type, metadata))
 
 
@@ -103,7 +103,7 @@ class TestHandoffEdgeEmission:
             async def __call__(self, *_args: Any, **_kwargs: Any) -> str:
                 return "handoff-result"
 
-        _apply_handoff_call_patch(NameOnlyHandoff, "agent-a")  # type: ignore[arg-type]
+        _apply_handoff_call_patch(NameOnlyHandoff, "agent-a")
         h = NameOnlyHandoff()
         await h()
 

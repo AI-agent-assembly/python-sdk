@@ -120,7 +120,7 @@ async def test_denied_tool_raises_mcp_tool_blocked_error_with_metadata(
     assert patcher.apply() is True
 
     session = FakeClientSession()
-    session._server_name = "stdlib-server"  # type: ignore[attr-defined]
+    session._server_name = "stdlib-server"
     with pytest.raises(
         MCPToolBlockedError,
         match="blocked by governance policy: policy block",
@@ -158,7 +158,7 @@ async def test_pending_then_approved_runs_original_and_records_result(
     assert patcher.apply() is True
 
     session = FakeClientSession()
-    session._server_url = "https://api.mcp.test"  # type: ignore[attr-defined]
+    session._server_url = "https://api.mcp.test"
     result = await session.call_tool("search", _ArgsMapping({"q": "hello"}))
 
     assert result["name"] == "search"
@@ -189,7 +189,7 @@ async def test_pending_then_rejected_raises_mcp_tool_blocked_error(
     assert patcher.apply() is True
 
     session = FakeClientSession()
-    session._ws_url = "wss://tools.mcp.test"  # type: ignore[attr-defined]
+    session._ws_url = "wss://tools.mcp.test"
     with pytest.raises(
         MCPToolBlockedError,
         match="rejected during approval: approval rejected",
