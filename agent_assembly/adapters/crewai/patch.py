@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import importlib
+import importlib as importlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import wraps
