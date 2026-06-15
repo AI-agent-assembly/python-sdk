@@ -433,6 +433,142 @@ def test_init_assembly_delegation_reason_too_long_raises(
         )
 
 
+# ── control_plane_url parameter (AAASM-2028) ─────────────────────────────────
+
+
+def test_init_assembly_control_plane_url_forwarded_to_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit control_plane_url lands on the GatewayClient."""
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://localhost:8080",
+        api_key="test-api-key",
+        agent_id="cp-agent",
+        control_plane_url="http://control-plane:9000",
+    )
+
+    try:
+        assert context.client.control_plane_url == "http://control-plane:9000"
+        assert context.client.gateway_url == "http://localhost:8080"
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_control_plane_url_defaults_to_gateway_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without control_plane_url, HTTP routes fall back to gateway_url."""
+    monkeypatch.delenv(core_assembly.ENV_CONTROL_PLANE_URL, raising=False)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://localhost:8080",
+        api_key="test-api-key",
+        agent_id="single-host-agent",
+    )
+
+    try:
+        assert context.client.control_plane_url is None
+        try:
+            assert str(context.client.client.base_url) == "http://localhost:8080"
+        finally:
+            context.client.close()
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_gateway_url_falls_back_to_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """gateway_url resolves from AA_GATEWAY_URL when no kwarg is given."""
+    from agent_assembly.core import gateway_resolver
+
+    # Neutralize the resolver chain so the AA_GATEWAY_URL fallback in
+    # _validate_inputs is the path under test.
+    monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
+    monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
+    monkeypatch.setattr(gateway_resolver, "_load_config_file", lambda: {})
+    monkeypatch.setattr(gateway_resolver, "_probe_healthz", lambda _url: False)
+    monkeypatch.setattr(gateway_resolver, "resolve_gateway_url", lambda explicit=None: explicit or "")
+    monkeypatch.setattr(core_assembly, "resolve_gateway_url", lambda explicit=None: explicit or "")
+    monkeypatch.setenv(core_assembly.ENV_GATEWAY_URL, "http://env-gateway:7000")
+    monkeypatch.delenv(core_assembly.ENV_CONTROL_PLANE_URL, raising=False)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(api_key="test-api-key", agent_id="env-gw-agent")
+
+    try:
+        assert context.client.gateway_url == "http://env-gateway:7000"
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_control_plane_url_falls_back_to_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """control_plane_url resolves from AA_CONTROL_PLANE_URL when no kwarg is given."""
+    monkeypatch.setenv(core_assembly.ENV_CONTROL_PLANE_URL, "http://env-control-plane:9100")
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://localhost:8080",
+        api_key="test-api-key",
+        agent_id="env-cp-agent",
+    )
+
+    try:
+        assert context.client.control_plane_url == "http://env-control-plane:9100"
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_explicit_control_plane_url_overrides_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Explicit kwarg wins over AA_CONTROL_PLANE_URL (kwarg > env-var)."""
+    monkeypatch.setenv(core_assembly.ENV_CONTROL_PLANE_URL, "http://env-control-plane:9100")
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    context = init_assembly(
+        gateway_url="http://localhost:8080",
+        api_key="test-api-key",
+        agent_id="explicit-cp-agent",
+        control_plane_url="http://explicit-control-plane:9200",
+    )
+
+    try:
+        assert context.client.control_plane_url == "http://explicit-control-plane:9200"
+    finally:
+        context.shutdown()
+
+
 # ── enforcement_mode parameter (AAASM-1560) ──────────────────────────────────
 
 
