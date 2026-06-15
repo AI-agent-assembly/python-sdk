@@ -162,6 +162,15 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Pin aa-ffi git deps to released core (binary_source_tag)
+        # Rewrite native/aa-ffi-python/Cargo.toml so the wheel compiles against
+        # the SAME core release whose aasm-* binaries it bundles. master's pins
+        # lag by one cycle (bumped only by the post-publish update PR), so
+        # without this the wheel would pin the PREVIOUS core. Ephemeral CI edit
+        # — not committed back. See AAASM-2959.
+        env:
+          BINARY_SOURCE_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
+        run: .github/scripts/pin-ffi-to-tag.sh "$BINARY_SOURCE_TAG"
       - name: Sync version
         uses: ./.github/actions/sync-version
         with:
@@ -208,6 +217,15 @@ jobs:
           rm -f agent_assembly/bin/aasm-x86_64-unknown-linux-gnu.tar.gz
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
+      - name: Pin aa-ffi git deps to released core (binary_source_tag)
+        # Rewrite native/aa-ffi-python/Cargo.toml so the wheel compiles against
+        # the SAME core release whose aasm-* binaries it bundles. master's pins
+        # lag by one cycle (bumped only by the post-publish update PR), so
+        # without this the wheel would pin the PREVIOUS core. Ephemeral CI edit
+        # — not committed back. See AAASM-2959.
+        env:
+          BINARY_SOURCE_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
+        run: .github/scripts/pin-ffi-to-tag.sh "$BINARY_SOURCE_TAG"
       - name: Sync version
         uses: ./.github/actions/sync-version
         with:
@@ -279,6 +297,15 @@ jobs:
           rm -f agent_assembly/bin/aasm-aarch64-unknown-linux-gnu.tar.gz
           chmod +x agent_assembly/bin/aasm
           echo "Bundled aasm binary into wheel"
+      - name: Pin aa-ffi git deps to released core (binary_source_tag)
+        # Rewrite native/aa-ffi-python/Cargo.toml so the wheel compiles against
+        # the SAME core release whose aasm-* binaries it bundles. master's pins
+        # lag by one cycle (bumped only by the post-publish update PR), so
+        # without this the wheel would pin the PREVIOUS core. Ephemeral CI edit
+        # — not committed back. See AAASM-2959.
+        env:
+          BINARY_SOURCE_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
+        run: .github/scripts/pin-ffi-to-tag.sh "$BINARY_SOURCE_TAG"
       - name: Sync version
         uses: ./.github/actions/sync-version
         with:
@@ -344,6 +371,15 @@ jobs:
           echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
         run: brew install protobuf
+      - name: Pin aa-ffi git deps to released core (binary_source_tag)
+        # Rewrite native/aa-ffi-python/Cargo.toml so the wheel compiles against
+        # the SAME core release whose aasm-* binaries it bundles. master's pins
+        # lag by one cycle (bumped only by the post-publish update PR), so
+        # without this the wheel would pin the PREVIOUS core. Ephemeral CI edit
+        # — not committed back. See AAASM-2959.
+        env:
+          BINARY_SOURCE_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
+        run: .github/scripts/pin-ffi-to-tag.sh "$BINARY_SOURCE_TAG"
       - name: Sync version
         uses: ./.github/actions/sync-version
         with:
@@ -390,6 +426,15 @@ jobs:
           echo "Bundled aasm binary into wheel"
       - name: Install protoc (macOS)
         run: brew install protobuf
+      - name: Pin aa-ffi git deps to released core (binary_source_tag)
+        # Rewrite native/aa-ffi-python/Cargo.toml so the wheel compiles against
+        # the SAME core release whose aasm-* binaries it bundles. master's pins
+        # lag by one cycle (bumped only by the post-publish update PR), so
+        # without this the wheel would pin the PREVIOUS core. Ephemeral CI edit
+        # — not committed back. See AAASM-2959.
+        env:
+          BINARY_SOURCE_TAG: ${{ needs.resolve.outputs.binary_source_tag }}
+        run: .github/scripts/pin-ffi-to-tag.sh "$BINARY_SOURCE_TAG"
       - name: Sync version
         uses: ./.github/actions/sync-version
         with:
