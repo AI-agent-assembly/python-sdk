@@ -88,7 +88,7 @@ Add an entry to `agent_assembly/adapters/registry.py` so `init_assembly()` picks
 Run the in-tree validator:
 
 ```bash
-uv run aasm adapter-validate my-framework
+uv run aasm adapter validate my-framework
 ```
 
 The validator checks the ABC contract, version range syntax, and round-trip behaviour (`register_hooks` → `unregister_hooks` leaves no residue).
