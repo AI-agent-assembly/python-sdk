@@ -142,6 +142,33 @@ def _load_pydantic_ai_toolset_class() -> type[Any] | None:
     return None
 
 
+def _import_module_or_none(module_name: str) -> Any:
+    """Import ``module_name``, returning ``None`` when it is not installed."""
+    try:
+        return importlib.import_module(module_name)
+    except ImportError:
+        return None
+
+
+def _import_attr(module_name: str, attr_name: str) -> Any:
+    """Import ``module_name`` and return its ``attr_name``, or ``None`` when unavailable."""
+    module = _import_module_or_none(module_name)
+    if module is None:
+        return None
+    return getattr(module, attr_name, None)
+
+
+def _is_own_call_tool_toolset(candidate: Any, base_toolset_cls: type[Any]) -> bool:
+    """Return True when ``candidate`` is a concrete subclass overriding its own ``call_tool``."""
+    if not isinstance(candidate, type):
+        return False
+    if candidate is base_toolset_cls:
+        return False
+    if not issubclass(candidate, base_toolset_cls):
+        return False
+    return "call_tool" in vars(candidate)
+
+
 def _load_pydantic_ai_concrete_toolset_classes(base_toolset_cls: type[Any]) -> list[type[Any]]:
     """Return concrete ``AbstractToolset`` subclasses that OVERRIDE ``call_tool``.
 
@@ -159,30 +186,18 @@ def _load_pydantic_ai_concrete_toolset_classes(base_toolset_cls: type[Any]) -> l
     seen: set[int] = set()
 
     def _consider(candidate: Any) -> None:
-        if not isinstance(candidate, type):
-            return
-        if candidate is base_toolset_cls:
+        if not _is_own_call_tool_toolset(candidate, base_toolset_cls):
             return
         if id(candidate) in seen:
-            return
-        if not issubclass(candidate, base_toolset_cls):
-            return
-        if "call_tool" not in vars(candidate):
             return
         seen.add(id(candidate))
         discovered.append(candidate)
 
-    try:
-        function_module = importlib.import_module("pydantic_ai.toolsets.function")
-    except ImportError:
-        function_module = None
-    if function_module is not None:
-        _consider(getattr(function_module, "FunctionToolset", None))
+    function_toolset = _import_attr("pydantic_ai.toolsets.function", "FunctionToolset")
+    if function_toolset is not None:
+        _consider(function_toolset)
 
-    try:
-        toolsets_module = importlib.import_module("pydantic_ai.toolsets")
-    except ImportError:
-        toolsets_module = None
+    toolsets_module = _import_module_or_none("pydantic_ai.toolsets")
     if toolsets_module is not None:
         for attr_value in vars(toolsets_module).values():
             _consider(attr_value)
