@@ -7,9 +7,13 @@
 //! authority: the advisory, best-effort credential preflight is provided by
 //! `aa-sdk-client`, and `aa-runtime` re-scans every event authoritatively.
 //!
-//! Policy / approval are server-side (see the ADR trust model), so the binding
-//! does not perform a synchronous policy round-trip; event reporting is
-//! fire-and-forget over the shared client.
+//! Approval is server-side (see the ADR trust model), so the binding does not
+//! perform a synchronous approval round-trip; event reporting is
+//! fire-and-forget over the shared client. The binding does expose a
+//! synchronous, **advisory** `query_policy` over the same client: it asks the
+//! runtime for a decision but fails *open* (returns `allow`) whenever the
+//! runtime is unreachable or slow, because the runtime / proxy / eBPF layers
+//! remain authoritative.
 
 use aa_core::AuditEntry;
 use aa_proto::assembly::audit::v1::AuditEvent;
@@ -17,6 +21,10 @@ use aa_proto::assembly::audit::v1::CallStackNode as ProtoCallStackNode;
 use aa_proto::assembly::common::v1::ActionType;
 use aa_proto::assembly::common::v1::AgentId;
 use aa_proto::assembly::common::v1::Decision;
+use aa_proto::assembly::policy::v1::action_context::Action as ProtoAction;
+use aa_proto::assembly::policy::v1::{
+    ActionContext, CheckActionRequest, CheckActionResponse, ToolCallContext,
+};
 use aa_sdk_client::ipc::spawn_ipc_thread;
 use aa_sdk_client::{AssemblyClient, AssemblyConfig, SdkClientError};
 use prost::Message;
@@ -96,6 +104,76 @@ impl RuntimeClient {
         // thread — holding the GIL there would stall every other Python thread.
         py.detach(move || self.client.report_event(event_type, details))
             .map_err(map_sdk_error)
+    }
+
+    /// Synchronously ask the runtime for a policy decision on an action.
+    ///
+    /// Builds a `CheckActionRequest` from the supplied identity and action
+    /// fields, ships it over the shared client, and blocks for the runtime's
+    /// `CheckActionResponse` (the shared client caps this at a 5 s timeout).
+    /// Returns a dict `{"decision": <str>, "reason": <str>}` where the decision
+    /// is one of `"allow"`, `"deny"`, `"pending"`, `"redact"`, or
+    /// `"unspecified"`.
+    ///
+    /// **Fail-open:** the SDK layer is advisory, never authoritative. When the
+    /// runtime is unreachable or does not answer in time — the shared client
+    /// returns [`SdkClientError::QueryFailed`] on timeout / mid-query
+    /// disconnect, or [`SdkClientError::ChannelClosed`] when the IPC connection
+    /// never came up (e.g. the runtime socket is absent) — this returns a
+    /// non-deny `{"decision": "allow", "reason": <why>}` so a slow or absent
+    /// runtime can never block the caller; the runtime / proxy / eBPF layers
+    /// still enforce.
+    #[pyo3(signature = (agent_id, action_type, tool_name=None, tool_args_json=None))]
+    fn query_policy(
+        &self,
+        py: Python<'_>,
+        agent_id: String,
+        action_type: String,
+        tool_name: Option<String>,
+        tool_args_json: Option<String>,
+    ) -> PyResult<Py<PyAny>> {
+        let context = tool_name.map(|name| ActionContext {
+            action: Some(ProtoAction::ToolCall(ToolCallContext {
+                tool_name: name,
+                args_json: tool_args_json.unwrap_or_default().into_bytes(),
+                ..Default::default()
+            })),
+        });
+        let request = CheckActionRequest {
+            agent_id: Some(AgentId {
+                org_id: String::new(),
+                team_id: String::new(),
+                agent_id,
+            }),
+            action_type: action_type_from_str(&action_type),
+            context,
+            ..Default::default()
+        };
+
+        // Release the GIL while blocking on the runtime round-trip so other
+        // Python threads keep running during the (up to 5 s) wait.
+        let outcome = py.detach(move || self.client.query_policy(request));
+
+        let response = match outcome {
+            Ok(response) => response,
+            // Fail-open: an unreachable or slow runtime must never read as a
+            // deny. QueryFailed = timeout / mid-query disconnect; ChannelClosed
+            // = the IPC connection never came up. Synthesize an allow with the
+            // reason so callers can still log it.
+            Err(SdkClientError::QueryFailed | SdkClientError::ChannelClosed) => {
+                CheckActionResponse {
+                    decision: Decision::Allow as i32,
+                    reason: "runtime unreachable; fail-open allow".to_string(),
+                    ..Default::default()
+                }
+            }
+            Err(error) => return Err(map_sdk_error(error)),
+        };
+
+        let result = PyDict::new(py);
+        result.set_item("decision", policy_decision_to_str(response.decision))?;
+        result.set_item("reason", response.reason)?;
+        Ok(result.into_any().unbind())
     }
 
     /// Shut down the background IPC thread. Idempotent.
@@ -263,6 +341,21 @@ fn decision_to_str(value: i32) -> &'static str {
     }
 }
 
+/// Map a policy `Decision` to the string surfaced by `query_policy`.
+///
+/// Unlike [`decision_to_str`] (which collapses the unspecified case to the
+/// empty string for the audit-event surface), a policy verdict always names its
+/// decision — an unspecified verdict becomes `"unspecified"`.
+fn policy_decision_to_str(value: i32) -> &'static str {
+    match Decision::try_from(value).unwrap_or(Decision::Unspecified) {
+        Decision::Allow => "allow",
+        Decision::Deny => "deny",
+        Decision::Pending => "pending",
+        Decision::Redact => "redact",
+        Decision::Unspecified => "unspecified",
+    }
+}
+
 #[pyfunction]
 fn audit_event_to_wire_bytes(py: Python<'_>, event: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
     let proto = audit_event_from_py(event)?;
@@ -272,8 +365,9 @@ fn audit_event_to_wire_bytes(py: Python<'_>, event: &Bound<'_, PyAny>) -> PyResu
 
 #[pyfunction]
 fn audit_event_from_wire_bytes(py: Python<'_>, data: &Bound<'_, PyBytes>) -> PyResult<Py<PyAny>> {
-    let proto = AuditEvent::decode(data.as_bytes())
-        .map_err(|error| PyValueError::new_err(format!("failed to decode AuditEvent wire bytes: {error}")))?;
+    let proto = AuditEvent::decode(data.as_bytes()).map_err(|error| {
+        PyValueError::new_err(format!("failed to decode AuditEvent wire bytes: {error}"))
+    })?;
     audit_event_to_py(py, &proto)
 }
 
