@@ -15,6 +15,7 @@ _PATCHED_FLAG = "_agent_assembly_compile_patched"
 _ORIGINAL_COMPILE = "_agent_assembly_original_compile"
 _NODE_WRAPPED_FLAG = "_agent_assembly_node_wrapped"
 _INVOKE_WRAPPED_FLAG = "_agent_assembly_invoke_wrapped"
+_GRAPH_INVOKE_NODE_NAME = "graph.invoke"
 
 # Thread-local storage for the name of the most-recently-completed node so that
 # the next _record_node_enter can emit a directed Messages edge between them.
@@ -432,11 +433,11 @@ def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> N
         async def wrapped_async_invoke(*invoke_args: Any, **invoke_kwargs: Any) -> Any:
             state = _extract_state(invoke_args, invoke_kwargs)
             config = _extract_config(invoke_args, invoke_kwargs)
-            _record_node_enter(callback_handler, node_name="graph.invoke", state=state, config=config)
+            _record_node_enter(callback_handler, node_name=_GRAPH_INVOKE_NODE_NAME, state=state, config=config)
             result = await invoke(*invoke_args, **invoke_kwargs)
             _record_node_exit(
                 callback_handler,
-                node_name="graph.invoke",
+                node_name=_GRAPH_INVOKE_NODE_NAME,
                 previous_state=state,
                 next_state=result,
                 config=config,
@@ -449,11 +450,11 @@ def _wrap_graph_invoke_fallback(compiled_graph: Any, callback_handler: Any) -> N
         def wrapped_sync_invoke(*invoke_args: Any, **invoke_kwargs: Any) -> Any:
             state = _extract_state(invoke_args, invoke_kwargs)
             config = _extract_config(invoke_args, invoke_kwargs)
-            _record_node_enter(callback_handler, node_name="graph.invoke", state=state, config=config)
+            _record_node_enter(callback_handler, node_name=_GRAPH_INVOKE_NODE_NAME, state=state, config=config)
             result = invoke(*invoke_args, **invoke_kwargs)
             _record_node_exit(
                 callback_handler,
-                node_name="graph.invoke",
+                node_name=_GRAPH_INVOKE_NODE_NAME,
                 previous_state=state,
                 next_state=result,
                 config=config,
