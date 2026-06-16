@@ -14,6 +14,7 @@ from agent_assembly.adapters.langchain.runtime import get_active_callback_handle
 from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
 from agent_assembly.core.gateway_resolver import resolve_api_key, resolve_gateway_url
+from agent_assembly.core.runtime_interceptor import build_governance_interceptor
 from agent_assembly.core.spawn import _SPAWN_CTX
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
@@ -268,12 +269,17 @@ def _register_adapters(
     Adapters are returned in priority order.  LangChain is registered first
     so its ``AssemblyCallbackHandler`` can thread through to subsequent
     adapters as the governance interceptor.
+
+    When the native runtime is reachable, the bare ``GatewayClient`` is wrapped
+    in a ``RuntimeQueryInterceptor`` so a runtime ``deny`` blocks the tool via
+    ``check_tool_start``; otherwise the bare client is used unchanged
+    (fail-open).
     """
     registry = AdapterRegistry()
     adapters = registry.get_available_adapters_by_priority()
 
     registered: list[FrameworkAdapter] = []
-    interceptor: Any = client
+    interceptor: Any = build_governance_interceptor(client, process_agent_id)
 
     for adapter in adapters:
         adapter.set_process_agent_id(process_agent_id)
