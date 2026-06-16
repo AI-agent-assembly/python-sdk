@@ -21,7 +21,7 @@ from typing import Literal, cast
 
 # ── Event types (AAASM-1435) ──────────────────────────────────────────────────
 
-CallStackNodeKind = Literal["llm", "tool", "result"]
+type CallStackNodeKind = Literal["llm", "tool", "result"]
 """Discriminator for a [`CallStackNode`] — open-ended on the wire (proto uses
 `string kind`) but typed here as a `Literal` for the three values the
 dashboard currently renders."""
