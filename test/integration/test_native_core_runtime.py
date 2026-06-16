@@ -15,8 +15,11 @@ import pytest
 
 
 class MockRuntimeServer:
-    def __init__(self, *, policy_delay_ms: int = 0) -> None:
+    def __init__(self, *, policy_delay_ms: int = 0, policy_payload: bytes = b"\x08\x01") -> None:
         self._policy_delay_ms = policy_delay_ms
+        # CheckActionResponse protobuf for the PolicyQuery reply. Default is
+        # decision=ALLOW (\x08\x01); pass \x08\x02 for DENY, etc.
+        self._policy_payload = policy_payload
         self._stop = threading.Event()
         self._ready = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -64,9 +67,9 @@ class MockRuntimeServer:
                     if tag == 1:
                         if self._policy_delay_ms > 0:
                             time.sleep(self._policy_delay_ms / 1000.0)
-                        # CheckActionResponse { decision: ALLOW } protobuf payload
+                        # CheckActionResponse protobuf payload (decision field).
                         try:
-                            self._write_frame(conn, 1, b"\x08\x01")
+                            self._write_frame(conn, 1, self._policy_payload)
                         except OSError:
                             return
                     elif tag == 2:
@@ -222,3 +225,35 @@ def test_runtime_client_tracemalloc_leak_guard(native_core: Any) -> None:
         tracemalloc.stop()
         client.close()
         server.close()
+
+
+@pytest.mark.integration
+def test_query_policy_returns_deny_when_runtime_denies(native_core: Any) -> None:
+    # CheckActionResponse { decision: DENY } => field 1 (varint) = 2.
+    server = MockRuntimeServer(policy_payload=b"\x08\x02")
+    server.start()
+
+    client = native_core.RuntimeClient.connect(server.socket_path)
+    try:
+        result = client.query_policy("agent-001", "tool_call", "web_search", '{"q": "x"}')
+        assert result["decision"] == "deny"
+    finally:
+        client.close()
+        server.close()
+
+
+@pytest.mark.integration
+def test_query_policy_fails_open_when_runtime_unreachable(native_core: Any) -> None:
+    # No server bound at this path: the runtime never answers, so the shared
+    # client's query times out and the binding must fail OPEN (allow), never
+    # surface an error a caller would read as a deny.
+    socket_dir = tempfile.TemporaryDirectory(prefix="aaasm3046-")
+    socket_path = str(Path(socket_dir.name) / "absent.sock")
+
+    client = native_core.RuntimeClient.connect(socket_path)
+    try:
+        result = client.query_policy("agent-001", "tool_call")
+        assert result["decision"] == "allow"
+    finally:
+        client.close()
+        socket_dir.cleanup()
