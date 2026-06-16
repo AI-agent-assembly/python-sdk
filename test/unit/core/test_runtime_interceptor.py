@@ -1,0 +1,219 @@
+"""Unit tests for the runtime-backed pre-execution check (AAASM-3049).
+
+Wave 3 of AAASM-3021: a reachable runtime's ``deny`` must block a tool via the
+adapter ``check_tool_start`` contract, while every other path (allow / redact /
+pending / unreachable runtime / missing native extension) proceeds (fail-open).
+"""
+
+from __future__ import annotations
+
+import sys
+import types
+from typing import Any
+from uuid import uuid4
+
+import pytest
+
+from agent_assembly.adapters.langchain import AssemblyCallbackHandler
+from agent_assembly.core import runtime_interceptor
+from agent_assembly.core.runtime_interceptor import (
+    RuntimeQueryInterceptor,
+    build_governance_interceptor,
+)
+from agent_assembly.exceptions import ToolExecutionBlockedError
+
+
+class _FakeRuntimeClient:
+    """Mock native RuntimeClient capturing query_policy calls."""
+
+    def __init__(self, decision: str, reason: str = "") -> None:
+        self._decision = decision
+        self._reason = reason
+        self.calls: list[tuple[Any, ...]] = []
+
+    def query_policy(
+        self,
+        agent_id: str,
+        action_type: str,
+        tool_name: str | None = None,
+        tool_args_json: str | None = None,
+    ) -> dict[str, str]:
+        self.calls.append((agent_id, action_type, tool_name, tool_args_json))
+        return {"decision": self._decision, "reason": self._reason}
+
+
+class _FakeGatewayClient:
+    """Stand-in GatewayClient with no check_tool_start (production shape)."""
+
+    def __init__(self) -> None:
+        self.agent_id = "agent-001"
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_deny_decision_maps_to_block_status() -> None:
+    runtime_client = _FakeRuntimeClient("deny", reason="policy violation")
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), runtime_client, "agent-001")
+
+    result = interceptor.check_tool_start(
+        serialized={"name": "web_search"},
+        input_str="query",
+        tool_name="web_search",
+        args={"q": "x"},
+    )
+
+    assert result == {"status": "deny", "reason": "policy violation"}
+    assert runtime_client.calls == [("agent-001", "tool_call", "web_search", '{"q": "x"}')]
+
+
+@pytest.mark.parametrize("decision", ["allow", "redact", "unspecified", "anything-else"])
+def test_non_deny_decisions_proceed(decision: str) -> None:
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient(decision), "agent-001")
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result == {"status": "allow"}
+
+
+def test_pending_decision_routes_to_existing_approval_path() -> None:
+    interceptor = RuntimeQueryInterceptor(
+        _FakeGatewayClient(), _FakeRuntimeClient("pending", reason="awaiting"), "agent-001"
+    )
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result == {"status": "pending", "reason": "awaiting"}
+
+
+def test_query_raising_fails_open() -> None:
+    class _Raising:
+        def query_policy(self, *_args: Any, **_kwargs: Any) -> dict[str, str]:
+            raise RuntimeError("native boom")
+
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _Raising(), "agent-001")
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result == {"status": "allow"}
+
+
+def test_delegates_unknown_attributes_to_gateway_client() -> None:
+    client = _FakeGatewayClient()
+    interceptor = RuntimeQueryInterceptor(client, _FakeRuntimeClient("allow"), "agent-001")
+
+    interceptor.close()
+
+    assert client.closed is True
+
+
+def test_callback_handler_blocks_on_runtime_deny() -> None:
+    """End-to-end: a DENY runtime drives on_tool_start to raise."""
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient("deny", reason="nope"), "agent-001")
+    handler = AssemblyCallbackHandler(interceptor)
+
+    with pytest.raises(ToolExecutionBlockedError, match="nope"):
+        handler.on_tool_start(
+            serialized={"name": "web_search"},
+            input_str="query",
+            run_id=uuid4(),
+            tool_name="web_search",
+            args={"q": "x"},
+        )
+
+
+def test_callback_handler_allows_on_runtime_allow() -> None:
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient("allow"), "agent-001")
+    handler = AssemblyCallbackHandler(interceptor)
+
+    handler.on_tool_start(
+        serialized={"name": "web_search"},
+        input_str="query",
+        run_id=uuid4(),
+        tool_name="web_search",
+        args={"q": "x"},
+    )
+
+
+def test_build_interceptor_without_native_core_returns_bare_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No native extension: the bare GatewayClient is returned unchanged so the
+    adapters have no check_tool_start and proceed (fail-open / no-core path)."""
+    monkeypatch.delitem(sys.modules, "agent_assembly._core", raising=False)
+
+    # Force the import inside build_governance_interceptor to fail.
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _no_core_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "agent_assembly._core":
+            raise ImportError("native extension unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _no_core_import)
+
+    client = _FakeGatewayClient()
+    result = build_governance_interceptor(client, "agent-001")
+
+    assert result is client
+    assert not hasattr(result, "check_tool_start")
+
+
+def test_build_interceptor_returns_bare_client_when_connect_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Native extension present but no reachable runtime: connect() raises, so
+    the bare client is returned (fail-open) rather than a denying interceptor."""
+
+    class _UnreachableRuntimeClient:
+        @staticmethod
+        def connect(_socket_path: str) -> Any:
+            raise OSError("no such socket")
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = _UnreachableRuntimeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
+
+    client = _FakeGatewayClient()
+    result = build_governance_interceptor(client, "agent-001")
+
+    assert result is client
+
+
+def test_build_interceptor_wraps_client_when_runtime_connects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Native extension present and runtime reachable: the client is wrapped so
+    a runtime deny can block."""
+    runtime_client = _FakeRuntimeClient("deny", reason="blocked")
+
+    class _ConnectingRuntimeClient:
+        @staticmethod
+        def connect(_socket_path: str) -> Any:
+            return runtime_client
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = _ConnectingRuntimeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
+
+    client = _FakeGatewayClient()
+    result = build_governance_interceptor(client, "agent-001")
+
+    assert isinstance(result, RuntimeQueryInterceptor)
+    assert result.check_tool_start(serialized={"name": "t"}, input_str="i") == {
+        "status": "deny",
+        "reason": "blocked",
+    }
+
+
+def test_resolve_socket_path_prefers_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AA_RUNTIME_SOCKET", "/custom/runtime.sock")
+    assert runtime_interceptor._resolve_runtime_socket_path("agent-001") == "/custom/runtime.sock"
+
+
+def test_resolve_socket_path_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("AA_RUNTIME_SOCKET", raising=False)
+    assert runtime_interceptor._resolve_runtime_socket_path("agent-001") == "/tmp/aa-runtime-agent-001.sock"
