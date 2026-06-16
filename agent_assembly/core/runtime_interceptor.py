@@ -55,7 +55,9 @@ def _resolve_runtime_socket_path(agent_id: str) -> str:
         return env_path
     # IPC contract path (see docstring above). The SDK is a *client* of a
     # socket the runtime creates; this code never writes to /tmp itself.
-    return f"/tmp/aa-runtime-{agent_id}.sock"  # noqa: S108  # NOSONAR(python:S5443)
+    # SonarCloud python:S5443 is suppressed project-wide for this file via
+    # sonar-project.properties; ruff S108 is suppressed inline below.
+    return f"/tmp/aa-runtime-{agent_id}.sock"  # noqa: S108
 
 
 def _extract_tool_name(serialized: Any, kwargs: dict[str, Any]) -> str | None:
