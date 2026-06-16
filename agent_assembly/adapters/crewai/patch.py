@@ -135,29 +135,29 @@ def _get_thread_local_agent_id() -> str | None:
     return None
 
 
+def _nonempty_str_agent_id(source: Any) -> str | None:
+    """Return ``source["agent_id"]`` when ``source`` is a dict holding a non-empty str."""
+    if not isinstance(source, dict):
+        return None
+    value = source.get("agent_id")
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
 def _extract_agent_id_from_inputs(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str | None:
-    direct_agent_id = kwargs.get("agent_id")
-    if isinstance(direct_agent_id, str) and direct_agent_id:
+    direct_agent_id = _nonempty_str_agent_id(kwargs)
+    if direct_agent_id is not None:
         return direct_agent_id
 
     config = kwargs.get("config")
     if isinstance(config, dict):
-        configurable = config.get("configurable")
-        if isinstance(configurable, dict):
-            configurable_agent_id = configurable.get("agent_id")
-            if isinstance(configurable_agent_id, str) and configurable_agent_id:
-                return configurable_agent_id
+        nested = _nonempty_str_agent_id(config.get("configurable")) or _nonempty_str_agent_id(config.get("metadata"))
+        if nested is not None:
+            return nested
 
-        metadata = config.get("metadata")
-        if isinstance(metadata, dict):
-            metadata_agent_id = metadata.get("agent_id")
-            if isinstance(metadata_agent_id, str) and metadata_agent_id:
-                return metadata_agent_id
-
-    if args and isinstance(args[0], dict):
-        state_agent_id = args[0].get("agent_id")
-        if isinstance(state_agent_id, str) and state_agent_id:
-            return state_agent_id
+    if args:
+        return _nonempty_str_agent_id(args[0])
 
     return None
 
