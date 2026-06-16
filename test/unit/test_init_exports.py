@@ -12,8 +12,10 @@ def test_all_includes_native_core_symbols_when_extension_is_available() -> None:
 
     class GovernanceEvent: ...
 
-    fake_core.RuntimeClient = RuntimeClient
-    fake_core.GovernanceEvent = GovernanceEvent
+    # Attrs do not exist on the ModuleType stub; this fake mimics the native
+    # extension exporting these symbols.
+    fake_core.RuntimeClient = RuntimeClient  # type: ignore[attr-defined]  # attr not on the static stub; set/used dynamically
+    fake_core.GovernanceEvent = GovernanceEvent  # type: ignore[attr-defined]  # attr not on the static stub; set/used dynamically
 
     original_package = sys.modules.pop("agent_assembly", None)
     original_core = sys.modules.get("agent_assembly._core")

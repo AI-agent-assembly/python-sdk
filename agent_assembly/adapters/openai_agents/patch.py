@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import importlib
+import importlib as importlib
 import importlib.util
 import inspect
 from dataclasses import dataclass, field

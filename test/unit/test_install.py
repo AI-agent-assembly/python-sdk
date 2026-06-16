@@ -10,7 +10,7 @@ from agent_assembly import _install
 
 
 @pytest.fixture
-def isolate_runtime(monkeypatch, tmp_path: Path) -> Path:
+def isolate_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """Isolate ensure_runtime() from the host environment.
 
     Yields a context where:
@@ -26,7 +26,7 @@ def isolate_runtime(monkeypatch, tmp_path: Path) -> Path:
     return fake_binary
 
 
-def test_ensure_runtime_returns_path_match_first(monkeypatch, tmp_path: Path) -> None:
+def test_ensure_runtime_returns_path_match_first(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """When `aasm` is on PATH, ensure_runtime returns that resolved path."""
     import stat
 

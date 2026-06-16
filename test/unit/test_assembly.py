@@ -135,7 +135,7 @@ def test_init_assembly_explicit_args_bypass_resolver(
 
 
 def test_mode_sdk_only_skips_network_layer() -> None:
-    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="sdk-only")
+    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="sdk-only")  # type: ignore[arg-type]  # placeholder client
     assert network_mode == "sdk-only"
     assert callable(shutdown)
 
@@ -146,7 +146,7 @@ def test_mode_auto_uses_proxy_when_ebpf_is_not_supported(
     monkeypatch.setattr(core_assembly, "_platform_supports_ebpf", lambda: False)
     monkeypatch.setattr(core_assembly, "_start_mitm_proxy", lambda client: lambda: None)
 
-    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="auto")
+    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="auto")  # type: ignore[arg-type]  # placeholder client
 
     assert network_mode == "proxy"
     assert callable(shutdown)
@@ -158,7 +158,7 @@ def test_mode_auto_uses_ebpf_when_supported(
     monkeypatch.setattr(core_assembly, "_platform_supports_ebpf", lambda: True)
     monkeypatch.setattr(core_assembly, "_start_ebpf_probes", lambda client: lambda: None)
 
-    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="auto")
+    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="auto")  # type: ignore[arg-type]  # placeholder client
     assert network_mode == "ebpf"
     assert callable(shutdown)
 
@@ -167,7 +167,7 @@ def test_mode_proxy_forces_proxy_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(core_assembly, "_start_mitm_proxy", lambda client: lambda: None)
-    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="proxy")
+    network_mode, shutdown = core_assembly._start_network_layer(client=object(), mode="proxy")  # type: ignore[arg-type]  # placeholder client
     assert network_mode == "proxy"
     assert callable(shutdown)
 
@@ -178,7 +178,7 @@ def test_mode_ebpf_raises_on_unsupported_platform(
     monkeypatch.setattr(core_assembly, "_platform_supports_ebpf", lambda: False)
 
     with pytest.raises(ConfigurationError):
-        core_assembly._start_network_layer(client=object(), mode="ebpf")
+        core_assembly._start_network_layer(client=object(), mode="ebpf")  # type: ignore[arg-type]  # placeholder client
 
 
 def test_context_manager_shutdown_calls_adapter_unregister_hooks(

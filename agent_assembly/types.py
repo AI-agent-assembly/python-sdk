@@ -110,7 +110,7 @@ class AuditEvent:
         wheel (pure-Python mode).
         """
         try:
-            from agent_assembly._core import audit_event_to_wire_bytes  # type: ignore[import-not-found]
+            from agent_assembly._core import audit_event_to_wire_bytes
         except ImportError as exc:
             raise ImportError(
                 "AuditEvent.to_wire_bytes() requires the native "

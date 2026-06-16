@@ -86,7 +86,7 @@ def test_crewai_real_task_and_tool_classes_flow_when_available(
     Agent = crewai.Agent
     Crew = crewai.Crew
 
-    class BlockedTool(BaseTool):
+    class BlockedTool(BaseTool):  # type: ignore[misc,valid-type]  # base is a runtime-imported framework class
         name: str = "blocked_tool"
         description: str = "Tool that should be blocked by governance."
 
@@ -94,7 +94,7 @@ def test_crewai_real_task_and_tool_classes_flow_when_available(
             del kwargs
             return "should-not-run"
 
-    class SafeTool(BaseTool):
+    class SafeTool(BaseTool):  # type: ignore[misc,valid-type]  # base is a runtime-imported framework class
         name: str = "safe_tool"
         description: str = "Tool that should remain allowed."
 

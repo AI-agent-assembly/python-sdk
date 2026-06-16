@@ -45,17 +45,25 @@ repos:
             build|
             dist"""
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.16.0
+  - repo: local
     hooks:
       - id: mypy
-        package: agent_assembly,test
-  #      exclude: ^test/unit_test.{1,64}.py
+        name: mypy
+        # Run mypy inside the uv-managed project env so it resolves the SDK's
+        # runtime + optional framework deps (pydantic, httpx, pydantic-ai, …).
+        # The upstream mirrors-mypy hook installs into an isolated venv that lacks
+        # these, which made every BaseModel/framework subclass resolve to `Any`.
+        # Type-check the whole project via mypy.ini's `packages =` discovery (no
+        # file paths) so the generated proto .py/.pyi pairs don't trip a
+        # "Duplicate module" error and the hook stays identical to the configured
+        # `mypy` invocation.
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
         args:
-  #        - --strict
           - --ignore-missing-imports
           - --show-traceback
-        additional_dependencies: [types-PyYAML>=6.0.12.9]
 
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.

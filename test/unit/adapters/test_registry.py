@@ -86,7 +86,7 @@ class InterceptorCallingAdapter(FrameworkAdapter):
         return [">=1.0.0"]
 
     def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
-        interceptor.record_event("adapter-registered")
+        interceptor.record_event("adapter-registered")  # type: ignore[attr-defined]  # attr not on the static stub; set/used dynamically
         self.hook_registered = True
 
     def unregister_hooks(self) -> None:

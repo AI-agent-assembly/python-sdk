@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -11,7 +13,7 @@ from agent_assembly.client import DispatchToolResult, GatewayClient
 from agent_assembly.exceptions import GatewayError
 
 
-def _make_response(status_code: int = 200, payload: dict | None = None) -> MagicMock:
+def _make_response(status_code: int = 200, payload: dict[str, Any] | None = None) -> MagicMock:
     resp = MagicMock()
     resp.status_code = status_code
     resp.json.return_value = payload or {}
@@ -28,7 +30,7 @@ def _make_response(status_code: int = 200, payload: dict | None = None) -> Magic
     return resp
 
 
-def _patched_client(client: GatewayClient, mock_post: MagicMock) -> object:
+def _patched_client(client: GatewayClient, mock_post: MagicMock) -> AbstractContextManager[Any]:
     return patch.object(
         type(client),
         "client",

@@ -95,22 +95,26 @@ def __dir__() -> list[str]:
 
 
 if TYPE_CHECKING:
-    from agent_assembly.adapters import FrameworkAdapter, GovernanceInterceptor
-    from agent_assembly.core import AssemblyContext, init_assembly
+    from agent_assembly.adapters import FrameworkAdapter as FrameworkAdapter
+    from agent_assembly.adapters import GovernanceInterceptor as GovernanceInterceptor
+    from agent_assembly.core import AssemblyContext as AssemblyContext
+    from agent_assembly.core import init_assembly as init_assembly
     from agent_assembly.exceptions import (
-        AdapterValidationError,
-        AgentError,
-        AssemblyError,
-        ConfigurationError,
-        GatewayError,
-        MCPToolBlockedError,
-        PolicyError,
-        ToolExecutionBlockedError,
+        AdapterValidationError as AdapterValidationError,
     )
-    from agent_assembly.types import AuditEvent, CallStackNode, CallStackNodeKind
+    from agent_assembly.exceptions import AgentError as AgentError
+    from agent_assembly.exceptions import AssemblyError as AssemblyError
+    from agent_assembly.exceptions import ConfigurationError as ConfigurationError
+    from agent_assembly.exceptions import GatewayError as GatewayError
+    from agent_assembly.exceptions import MCPToolBlockedError as MCPToolBlockedError
+    from agent_assembly.exceptions import PolicyError as PolicyError
+    from agent_assembly.exceptions import (
+        ToolExecutionBlockedError as ToolExecutionBlockedError,
+    )
+    from agent_assembly.types import AuditEvent as AuditEvent
+    from agent_assembly.types import CallStackNode as CallStackNode
+    from agent_assembly.types import CallStackNodeKind as CallStackNodeKind
 
     with contextlib.suppress(ImportError):
-        from agent_assembly._core import (
-            GovernanceEvent,
-            RuntimeClient,
-        )
+        from agent_assembly._core import GovernanceEvent as GovernanceEvent
+        from agent_assembly._core import RuntimeClient as RuntimeClient

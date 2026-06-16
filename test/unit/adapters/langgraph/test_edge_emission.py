@@ -11,9 +11,9 @@ class RecordingEdgeEmitter:
     """Synchronous test double that records emitted edges."""
 
     def __init__(self) -> None:
-        self.edges: list[tuple[str, str, str, dict | None]] = []
+        self.edges: list[tuple[str, str, str, dict[str, Any] | None]] = []
 
-    def emit(self, source: str, target: str, edge_type: str, metadata: dict | None = None) -> None:
+    def emit(self, source: str, target: str, edge_type: str, metadata: dict[str, Any] | None = None) -> None:
         self.edges.append((source, target, edge_type, metadata))
 
 
@@ -31,6 +31,7 @@ def _make_node_map(*node_names: str, handler: Any) -> dict[str, Any]:
     """Build a fake compiled-graph node map with simple callables."""
     node_map: dict[str, Any] = {}
     for name in node_names:
+
         def make_func(n: str) -> Any:
             def node_fn(state: Any) -> dict[str, Any]:
                 return {"node": n, **state}

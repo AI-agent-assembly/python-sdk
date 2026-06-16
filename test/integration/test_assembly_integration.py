@@ -12,7 +12,7 @@ from agent_assembly.exceptions import ConfigurationError
 
 
 @pytest.mark.integration
-def test_init_assembly_with_valid_config():
+def test_init_assembly_with_valid_config() -> None:
     """Test that assembly initialization works with valid configuration."""
     # This test requires a running gateway
     context = init_assembly(
@@ -26,7 +26,7 @@ def test_init_assembly_with_valid_config():
 
 
 @pytest.mark.integration
-def test_init_assembly_with_invalid_config():
+def test_init_assembly_with_invalid_config() -> None:
     """Test that assembly initialization fails with an unknown runtime mode."""
     with pytest.raises(ConfigurationError):
         init_assembly(
@@ -37,7 +37,7 @@ def test_init_assembly_with_invalid_config():
 
 
 @pytest.mark.integration
-def test_gateway_client_context_manager():
+def test_gateway_client_context_manager() -> None:
     """Test that the gateway client works as a context manager."""
     context = init_assembly(
         gateway_url="http://localhost:8080",

@@ -375,7 +375,7 @@ async def test_pydantic_ai_tool_sets_spawn_ctx() -> None:
         result = await tool._run(_Ctx(), {})
     finally:
         _revert_tool_run_patch(FakeTool)
-        FakeTool._run = original_run
+        FakeTool._run = original_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
 
     assert result == "search-result"
     assert len(captured) == 1
@@ -435,7 +435,7 @@ async def test_lineage_registry_children_of_and_ancestors_of_via_tool_spawn() ->
         result = await FakeTool()._run(_Ctx(), {})
     finally:
         _revert_tool_run_patch(FakeTool)
-        FakeTool._run = original_run
+        FakeTool._run = original_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
 
     assert result == "delegated"
 

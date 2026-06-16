@@ -78,7 +78,7 @@ class AssemblyContext:
     def __enter__(self) -> AssemblyContext:
         return self
 
-    def __exit__(self, exc_type: object, exc: object, tb: object) -> bool:
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> Literal[False]:
         del exc_type, exc, tb
         self.shutdown()
         return False
