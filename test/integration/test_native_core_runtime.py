@@ -257,3 +257,69 @@ def test_query_policy_fails_open_when_runtime_unreachable(native_core: Any) -> N
     finally:
         client.close()
         socket_dir.cleanup()
+
+
+@pytest.mark.integration
+def test_wired_check_blocks_on_runtime_deny(native_core: Any) -> None:
+    """Wave 3 (AAASM-3049): a real runtime DENY drives on_tool_start to raise.
+
+    Connects a native RuntimeClient to a mock-UDS runtime answering DENY, wraps
+    it in the production RuntimeQueryInterceptor, and confirms the LangChain
+    callback handler blocks the tool with ToolExecutionBlockedError.
+    """
+    from uuid import uuid4
+
+    from agent_assembly.adapters.langchain import AssemblyCallbackHandler
+    from agent_assembly.core.runtime_interceptor import RuntimeQueryInterceptor
+    from agent_assembly.exceptions import ToolExecutionBlockedError
+
+    server = MockRuntimeServer(policy_payload=b"\x08\x02")
+    server.start()
+
+    client = native_core.RuntimeClient.connect(server.socket_path)
+    try:
+        interceptor = RuntimeQueryInterceptor(object(), client, "agent-001")
+        handler = AssemblyCallbackHandler(interceptor)
+        with pytest.raises(ToolExecutionBlockedError):
+            handler.on_tool_start(
+                serialized={"name": "web_search"},
+                input_str="query",
+                run_id=uuid4(),
+                tool_name="web_search",
+                args={"q": "x"},
+            )
+    finally:
+        client.close()
+        server.close()
+
+
+@pytest.mark.integration
+def test_wired_check_fails_open_when_runtime_unreachable(native_core: Any) -> None:
+    """Wave 3 (AAASM-3049): no reachable runtime => on_tool_start proceeds.
+
+    The native query_policy fails open (allow) when the socket is unbound, so the
+    wired check must NOT raise.
+    """
+    from uuid import uuid4
+
+    from agent_assembly.adapters.langchain import AssemblyCallbackHandler
+    from agent_assembly.core.runtime_interceptor import RuntimeQueryInterceptor
+
+    socket_dir = tempfile.TemporaryDirectory(prefix="aaasm3049-")
+    socket_path = str(Path(socket_dir.name) / "absent.sock")
+
+    client = native_core.RuntimeClient.connect(socket_path)
+    try:
+        interceptor = RuntimeQueryInterceptor(object(), client, "agent-001")
+        handler = AssemblyCallbackHandler(interceptor)
+        # Must not raise: fail-open.
+        handler.on_tool_start(
+            serialized={"name": "web_search"},
+            input_str="query",
+            run_id=uuid4(),
+            tool_name="web_search",
+            args={"q": "x"},
+        )
+    finally:
+        client.close()
+        socket_dir.cleanup()
