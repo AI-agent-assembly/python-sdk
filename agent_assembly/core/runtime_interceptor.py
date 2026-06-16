@@ -39,11 +39,24 @@ def _resolve_runtime_socket_path(agent_id: str) -> str:
     Mirrors ``aa-ffi-python``'s ``AssemblyConfig::resolve_socket_path``: the
     ``AA_RUNTIME_SOCKET`` environment variable takes precedence, otherwise the
     per-agent default ``/tmp/aa-runtime-<agent_id>.sock`` is used.
+
+    Note: the ``/tmp/aa-runtime-<agent_id>.sock`` literal mirrors the canonical
+    path baked into ``aa-sdk-client::AssemblyConfig::resolve_socket_path`` on the
+    Rust side. This path is the SDK↔runtime IPC contract: ``aa-runtime`` binds
+    the UDS server here and every SDK (Python, Node, Go) connects here. The SDK
+    only *connects* to a path the runtime created; it never writes the socket
+    itself. Operators who need to relocate the socket (e.g. multi-tenant hosts)
+    set ``AA_RUNTIME_SOCKET`` to override. Replacing the literal with
+    ``tempfile.gettempdir()`` would break interop on platforms where it does not
+    resolve to ``/tmp`` (notably macOS dev hosts).
     """
     env_path = os.environ.get(ENV_RUNTIME_SOCKET)
     if env_path:
         return env_path
-    return f"/tmp/aa-runtime-{agent_id}.sock"
+    # NOSONAR python:S5443 -- IPC contract path; see docstring above. The SDK
+    # is a *client* of a socket the runtime creates; this code never writes to
+    # /tmp itself.
+    return f"/tmp/aa-runtime-{agent_id}.sock"  # noqa: S108
 
 
 def _extract_tool_name(serialized: Any, kwargs: dict[str, Any]) -> str | None:
