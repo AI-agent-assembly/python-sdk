@@ -53,10 +53,9 @@ def _resolve_runtime_socket_path(agent_id: str) -> str:
     env_path = os.environ.get(ENV_RUNTIME_SOCKET)
     if env_path:
         return env_path
-    # NOSONAR python:S5443 -- IPC contract path; see docstring above. The SDK
-    # is a *client* of a socket the runtime creates; this code never writes to
-    # /tmp itself.
-    return f"/tmp/aa-runtime-{agent_id}.sock"  # noqa: S108
+    # IPC contract path (see docstring above). The SDK is a *client* of a
+    # socket the runtime creates; this code never writes to /tmp itself.
+    return f"/tmp/aa-runtime-{agent_id}.sock"  # noqa: S108  # NOSONAR(python:S5443)
 
 
 def _extract_tool_name(serialized: Any, kwargs: dict[str, Any]) -> str | None:
