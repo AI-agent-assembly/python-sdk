@@ -137,6 +137,22 @@ uv run pre-commit run --all-files    # full pre-commit suite (isort + black + au
 
 Pre-commit hooks block commits that fail any of the above. Do not bypass with `--no-verify`; fix the underlying issue.
 
+### Type annotations (PEP 695)
+
+The SDK targets Python ≥ 3.12, so use **[PEP 695](https://peps.python.org/pep-0695/)** syntax for new typing:
+
+- **Type aliases** use the `type` statement, not bare assignment or `typing.TypeAlias`:
+
+  ```python
+  type CallStackNodeKind = Literal["llm", "tool", "result"]   # ✅ PEP 695
+  CallStackNodeKind = Literal["llm", "tool", "result"]        # ❌ legacy form
+  ```
+
+  `type` aliases are lazily evaluated, which avoids quoting/`from __future__` gymnastics for forward references. See `agent_assembly/types.py` for the canonical examples.
+- **Generics** (when introduced) use the type-parameter syntax: `class Box[T]:` / `def first[T](xs: list[T]) -> T:` — not `TypeVar`/`Generic[...]`.
+
+This requires `mypy >= 1.11` (PEP 695 support), pinned in `pyproject.toml`.
+
 ## Branch naming and commit style
 
 - **Branch**: `<release-or-phase>/<ticket>/<short_summary>` — e.g. `v0.0.0/AAASM-1122/author_readme_contributing`. Type slug optional but recommended (`feat`, `fix`, `refactor`, `test`, `docs`, `config`, `deps`, `remove`, `lint`).
