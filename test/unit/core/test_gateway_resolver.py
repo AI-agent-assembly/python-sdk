@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -169,6 +170,79 @@ class TestResolveGatewayUrl:
             result = gateway_resolver.resolve_gateway_url()
         assert result == gateway_resolver.DEFAULT_GATEWAY_URL
         mock_auto_start.assert_called_once_with(gateway_resolver.DEFAULT_GATEWAY_URL)
+
+
+@pytest.fixture(autouse=True)
+def _reset_legacy_warn_state() -> None:
+    """Clear the once-per-var deprecation guard before each test.
+
+    The resolver tracks which legacy env vars have already warned in a
+    module-level set; resetting it keeps ``pytest.warns`` assertions
+    deterministic regardless of test ordering.
+    """
+    gateway_resolver._warned_legacy_env.clear()
+
+
+class TestLegacyEnvAlias:
+    def test_canonical_url_used_when_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_GATEWAY_URL, "http://canonical:7391")
+        monkeypatch.delenv(gateway_resolver.LEGACY_ENV_GATEWAY_URL, raising=False)
+        assert gateway_resolver.resolve_gateway_url() == "http://canonical:7391"
+
+    def test_legacy_url_resolves_and_warns(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
+        monkeypatch.setenv(gateway_resolver.LEGACY_ENV_GATEWAY_URL, "http://legacy:7391")
+        with pytest.warns(DeprecationWarning, match="AAASM_GATEWAY_URL is deprecated"):
+            assert gateway_resolver.resolve_gateway_url() == "http://legacy:7391"
+
+    def test_canonical_url_wins_when_both_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_GATEWAY_URL, "http://canonical:7391")
+        monkeypatch.setenv(gateway_resolver.LEGACY_ENV_GATEWAY_URL, "http://legacy:7391")
+        result = gateway_resolver.resolve_gateway_url()
+        assert result == "http://canonical:7391"
+
+    def test_no_warning_when_canonical_url_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_GATEWAY_URL, "http://canonical:7391")
+        monkeypatch.setenv(gateway_resolver.LEGACY_ENV_GATEWAY_URL, "http://legacy:7391")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            assert gateway_resolver.resolve_gateway_url() == "http://canonical:7391"
+
+    def test_legacy_url_warns_only_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
+        monkeypatch.setenv(gateway_resolver.LEGACY_ENV_GATEWAY_URL, "http://legacy:7391")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", DeprecationWarning)
+            gateway_resolver.resolve_gateway_url()
+            gateway_resolver.resolve_gateway_url()
+        deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        assert len(deprecations) == 1
+
+    def test_canonical_key_used_when_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_API_KEY, "k-canonical")
+        monkeypatch.delenv(gateway_resolver.LEGACY_ENV_API_KEY, raising=False)
+        assert gateway_resolver.resolve_api_key() == "k-canonical"
+
+    def test_legacy_key_resolves_and_warns(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
+        monkeypatch.setenv(gateway_resolver.LEGACY_ENV_API_KEY, "k-legacy")
+        with pytest.warns(DeprecationWarning, match="AAASM_API_KEY is deprecated"):
+            assert gateway_resolver.resolve_api_key() == "k-legacy"
+
+    def test_canonical_key_wins_when_both_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_API_KEY, "k-canonical")
+        monkeypatch.setenv(gateway_resolver.LEGACY_ENV_API_KEY, "k-legacy")
+        assert gateway_resolver.resolve_api_key() == "k-canonical"
+
+    def test_no_env_set_returns_empty_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
+        monkeypatch.delenv(gateway_resolver.LEGACY_ENV_API_KEY, raising=False)
+        with (
+            patch.object(gateway_resolver, "_load_config_file", return_value={}),
+            warnings.catch_warnings(),
+        ):
+            warnings.simplefilter("error", DeprecationWarning)
+            assert gateway_resolver.resolve_api_key() == ""
 
 
 class TestResolveApiKey:

@@ -8,7 +8,9 @@ auto-starting ``aasm start --mode local --foreground`` when not running.
 Resolution precedence (highest first)::
 
     1. Explicit kwarg passed to init_assembly
-    2. Environment variable (AAASM_GATEWAY_URL / AAASM_API_KEY)
+    2. Environment variable: ``AA_GATEWAY_URL`` / ``AA_API_KEY`` (canonical),
+       falling back to the deprecated ``AAASM_GATEWAY_URL`` / ``AAASM_API_KEY``
+       aliases (a ``DeprecationWarning`` is emitted when the legacy var is used)
     3. Config file (~/.aasm/config.yaml, optional dependency)
     4. Local default: probe http://localhost:7391, auto-start if absent
 """
@@ -19,6 +21,7 @@ import os
 import shutil
 import subprocess
 import time
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -32,10 +35,44 @@ DEFAULT_PROBE_TIMEOUT_SECONDS = 0.5
 DEFAULT_AUTO_START_TIMEOUT_SECONDS = 5.0
 DEFAULT_CONFIG_FILE_PATH = "~/.aasm/config.yaml"
 
-ENV_GATEWAY_URL = "AAASM_GATEWAY_URL"
-ENV_API_KEY = "AAASM_API_KEY"
+ENV_GATEWAY_URL = "AA_GATEWAY_URL"
+ENV_API_KEY = "AA_API_KEY"
+
+# Deprecated aliases, kept for backwards compatibility. Reading one of these
+# (when its canonical ``AA_*`` counterpart is unset) emits a DeprecationWarning.
+LEGACY_ENV_GATEWAY_URL = "AAASM_GATEWAY_URL"
+LEGACY_ENV_API_KEY = "AAASM_API_KEY"
 
 AASM_AUTO_START_ARGV = ("start", "--mode", "local", "--foreground")
+
+# Tracks which legacy env vars have already warned, so the DeprecationWarning
+# fires once per variable rather than on every resolution call.
+_warned_legacy_env: set[str] = set()
+
+
+def _resolve_env(canonical: str, legacy: str) -> str | None:
+    """Read ``canonical`` first, falling back to the deprecated ``legacy`` var.
+
+    Returns the resolved value, or ``None`` when neither is set. When the value
+    comes from the ``legacy`` alias, a ``DeprecationWarning`` is emitted once
+    per legacy variable directing the caller to the canonical ``AA_*`` name.
+    """
+    value = os.environ.get(canonical)
+    if value:
+        return value
+
+    legacy_value = os.environ.get(legacy)
+    if legacy_value:
+        if legacy not in _warned_legacy_env:
+            _warned_legacy_env.add(legacy)
+            warnings.warn(
+                f"Environment variable {legacy} is deprecated; use {canonical} instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return legacy_value
+
+    return None
 
 
 def _probe_healthz(base_url: str, timeout: float = DEFAULT_PROBE_TIMEOUT_SECONDS) -> bool:
@@ -141,7 +178,7 @@ def resolve_gateway_url(explicit: str | None = None) -> str:
     if explicit:
         return explicit
 
-    env_value = os.environ.get(ENV_GATEWAY_URL)
+    env_value = _resolve_env(ENV_GATEWAY_URL, LEGACY_ENV_GATEWAY_URL)
     if env_value:
         return env_value
 
@@ -169,7 +206,7 @@ def resolve_api_key(explicit: str | None = None) -> str:
     if explicit:
         return explicit
 
-    env_value = os.environ.get(ENV_API_KEY)
+    env_value = _resolve_env(ENV_API_KEY, LEGACY_ENV_API_KEY)
     if env_value:
         return env_value
 
