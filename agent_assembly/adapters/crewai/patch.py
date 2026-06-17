@@ -193,31 +193,65 @@ def _format_approval_rejected_message(reason: str | None) -> str:
     return f"[APPROVAL REJECTED] Action was reviewed and denied: {reason_text}"
 
 
+_UNKNOWN_DECISION_REASON = "Unrecognized governance decision; denied under enforce."
+
+
+def _interceptor_enforces(callback_handler: Any) -> bool:
+    """Return whether the wired interceptor is in fail-closed ``enforce`` posture.
+
+    The governance interceptor (``RuntimeQueryInterceptor`` /
+    ``_FailClosedInterceptor``) carries ``_enforce`` set from
+    ``enforcement_mode == "enforce"`` (AAASM-3106). A bare ``GatewayClient`` — used
+    when no native runtime authority is engaged — has no such attribute and
+    defaults to fail-open. AAASM-3107 reuses this flag so an unknown / malformed
+    verdict denies under enforce instead of silently allowing.
+    """
+    target = getattr(callback_handler, "_interceptor", callback_handler)
+    return bool(getattr(target, "_enforce", False))
+
+
+def _unknown_decision(enforce: bool) -> tuple[Literal["allow", "deny", "pending"], str | None]:
+    """Map an unrecognized / malformed verdict, failing closed under ``enforce``.
+
+    Under ``enforce`` the SDK is a security control: an unknown, ``None``, or
+    malformed verdict must not be silently allowed (AAASM-3107), so it denies.
+    Under ``observe`` / ``disabled`` it proceeds (fail open), preserving the
+    dry-run / hermetic posture.
+    """
+    if enforce:
+        return "deny", _UNKNOWN_DECISION_REASON
+    return "allow", None
+
+
 def _normalize_decision(
     decision: object,
+    *,
+    enforce: bool = False,
 ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
     if isinstance(decision, str):
         normalized = decision.strip().lower()
+        if normalized == "allow":
+            return "allow", None
         if normalized == "deny":
             return "deny", None
         if normalized == "pending":
             return "pending", None
-        return "allow", None
+        return _unknown_decision(enforce)
 
     if isinstance(decision, Mapping):
-        raw_status = str(decision.get("status", "allow")).strip().lower()
-        if raw_status == "deny":
-            status: Literal["allow", "deny", "pending"] = "deny"
-        elif raw_status == "pending":
-            status = "pending"
-        else:
-            status = "allow"
-
+        raw_status = str(decision.get("status", "")).strip().lower()
         reason_value = decision.get("reason")
         reason = str(reason_value) if reason_value is not None else None
-        return status, reason
+        if raw_status == "allow":
+            return "allow", reason
+        if raw_status == "deny":
+            return "deny", reason
+        if raw_status == "pending":
+            return "pending", reason
+        unknown_status, unknown_reason = _unknown_decision(enforce)
+        return unknown_status, reason if reason is not None else unknown_reason
 
-    return "allow", None
+    return _unknown_decision(enforce)
 
 
 def _invoke_sync_tool_check(
@@ -306,6 +340,7 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
         return None
 
     original_run = base_tool_cls.run
+    enforce = _interceptor_enforces(callback_handler)
 
     @wraps(original_run)
     def patched_run(self: Any, *args: Any, **kwargs: Any) -> Any:
@@ -318,7 +353,7 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
             tool_args=tool_args,
             agent_id=agent_id,
         )
-        status, reason = _normalize_decision(decision)
+        status, reason = _normalize_decision(decision, enforce=enforce)
         is_pending_flow = False
         if status == "pending":
             is_pending_flow = True
@@ -330,7 +365,7 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
                 tool_args=tool_args,
                 agent_id=agent_id,
             )
-            status, reason = _normalize_decision(final_decision)
+            status, reason = _normalize_decision(final_decision, enforce=enforce)
 
         if status == "deny":
             if is_pending_flow:
