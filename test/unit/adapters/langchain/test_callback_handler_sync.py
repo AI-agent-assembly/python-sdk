@@ -122,3 +122,66 @@ def test_on_llm_end_delegates_to_interceptor() -> None:
     handler.on_llm_end(response={"text": "done"}, run_id=uuid4())
 
     assert interceptor.llm_end_calls == 1
+
+
+class _EnforcingInterceptor(SyncInterceptor):
+    """SyncInterceptor carrying the fail-closed enforce posture (AAASM-3106)."""
+
+    _enforce = True
+
+
+# --- AAASM-3107: unknown/None/malformed verdicts must fail closed under enforce ---
+
+
+@pytest.mark.parametrize(
+    "decision",
+    [
+        None,
+        "maybe",
+        12345,
+        {"status": "garbage"},
+        {},
+    ],
+)
+def test_unknown_decision_denies_under_enforce(decision: object) -> None:
+    handler = AssemblyCallbackHandler(_EnforcingInterceptor())
+
+    with pytest.raises(ToolExecutionBlockedError):
+        handler.on_tool_start(
+            serialized={"name": "web_search"},
+            input_str="query",
+            run_id=uuid4(),
+            decision=decision,
+        )
+
+
+@pytest.mark.parametrize(
+    "decision",
+    [
+        None,
+        "maybe",
+        12345,
+        {"status": "garbage"},
+        {},
+    ],
+)
+def test_unknown_decision_allows_when_not_enforcing(decision: object) -> None:
+    interceptor = SyncInterceptor()
+    handler = AssemblyCallbackHandler(interceptor)
+
+    handler.on_tool_start(
+        serialized={"name": "web_search"},
+        input_str="query",
+        run_id=uuid4(),
+        decision=decision,
+    )
+
+    assert interceptor.pending_wait_calls == 0
+
+
+def test_known_verdicts_unchanged_under_enforce() -> None:
+    handler = AssemblyCallbackHandler(_EnforcingInterceptor())
+
+    assert handler._normalize_decision("allow") == ("allow", None)
+    assert handler._normalize_decision({"status": "deny", "reason": "nope"}) == ("deny", "nope")
+    assert handler._normalize_decision("pending") == ("pending", None)

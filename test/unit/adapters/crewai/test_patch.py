@@ -227,6 +227,53 @@ def test_record_result_and_task_fallback_handlers_are_used(
     assert lifecycle_events == ["start", "complete"]
 
 
+# --- AAASM-3107: unknown/None/malformed verdicts must fail closed under enforce ---
+
+
+@pytest.mark.parametrize("decision", [None, "maybe", 12345, {"status": "garbage"}, {}])
+def test_normalize_decision_denies_unknown_under_enforce(decision: object) -> None:
+    status, reason = crewai_patch._normalize_decision(decision, enforce=True)
+    assert status == "deny"
+    assert reason
+
+
+@pytest.mark.parametrize("decision", [None, "maybe", 12345, {"status": "garbage"}, {}])
+def test_normalize_decision_allows_unknown_when_not_enforcing(decision: object) -> None:
+    assert crewai_patch._normalize_decision(decision, enforce=False) == ("allow", None)
+
+
+def test_normalize_decision_known_verdicts_unchanged_under_enforce() -> None:
+    assert crewai_patch._normalize_decision("allow", enforce=True) == ("allow", None)
+    assert crewai_patch._normalize_decision("deny", enforce=True) == ("deny", None)
+    assert crewai_patch._normalize_decision("pending", enforce=True) == ("pending", None)
+    assert crewai_patch._normalize_decision({"status": "deny", "reason": "x"}, enforce=True) == ("deny", "x")
+
+
+def test_interceptor_enforces_reads_enforce_flag() -> None:
+    assert crewai_patch._interceptor_enforces(SimpleNamespace(_enforce=True)) is True
+    assert crewai_patch._interceptor_enforces(SimpleNamespace()) is False
+    assert crewai_patch._interceptor_enforces(SimpleNamespace(_interceptor=SimpleNamespace(_enforce=True))) is True
+
+
+def test_unknown_verdict_blocks_tool_under_enforce(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
+
+    class EnforcingUnknownInterceptor:
+        _enforce = True
+
+        def check_tool_start(self, **kwargs: object) -> object:
+            del kwargs
+            return None
+
+    patcher = crewai_patch.CrewAIPatch(EnforcingUnknownInterceptor())
+    assert patcher.apply() is True
+
+    result = FakeBaseTool().run(param="value")
+
+    assert isinstance(result, str)
+    assert "[BLOCKED by governance policy]" in result
+
+
 def test_blocked_tool_returns_policy_string(monkeypatch: pytest.MonkeyPatch) -> None:
     FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
 

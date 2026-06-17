@@ -93,3 +93,42 @@ async def test_aon_llm_end_delegates_to_interceptor() -> None:
     await handler.aon_llm_end(response={"text": "done"}, run_id=uuid4())
 
     assert interceptor.llm_end_calls == 1
+
+
+class _EnforcingAsyncInterceptor(AsyncInterceptor):
+    """AsyncInterceptor carrying the fail-closed enforce posture (AAASM-3106)."""
+
+    _enforce = True
+
+
+# --- AAASM-3107: unknown/None/malformed verdicts must fail closed under enforce ---
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("decision", [None, "maybe", 12345, {"status": "garbage"}, {}])
+async def test_aon_tool_start_denies_unknown_under_enforce(decision: object) -> None:
+    handler = AssemblyCallbackHandler(_EnforcingAsyncInterceptor())
+
+    with pytest.raises(ToolExecutionBlockedError):
+        await handler.aon_tool_start(
+            serialized={"name": "web_search"},
+            input_str="query",
+            run_id=uuid4(),
+            decision=decision,
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("decision", [None, "maybe", 12345, {"status": "garbage"}, {}])
+async def test_aon_tool_start_allows_unknown_when_not_enforcing(decision: object) -> None:
+    interceptor = AsyncInterceptor()
+    handler = AssemblyCallbackHandler(interceptor)
+
+    await handler.aon_tool_start(
+        serialized={"name": "web_search"},
+        input_str="query",
+        run_id=uuid4(),
+        decision=decision,
+    )
+
+    assert interceptor.pending_wait_calls == 0
