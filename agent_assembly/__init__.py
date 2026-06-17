@@ -10,28 +10,34 @@ from typing import TYPE_CHECKING, Any
 
 __version__ = "0.0.2a1"
 
+_MODULE_CORE = "agent_assembly.core"
+_MODULE_ADAPTERS = "agent_assembly.adapters"
+_MODULE_EXCEPTIONS = "agent_assembly.exceptions"
+_MODULE_TYPES = "agent_assembly.types"
+_MODULE_NATIVE_CORE = "agent_assembly._core"
+
 # AAASM-1696: top-level exports are resolved lazily so that lightweight
 # submodules (e.g. `agent_assembly.runtime`, which is stdlib-only) can be
 # imported without dragging in the SDK's third-party dependency surface
 # (`httpx`, `pydantic`, …). See PEP 562.
 _LAZY_EXPORTS: dict[str, str] = {
-    "init_assembly": "agent_assembly.core",
-    "AssemblyContext": "agent_assembly.core",
-    "GovernanceInterceptor": "agent_assembly.adapters",
-    "FrameworkAdapter": "agent_assembly.adapters",
-    "AssemblyError": "agent_assembly.exceptions",
-    "AgentError": "agent_assembly.exceptions",
-    "PolicyError": "agent_assembly.exceptions",
-    "GatewayError": "agent_assembly.exceptions",
-    "ConfigurationError": "agent_assembly.exceptions",
-    "AdapterValidationError": "agent_assembly.exceptions",
-    "ToolExecutionBlockedError": "agent_assembly.exceptions",
-    "MCPToolBlockedError": "agent_assembly.exceptions",
-    "AuditEvent": "agent_assembly.types",
-    "CallStackNode": "agent_assembly.types",
-    "CallStackNodeKind": "agent_assembly.types",
-    "GovernanceEvent": "agent_assembly._core",
-    "RuntimeClient": "agent_assembly._core",
+    "init_assembly": _MODULE_CORE,
+    "AssemblyContext": _MODULE_CORE,
+    "GovernanceInterceptor": _MODULE_ADAPTERS,
+    "FrameworkAdapter": _MODULE_ADAPTERS,
+    "AssemblyError": _MODULE_EXCEPTIONS,
+    "AgentError": _MODULE_EXCEPTIONS,
+    "PolicyError": _MODULE_EXCEPTIONS,
+    "GatewayError": _MODULE_EXCEPTIONS,
+    "ConfigurationError": _MODULE_EXCEPTIONS,
+    "AdapterValidationError": _MODULE_EXCEPTIONS,
+    "ToolExecutionBlockedError": _MODULE_EXCEPTIONS,
+    "MCPToolBlockedError": _MODULE_EXCEPTIONS,
+    "AuditEvent": _MODULE_TYPES,
+    "CallStackNode": _MODULE_TYPES,
+    "CallStackNodeKind": _MODULE_TYPES,
+    "GovernanceEvent": _MODULE_NATIVE_CORE,
+    "RuntimeClient": _MODULE_NATIVE_CORE,
 }
 
 _ALWAYS_EXPORTED: list[str] = [
@@ -60,10 +66,10 @@ _OPTIONAL_CORE: list[str] = [
 
 
 def _core_available() -> bool:
-    if "agent_assembly._core" in sys.modules:
+    if _MODULE_NATIVE_CORE in sys.modules:
         return True
     try:
-        return importlib.util.find_spec("agent_assembly._core") is not None
+        return importlib.util.find_spec(_MODULE_NATIVE_CORE) is not None
     except (ModuleNotFoundError, ValueError):
         return False
 
@@ -80,7 +86,7 @@ def __getattr__(name: str) -> Any:
     try:
         module = importlib.import_module(module_name)
     except ImportError:
-        if module_name == "agent_assembly._core":
+        if module_name == _MODULE_NATIVE_CORE:
             raise AttributeError(
                 f"module 'agent_assembly' has no attribute {name!r}: the native '_core' extension is not built"
             ) from None

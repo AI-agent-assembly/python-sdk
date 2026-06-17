@@ -27,6 +27,7 @@ _PROCESS_AGENT_ID: str | None = None
 _EDGE_EMITTER: Any = None
 _MAX_AUDIT_RESULT_CHARS = 2000
 _MAX_DELEGATION_REASON_CHARS = 256
+_OPENAI_AGENTS_MODULE = "openai.agents"
 
 
 def set_edge_emitter(emitter: Any) -> None:
@@ -74,7 +75,7 @@ class OpenAIAgentsPatch:
 
 
 def _is_openai_agents_available() -> bool:
-    return importlib.util.find_spec("openai.agents") is not None
+    return importlib.util.find_spec(_OPENAI_AGENTS_MODULE) is not None
 
 
 def set_process_agent_id(agent_id: str | None) -> None:
@@ -90,7 +91,7 @@ def _get_process_agent_id() -> str | None:
 
 def _load_openai_agents_function_tool_class() -> type[Any] | None:
     try:
-        module = importlib.import_module("openai.agents")
+        module = importlib.import_module(_OPENAI_AGENTS_MODULE)
     except ImportError:
         return None
 
@@ -102,7 +103,7 @@ def _load_openai_agents_function_tool_class() -> type[Any] | None:
 
 def _load_openai_agents_runner_class() -> type[Any] | None:
     try:
-        module = importlib.import_module("openai.agents")
+        module = importlib.import_module(_OPENAI_AGENTS_MODULE)
     except ImportError:
         return None
     runner_cls = getattr(module, "Runner", None)
@@ -113,7 +114,7 @@ def _load_openai_agents_runner_class() -> type[Any] | None:
 
 def _load_openai_agents_handoff_class() -> type[Any] | None:
     try:
-        module = importlib.import_module("openai.agents")
+        module = importlib.import_module(_OPENAI_AGENTS_MODULE)
     except ImportError:
         return None
     handoff_cls = getattr(module, "Handoff", None)
@@ -330,7 +331,7 @@ def _build_tool_result_error(
     is_pending_rejection: bool,
 ) -> object:
     try:
-        module = importlib.import_module("openai.agents")
+        module = importlib.import_module(_OPENAI_AGENTS_MODULE)
     except ImportError:
         module = None
 
