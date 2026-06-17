@@ -12,6 +12,9 @@ from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
 from agent_assembly.adapters.crewai.patch import (
+    _interceptor_enforces as _resolve_interceptor_enforces,
+)
+from agent_assembly.adapters.crewai.patch import (
     _normalize_decision as _normalize_governance_decision,
 )
 
@@ -113,8 +116,10 @@ def _extract_tool_call_inputs(
 
 def _normalize_decision(
     decision: object,
+    *,
+    enforce: bool = False,
 ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
-    return _normalize_governance_decision(decision)
+    return _normalize_governance_decision(decision, enforce=enforce)
 
 
 def _get_pending_tool_approval_timeout_seconds(callback_handler: Any) -> int:
@@ -245,6 +250,8 @@ def _apply_client_session_patch(client_session_cls: type[Any], callback_handler:
     if not callable(original_call_tool):
         return None
 
+    enforce = _resolve_interceptor_enforces(callback_handler)
+
     async def patched_call_tool(self: Any, *args: Any, **kwargs: Any) -> Any:
         tool_name, tool_args = _extract_tool_call_inputs(args, kwargs)
         agent_id = _get_process_agent_id()
@@ -257,7 +264,7 @@ def _apply_client_session_patch(client_session_cls: type[Any], callback_handler:
             agent_id=agent_id,
             server_identifier=server_identifier,
         )
-        status, reason = _normalize_decision(decision)
+        status, reason = _normalize_decision(decision, enforce=enforce)
         is_pending_flow = False
         if status == "pending":
             is_pending_flow = True
@@ -270,7 +277,7 @@ def _apply_client_session_patch(client_session_cls: type[Any], callback_handler:
                 agent_id=agent_id,
                 server_identifier=server_identifier,
             )
-            status, reason = _normalize_decision(final_decision)
+            status, reason = _normalize_decision(final_decision, enforce=enforce)
 
         if status == "deny":
             raise _build_blocked_error(
