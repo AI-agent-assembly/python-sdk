@@ -1,8 +1,11 @@
-"""Unit tests for the runtime-backed pre-execution check (AAASM-3049).
+"""Unit tests for the runtime-backed pre-execution check (AAASM-3049, AAASM-3106).
 
-Wave 3 of AAASM-3021: a reachable runtime's ``deny`` must block a tool via the
-adapter ``check_tool_start`` contract, while every other path (allow / redact /
-pending / unreachable runtime / missing native extension) proceeds (fail-open).
+Wave 3 of AAASM-3021: a reachable runtime's ``deny`` blocks a tool via the
+adapter ``check_tool_start`` contract.
+
+AAASM-3106 adds the failure posture: under ``enforce`` an unreachable runtime, a
+raising ``query_policy``, or an error-sentinel ``decision`` must deny (fail
+closed); under ``observe`` / ``disabled`` those paths still proceed (fail open).
 """
 
 from __future__ import annotations
@@ -207,6 +210,123 @@ def test_build_interceptor_wraps_client_when_runtime_connects(
         "status": "deny",
         "reason": "blocked",
     }
+
+
+def test_enforce_query_raising_fails_closed() -> None:
+    """AAASM-3106: under enforce a raising query_policy denies, not allows."""
+
+    class _Raising:
+        def query_policy(self, *_args: Any, **_kwargs: Any) -> dict[str, str]:
+            raise RuntimeError("native boom")
+
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _Raising(), "agent-001", enforce=True)
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result["status"] == "deny"
+
+
+@pytest.mark.parametrize("decision", ["query_failed", "channel_closed", "shutdown"])
+def test_enforce_error_decision_fails_closed(decision: str) -> None:
+    """AAASM-3106: native error-sentinel decisions deny under enforce."""
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient(decision), "agent-001", enforce=True)
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result["status"] == "deny"
+
+
+@pytest.mark.parametrize("decision", ["query_failed", "channel_closed"])
+def test_observe_error_decision_still_fails_open(decision: str) -> None:
+    """Without enforce the error-sentinel decisions keep proceeding."""
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient(decision), "agent-001")
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result == {"status": "allow"}
+
+
+def test_enforce_unreachable_runtime_denies_all(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-3106: native present but runtime unreachable yields a deny-all
+    interceptor under enforce, not the fail-open bare client."""
+
+    class _UnreachableRuntimeClient:
+        @staticmethod
+        def connect(_socket_path: str) -> Any:
+            raise OSError("no such socket")
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = _UnreachableRuntimeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
+
+    client = _FakeGatewayClient()
+    result = build_governance_interceptor(client, "agent-001", "enforce")
+
+    assert result is not client
+    assert result.check_tool_start(serialized={"name": "t"}, input_str="i")["status"] == "deny"
+    # Non-check attributes still delegate to the wrapped client.
+    result.close()
+    assert client.closed is True
+
+
+def test_observe_unreachable_runtime_returns_bare_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without enforce an unreachable runtime keeps the fail-open bare client."""
+
+    class _UnreachableRuntimeClient:
+        @staticmethod
+        def connect(_socket_path: str) -> Any:
+            raise OSError("no such socket")
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = _UnreachableRuntimeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
+
+    client = _FakeGatewayClient()
+
+    assert build_governance_interceptor(client, "agent-001", "observe") is client
+
+
+def test_enforce_wraps_with_fail_closed_query_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """build_governance_interceptor under enforce wraps a reachable runtime so a
+    raising query denies (the wrapper carries enforce=True)."""
+
+    class _Raising:
+        def query_policy(self, *_args: Any, **_kwargs: Any) -> dict[str, str]:
+            raise RuntimeError("boom")
+
+    class _ConnectingRuntimeClient:
+        @staticmethod
+        def connect(_socket_path: str) -> Any:
+            return _Raising()
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = _ConnectingRuntimeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
+
+    result = build_governance_interceptor(_FakeGatewayClient(), "agent-001", "enforce")
+
+    assert isinstance(result, RuntimeQueryInterceptor)
+    assert result.check_tool_start(serialized={"name": "t"}, input_str="i")["status"] == "deny"
+
+
+def test_callback_handler_blocks_on_enforce_fail_closed() -> None:
+    """End-to-end: under enforce a failing runtime drives on_tool_start to raise."""
+
+    class _Raising:
+        def query_policy(self, *_args: Any, **_kwargs: Any) -> dict[str, str]:
+            raise RuntimeError("native down")
+
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _Raising(), "agent-001", enforce=True)
+    handler = AssemblyCallbackHandler(interceptor)
+
+    with pytest.raises(ToolExecutionBlockedError):
+        handler.on_tool_start(
+            serialized={"name": "web_search"},
+            input_str="query",
+            run_id=uuid4(),
+            tool_name="web_search",
+            args={"q": "x"},
+        )
 
 
 def test_resolve_socket_path_prefers_env(monkeypatch: pytest.MonkeyPatch) -> None:
