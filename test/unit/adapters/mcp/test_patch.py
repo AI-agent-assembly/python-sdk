@@ -256,3 +256,44 @@ async def test_callback_wrapper_with_interceptor_is_supported(
     result = await FakeClientSession().call_tool(name="from-wrapper", arguments={"ok": True})
     assert result["name"] == "from-wrapper"
     assert seen == ["from-wrapper"]
+
+
+# --- AAASM-3107: unknown/None/malformed verdicts must fail closed under enforce ---
+
+
+@pytest.mark.asyncio
+async def test_unknown_verdict_blocks_tool_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeClientSession = _install_fake_mcp_module(monkeypatch)
+
+    class EnforcingUnknownInterceptor:
+        _enforce = True
+
+        async def check_tool_start(self, **kwargs: object) -> object:
+            del kwargs
+            return None
+
+    patcher = mcp_patch.MCPClientPatch(EnforcingUnknownInterceptor(), process_agent_id="agent-9")
+    assert patcher.apply() is True
+
+    with pytest.raises(MCPToolBlockedError):
+        await FakeClientSession().call_tool("some_tool", {"q": "x"})
+
+
+@pytest.mark.asyncio
+async def test_unknown_verdict_allows_tool_when_not_enforcing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeClientSession = _install_fake_mcp_module(monkeypatch)
+
+    class ObserveUnknownInterceptor:
+        async def check_tool_start(self, **kwargs: object) -> object:
+            del kwargs
+            return None
+
+    patcher = mcp_patch.MCPClientPatch(ObserveUnknownInterceptor(), process_agent_id="agent-9")
+    assert patcher.apply() is True
+
+    result = await FakeClientSession().call_tool(name="allowed_tool", arguments={"ok": True})
+    assert result["name"] == "allowed_tool"
