@@ -42,8 +42,12 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
         — used when no native runtime authority is engaged — lacks it and
         defaults to fail-open. AAASM-3107 reuses this flag so an unknown / ``None``
         / malformed verdict denies under enforce instead of silently allowing.
+
+        Compared strictly against ``True`` so a stub interceptor whose
+        ``__getattr__`` synthesizes truthy values for missing attributes is not
+        mistaken for the enforce posture; the real flag is always a ``bool``.
         """
-        return bool(getattr(self._interceptor, "_enforce", False))
+        return getattr(self._interceptor, "_enforce", False) is True
 
     def _unknown_decision(self) -> tuple[Literal["allow", "deny", "pending"], str | None]:
         """Map an unrecognized / malformed verdict, failing closed under enforce.

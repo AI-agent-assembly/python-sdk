@@ -205,9 +205,13 @@ def _interceptor_enforces(callback_handler: Any) -> bool:
     when no native runtime authority is engaged — has no such attribute and
     defaults to fail-open. AAASM-3107 reuses this flag so an unknown / malformed
     verdict denies under enforce instead of silently allowing.
+
+    Compared strictly against ``True`` so a stub interceptor whose ``__getattr__``
+    synthesizes truthy values for missing attributes is not mistaken for the
+    enforce posture; the real flag is always a ``bool``.
     """
     target = getattr(callback_handler, "_interceptor", callback_handler)
-    return bool(getattr(target, "_enforce", False))
+    return getattr(target, "_enforce", False) is True
 
 
 def _unknown_decision(enforce: bool) -> tuple[Literal["allow", "deny", "pending"], str | None]:
