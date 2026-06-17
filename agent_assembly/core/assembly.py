@@ -213,6 +213,7 @@ def init_assembly(
             registered_adapters = _register_adapters(
                 client=client,
                 process_agent_id=resolved_agent_id,
+                enforcement_mode=enforcement_mode,
             )
             network_mode, network_shutdown = _start_network_layer(client=client, mode=mode)
         except Exception as error:
@@ -263,6 +264,7 @@ def _validate_inputs(
 def _register_adapters(
     client: GatewayClient,
     process_agent_id: str,
+    enforcement_mode: EnforcementMode | None = None,
 ) -> list[FrameworkAdapter]:
     """Detect available frameworks via AdapterRegistry and register hooks.
 
@@ -272,14 +274,15 @@ def _register_adapters(
 
     When the native runtime is reachable, the bare ``GatewayClient`` is wrapped
     in a ``RuntimeQueryInterceptor`` so a runtime ``deny`` blocks the tool via
-    ``check_tool_start``; otherwise the bare client is used unchanged
-    (fail-open).
+    ``check_tool_start``. ``enforcement_mode`` decides the failure posture: under
+    ``enforce`` an unreachable runtime or a failed query blocks (fail closed,
+    AAASM-3106); under ``observe`` / ``disabled`` it proceeds (fail open).
     """
     registry = AdapterRegistry()
     adapters = registry.get_available_adapters_by_priority()
 
     registered: list[FrameworkAdapter] = []
-    interceptor: Any = build_governance_interceptor(client, process_agent_id)
+    interceptor: Any = build_governance_interceptor(client, process_agent_id, enforcement_mode)
 
     for adapter in adapters:
         adapter.set_process_agent_id(process_agent_id)

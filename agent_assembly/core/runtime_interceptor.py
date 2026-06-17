@@ -12,15 +12,22 @@ the :class:`~agent_assembly.client.gateway.GatewayClient`, which has no
 ``query_policy``. The runtime is the authority: it redacts in place, so this
 layer only ever *blocks* on an explicit ``deny`` and otherwise proceeds.
 
-Fail-open is preserved at two levels:
+Failure posture is governed by ``enforcement_mode`` (AAASM-3106):
 
-* When the native extension is missing or no runtime socket is reachable,
-  :func:`build_governance_interceptor` returns the bare ``GatewayClient``
-  unchanged — no ``check_tool_start`` is present and the adapters proceed
-  exactly as before.
-* When a runtime *is* connected, the native ``query_policy`` already returns
-  ``decision="allow"`` on QueryFailed / ChannelClosed / Shutdown, so a
-  transient runtime outage proceeds rather than blocks.
+* Under ``enforce``, the SDK is a security control and **fails closed**. When the
+  native extension is missing the bare client is returned (no native authority
+  exists to consult — see :func:`build_governance_interceptor`), but once the
+  native extension is present every other failure denies: an unreachable runtime
+  socket yields a deny-all interceptor, a raising ``query_policy`` maps to
+  ``deny``, and a native ``decision`` that is itself an error sentinel
+  (``query_failed`` / ``channel_closed``) maps to ``deny`` rather than allow.
+* Under ``observe`` / ``disabled`` (or when no mode is supplied), the SDK is a
+  dry-run / hermetic-test layer and **fails open**: an unreachable runtime
+  returns the bare client unchanged, a raising or error ``query_policy``
+  proceeds, exactly as before.
+
+The runtime remains the authority on *redaction* (it redacts in place); this
+layer only ever decides allow / deny / pending.
 """
 
 from __future__ import annotations
@@ -31,6 +38,12 @@ from typing import Any
 
 ENV_RUNTIME_SOCKET = "AA_RUNTIME_SOCKET"
 ACTION_TYPE_TOOL_CALL = "tool_call"
+ENFORCE_MODE = "enforce"
+
+# Native ``query_policy`` decisions that signal the runtime could not produce an
+# authoritative verdict (mirrors aa-ffi-python mapping QueryFailed / ChannelClosed
+# / Shutdown). Under ``enforce`` these must deny, not allow (AAASM-3106).
+_ERROR_DECISIONS = frozenset({"query_failed", "channel_closed", "shutdown", "error"})
 
 
 def _resolve_runtime_socket_path(agent_id: str) -> str:
@@ -99,14 +112,20 @@ class RuntimeQueryInterceptor:
 
     Delegates every attribute the adapters look up (event reporting, tool-end
     hooks, approval timeout providers, ...) to the wrapped ``GatewayClient`` and
-    only *adds* ``check_tool_start``. The added check is fail-open: any path that
-    cannot produce an explicit ``deny`` proceeds.
+    only *adds* ``check_tool_start``.
+
+    The failure posture of the added check is governed by ``enforce``: when
+    ``True`` (``enforcement_mode == "enforce"``) any path that cannot obtain an
+    authoritative allow — a raising ``query_policy`` or an error-sentinel
+    ``decision`` — maps to ``deny`` (fail closed). When ``False`` those paths
+    proceed (fail open), preserving the observe / disabled behavior.
     """
 
-    def __init__(self, client: Any, runtime_client: Any, agent_id: str) -> None:
+    def __init__(self, client: Any, runtime_client: Any, agent_id: str, *, enforce: bool = False) -> None:
         self._client = client
         self._runtime_client = runtime_client
         self._agent_id = agent_id
+        self._enforce = enforce
 
     def __getattr__(self, name: str) -> Any:
         # Delegate anything not defined here (e.g. report_event, on_tool_end,
@@ -125,12 +144,14 @@ class RuntimeQueryInterceptor:
 
         Maps the runtime decision onto the adapter contract:
 
-        * ``"deny"`` → ``{"status": "deny", "reason": ...}`` (the only block).
+        * ``"deny"`` → ``{"status": "deny", "reason": ...}``.
         * ``"pending"`` → ``{"status": "pending", "reason": ...}`` so the
           adapter's existing approval path runs.
-        * anything else (``"allow"`` / ``"redact"`` / ``"unspecified"`` / an
-          unreachable runtime) → ``{"status": "allow"}``. The runtime redacts
-          authoritatively; this layer never redacts.
+        * ``"allow"`` / ``"redact"`` / ``"unspecified"`` → ``{"status": "allow"}``.
+          The runtime redacts authoritatively; this layer never redacts.
+        * A raising ``query_policy`` or an error-sentinel ``decision``
+          (``query_failed`` / ``channel_closed`` / ``shutdown``) → ``deny`` under
+          ``enforce`` (fail closed, AAASM-3106), else ``allow`` (fail open).
         """
         tool_name = _extract_tool_name(serialized, kwargs)
         tool_args_json = _extract_tool_args_json(input_str, kwargs)
@@ -143,8 +164,10 @@ class RuntimeQueryInterceptor:
                 tool_args_json,
             )
         except Exception:
-            # Native query raised unexpectedly — fail OPEN, never block.
-            return {"status": "allow"}
+            # Native query raised — the runtime gave no verdict. Under enforce the
+            # SDK is a security control and must block (fail closed); otherwise
+            # proceed (fail open).
+            return self._on_query_failure("runtime query failed")
 
         decision = str(result.get("decision", "allow")).strip().lower()
         reason = str(result.get("reason", "") or "")
@@ -153,28 +176,69 @@ class RuntimeQueryInterceptor:
             return {"status": "deny", "reason": reason}
         if decision == "pending":
             return {"status": "pending", "reason": reason}
+        if decision in _ERROR_DECISIONS:
+            # Native reported it could not reach an authoritative verdict.
+            return self._on_query_failure(reason or f"runtime returned {decision}")
+        return {"status": "allow"}
+
+    def _on_query_failure(self, reason: str) -> dict[str, str]:
+        """Map an unauthoritative query to deny (enforce) or allow (observe)."""
+        if self._enforce:
+            return {"status": "deny", "reason": reason}
         return {"status": "allow"}
 
 
-def build_governance_interceptor(client: Any, agent_id: str) -> Any:
+class _FailClosedInterceptor:
+    """Deny-all interceptor used under ``enforce`` when no runtime is reachable.
+
+    The native extension is present (so the SDK is configured as a security
+    control) but the runtime socket could not be connected, meaning no
+    authoritative verdict can be obtained. Under ``enforce`` this must block
+    every tool rather than silently allow it (AAASM-3106). Non-check attributes
+    delegate to the wrapped ``GatewayClient`` so event reporting still works.
+    """
+
+    def __init__(self, client: Any, reason: str) -> None:
+        self._client = client
+        self._reason = reason
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._client, name)
+
+    def check_tool_start(self, **_kwargs: Any) -> dict[str, str]:
+        return {"status": "deny", "reason": self._reason}
+
+
+def build_governance_interceptor(client: Any, agent_id: str, enforcement_mode: str | None = None) -> Any:
     """Return the interceptor adapters should use for pre-execution checks.
 
     When the native extension is importable and a runtime socket is reachable,
     wrap ``client`` in a :class:`RuntimeQueryInterceptor` so a runtime ``deny``
-    actually blocks the tool. Otherwise return ``client`` unchanged so the
-    existing fail-open / no-core path is preserved exactly.
+    actually blocks the tool. The failure posture depends on ``enforcement_mode``
+    (AAASM-3106):
+
+    * The native extension is **missing**: return ``client`` unchanged in every
+      mode. There is no native authority to consult, so there is nothing to fail
+      closed *to* — the SDK fast path is simply not engaged.
+    * The native extension is **present** but the runtime socket is unreachable:
+      under ``enforce`` return a deny-all :class:`_FailClosedInterceptor`;
+      otherwise return ``client`` unchanged (fail open).
     """
+    enforce = enforcement_mode == ENFORCE_MODE
     try:
         from agent_assembly._core import RuntimeClient
     except ImportError:
+        # No native fast path at all — the SDK control is not engaged in any mode.
         return client
 
     socket_path = _resolve_runtime_socket_path(agent_id)
     try:
         runtime_client = RuntimeClient.connect(socket_path)
     except Exception:
-        # No reachable runtime / connect failed — fail OPEN: bare client has no
-        # check_tool_start, so adapters proceed exactly as before.
+        # Native present but runtime unreachable: deny everything under enforce
+        # (fail closed); proceed under observe / disabled (fail open).
+        if enforce:
+            return _FailClosedInterceptor(client, "runtime unreachable")
         return client
 
-    return RuntimeQueryInterceptor(client, runtime_client, agent_id)
+    return RuntimeQueryInterceptor(client, runtime_client, agent_id, enforce=enforce)
