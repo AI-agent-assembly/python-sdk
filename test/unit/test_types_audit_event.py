@@ -96,3 +96,25 @@ def test_top_level_imports_resolve_to_types_module() -> None:
 
     assert AuditEvent is TypesAuditEvent
     assert CallStackNode is TypesCallStackNode
+
+
+def test_to_wire_bytes_raises_helpful_import_error_without_native_core() -> None:
+    """In pure-Python mode the native `_core` extension is absent, so the
+    encode path raises ImportError with a maturin/reinstall hint."""
+    event = AuditEvent(event_id="e", agent_id="a", action_type="llm_call", decision="allow")
+    with pytest.raises(ImportError) as exc_info:
+        event.to_wire_bytes()
+
+    message = str(exc_info.value)
+    assert "to_wire_bytes()" in message
+    assert "maturin develop" in message
+
+
+def test_from_wire_bytes_raises_helpful_import_error_without_native_core() -> None:
+    """The decode path raises the same kind of guidance when `_core` is absent."""
+    with pytest.raises(ImportError) as exc_info:
+        AuditEvent.from_wire_bytes(b"\x00\x01")
+
+    message = str(exc_info.value)
+    assert "from_wire_bytes()" in message
+    assert "native" in message
