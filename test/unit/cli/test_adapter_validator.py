@@ -184,6 +184,45 @@ class TestCheckEntryPointMetadata:
         assert result.passed is True
         assert "skipping" in result.message.lower()
 
+    def test_traversal_path_resolved_to_valid_dir(self, valid_adapter_cls: type, tmp_path: object) -> None:
+        """A path containing '..' that resolves to a real adapter dir still validates."""
+        import pathlib
+
+        assert isinstance(tmp_path, pathlib.Path)
+        adapter_dir = tmp_path / "adapter"
+        adapter_dir.mkdir()
+        pyproject = adapter_dir / "pyproject.toml"
+        qualname = f"{valid_adapter_cls.__module__}:{valid_adapter_cls.__qualname__}"
+        pyproject.write_text(f'[project.entry-points."agent_assembly.adapters"]\n' f'test_framework = "{qualname}"\n')
+        # "<tmp>/adapter/../adapter" canonicalizes back to "<tmp>/adapter".
+        traversal = str(adapter_dir / ".." / "adapter")
+        result = _check_entry_point_metadata(valid_adapter_cls, traversal)
+        assert result.passed is True
+
+    def test_symlinked_pyproject_outside_dir_rejected(self, valid_adapter_cls: type, tmp_path: object) -> None:
+        """A pyproject.toml symlink escaping the adapter dir is refused, not read."""
+        import pathlib
+
+        assert isinstance(tmp_path, pathlib.Path)
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        secret = outside / "pyproject.toml"
+        secret.write_text("[project]\nname = 'secret'\n")
+
+        adapter_dir = tmp_path / "adapter"
+        adapter_dir.mkdir()
+        link = adapter_dir / "pyproject.toml"
+        try:
+            link.symlink_to(secret)
+        except (OSError, NotImplementedError):
+            import pytest
+
+            pytest.skip("platform does not support symlinks")
+
+        result = _check_entry_point_metadata(valid_adapter_cls, str(adapter_dir))
+        assert result.passed is False
+        assert "outside the adapter directory" in result.message
+
 
 class TestValidateAdapter:
     """Tests for validate_adapter orchestrator."""
