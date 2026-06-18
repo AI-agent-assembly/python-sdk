@@ -8,10 +8,6 @@ import inspect
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 from agent_assembly.adapters.base import FrameworkAdapter, GovernanceInterceptor
 
@@ -147,7 +143,7 @@ def _check_register_hooks_signature(cls: type) -> AdapterValidationResult:
     return AdapterValidationResult(
         check_name="register_hooks_signature",
         passed=False,
-        message=(f"register_hooks() first parameter annotated as {annotation}, " f"expected GovernanceInterceptor."),
+        message=f"register_hooks() first parameter annotated as {annotation}, expected GovernanceInterceptor.",
     )
 
 
@@ -162,7 +158,7 @@ def _check_unregister_hooks_idempotent(
         return AdapterValidationResult(
             check_name="unregister_hooks_idempotent",
             passed=False,
-            message=(f"unregister_hooks() is not idempotent: " f"second call raised {type(exc).__name__}: {exc}"),
+            message=f"unregister_hooks() is not idempotent: second call raised {type(exc).__name__}: {exc}",
         )
     return AdapterValidationResult(
         check_name="unregister_hooks_idempotent",
@@ -231,7 +227,7 @@ def _check_entry_point_metadata(cls: type, path_or_module: str) -> AdapterValida
     return AdapterValidationResult(
         check_name="entry_point_metadata",
         passed=False,
-        message=(f"No entry point references {class_qualname}. " f"Found: {entry_points}."),
+        message=f"No entry point references {class_qualname}. Found: {entry_points}.",
     )
 
 
