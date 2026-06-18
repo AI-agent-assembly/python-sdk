@@ -39,7 +39,7 @@ class TestMakeSubgraphSpawnWrapper:
         subgraph = MagicMock()
         subgraph.invoke = original_invoke
 
-        wrapper = _make_subgraph_spawn_wrapper("subnode", subgraph, "parent-agent")
+        wrapper = _make_subgraph_spawn_wrapper(subgraph, "parent-agent")
         assert _SPAWN_CTX.get() is None
 
         result = wrapper({"input": "x"})
@@ -60,7 +60,6 @@ class TestMakeSubgraphSpawnWrapper:
         subgraph.invoke = MagicMock(side_effect=lambda *_args, **_kwargs: captured.append(_SPAWN_CTX.get()) or "r")  # type: ignore[func-returns-value]
 
         wrapper = _make_subgraph_spawn_wrapper(
-            "mynode",
             subgraph,
             "parent",
             delegation_reason="langgraph_node:mynode",
@@ -78,7 +77,6 @@ class TestMakeSubgraphSpawnWrapper:
         subgraph.invoke = MagicMock(side_effect=lambda *_args, **_kwargs: captured.append(_SPAWN_CTX.get()) or "r")  # type: ignore[func-returns-value]
 
         wrapper = _make_subgraph_spawn_wrapper(
-            "tool_x",
             subgraph,
             "parent",
             spawned_by_tool="tool_x",
@@ -103,7 +101,7 @@ class TestMakeSubgraphSpawnWrapper:
         subgraph.ainvoke = fake_ainvoke
         subgraph.invoke = MagicMock()
 
-        wrapper = _make_subgraph_spawn_wrapper("asyncnode", subgraph, "parent-async", async_=True)
+        wrapper = _make_subgraph_spawn_wrapper(subgraph, "parent-async", async_=True)
         result = await wrapper({"input": "y"})
 
         assert result == "async-result"
@@ -122,7 +120,7 @@ class TestMakeSubgraphSpawnWrapper:
         outer = SpawnContext(parent_agent_id="grandparent", depth=1)
         token = _SPAWN_CTX.set(outer)
         try:
-            wrapper = _make_subgraph_spawn_wrapper("child", subgraph, "parent-agent")
+            wrapper = _make_subgraph_spawn_wrapper(subgraph, "parent-agent")
             wrapper({})
         finally:
             _SPAWN_CTX.reset(token)
@@ -135,7 +133,7 @@ class TestMakeSubgraphSpawnWrapper:
         subgraph = MagicMock()
         subgraph.invoke = MagicMock(side_effect=RuntimeError("graph error"))
 
-        wrapper = _make_subgraph_spawn_wrapper("err_node", subgraph, "parent")
+        wrapper = _make_subgraph_spawn_wrapper(subgraph, "parent")
         with pytest.raises(RuntimeError, match="graph error"):
             wrapper({})
         # Token must still be reset
@@ -231,7 +229,7 @@ class TestWrapToolNodeSubgraphs:
         tool_node = MagicMock(spec=["tools_by_name"])
         tool_node.tools_by_name = {"search": tool}
 
-        result = _wrap_tool_node_subgraphs("tool_node", tool_node, "parent-agent")
+        result = _wrap_tool_node_subgraphs(tool_node, "parent-agent")
 
         assert result is True
         assert tool.func is not subgraph
@@ -245,7 +243,7 @@ class TestWrapToolNodeSubgraphs:
         tool_node = MagicMock(spec=["tools_by_name"])
         tool_node.tools_by_name = {"search": tool}
 
-        result = _wrap_tool_node_subgraphs("tool_node", tool_node, "parent-agent")
+        result = _wrap_tool_node_subgraphs(tool_node, "parent-agent")
 
         assert result is False
 
@@ -260,7 +258,7 @@ class TestWrapToolNodeSubgraphs:
         tool_node = MagicMock(spec=["tools_by_name"])
         tool_node.tools_by_name = {"retriever": tool}
 
-        _wrap_tool_node_subgraphs("tool_node", tool_node, "parent-agent")
+        _wrap_tool_node_subgraphs(tool_node, "parent-agent")
 
         # Invoke the wrapped function to verify spawn context values
         tool.func({})
