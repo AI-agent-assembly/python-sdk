@@ -34,7 +34,7 @@ def _patch_post(client: GatewayClient, mock_post: MagicMock) -> Any:
     return patch.object(
         type(client),
         "client",
-        new_callable=lambda: property(lambda self: MagicMock(post=mock_post)),
+        new_callable=lambda: property(lambda _self: MagicMock(post=mock_post)),
     )
 
 
@@ -58,9 +58,8 @@ def test_http_client_omits_auth_header_when_no_api_key() -> None:
 async def test_register_agent_raises_gateway_error_on_http_error() -> None:
     client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k")
     mock_post = MagicMock(return_value=_raising(httpx.ConnectError("refused")))
-    with _patch_post(client, mock_post):
-        with pytest.raises(GatewayError, match="Failed to register agent"):
-            await client.register_agent()
+    with _patch_post(client, mock_post), pytest.raises(GatewayError, match="Failed to register agent"):
+        await client.register_agent()
 
 
 @pytest.mark.asyncio
@@ -79,9 +78,8 @@ async def test_check_policy_compliance_returns_decision_on_success() -> None:
 async def test_check_policy_compliance_raises_gateway_error_on_http_error() -> None:
     client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k")
     mock_post = MagicMock(return_value=_raising(httpx.ReadTimeout("slow")))
-    with _patch_post(client, mock_post):
-        with pytest.raises(GatewayError, match="Failed to check policy compliance"):
-            await client.check_policy_compliance("send_email")
+    with _patch_post(client, mock_post), pytest.raises(GatewayError, match="Failed to check policy compliance"):
+        await client.check_policy_compliance("send_email")
 
 
 def test_report_edge_serializes_metadata_and_returns_edge_id() -> None:
@@ -113,6 +111,5 @@ def test_report_edge_omits_metadata_json_when_metadata_none() -> None:
 def test_report_edge_raises_gateway_error_on_http_error() -> None:
     client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k")
     mock_post = MagicMock(return_value=_raising(httpx.ConnectError("down")))
-    with _patch_post(client, mock_post):
-        with pytest.raises(GatewayError, match="Failed to report edge"):
-            client.report_edge("src", "dst", "messages")
+    with _patch_post(client, mock_post), pytest.raises(GatewayError, match="Failed to report edge"):
+        client.report_edge("src", "dst", "messages")

@@ -26,8 +26,9 @@ def test_lazy_getattr_resolves_lineage_registry() -> None:
 
 
 def test_lazy_getattr_raises_attribute_error_for_unknown_symbol() -> None:
+    missing_name = "does_not_exist"
     with pytest.raises(AttributeError, match="has no attribute 'does_not_exist'"):
-        core.does_not_exist  # type: ignore[attr-defined]  # intentional miss
+        getattr(core, missing_name)  # exercises the __getattr__ unknown-symbol guard
 
 
 def test_all_lists_the_public_lazy_exports() -> None:

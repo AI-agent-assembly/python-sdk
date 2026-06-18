@@ -102,7 +102,7 @@ def test_is_running_true_when_listener_accepts(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(
         runtime.socket,
         "create_connection",
-        lambda address, timeout: _FakeConn(),
+        lambda _address, timeout: _FakeConn(),  # noqa: ARG005 — signature-matching stub
     )
 
     assert runtime.is_running(port=7878) is True

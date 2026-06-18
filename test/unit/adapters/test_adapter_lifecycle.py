@@ -25,7 +25,7 @@ from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
 class _FakePatch:
     """Stands in for a framework Patch; records apply/revert."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *_args: Any, **_kwargs: Any) -> None:
         self.applied = 0
         self.reverted = 0
 

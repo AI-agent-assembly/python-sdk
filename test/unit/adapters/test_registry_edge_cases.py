@@ -41,7 +41,7 @@ class _DummyAdapter(FrameworkAdapter):
     def get_active_version(self) -> str | None:
         return self._version
 
-    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+    def register_hooks(self, _interceptor: GovernanceInterceptor) -> None:
         return None
 
     def unregister_hooks(self) -> None:
@@ -64,7 +64,7 @@ def test_register_replacing_active_adapter_drops_stale_active_entry(
     _no_entry_points(monkeypatch)
     monkeypatch.setattr(
         "agent_assembly.adapters.base.importlib.import_module",
-        lambda module_name: SimpleNamespace(__version__="1.0.0"),
+        lambda _module_name: SimpleNamespace(__version__="1.0.0"),
     )
 
     registry.auto_detect()
@@ -87,7 +87,7 @@ def test_unregister_calls_unregister_hooks_on_active_adapter(
     _no_entry_points(monkeypatch)
     monkeypatch.setattr(
         "agent_assembly.adapters.base.importlib.import_module",
-        lambda module_name: SimpleNamespace(__version__="1.0.0"),
+        lambda _module_name: SimpleNamespace(__version__="1.0.0"),
     )
 
     registry.auto_detect()
@@ -209,10 +209,10 @@ class _RaisingAdapter(FrameworkAdapter):
     def get_supported_versions(self) -> list[str]:
         return [">=0.1.0"]
 
-    def register(self, interceptor: GovernanceInterceptor) -> None:
+    def register(self, _interceptor: GovernanceInterceptor) -> None:
         raise RuntimeError("hook wiring failed")
 
-    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+    def register_hooks(self, _interceptor: GovernanceInterceptor) -> None:
         return None
 
     def unregister_hooks(self) -> None:

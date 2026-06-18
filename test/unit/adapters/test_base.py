@@ -114,7 +114,7 @@ class EmptyVersionsAdapter(FrameworkAdapter):
     def get_supported_versions(self) -> list[str]:
         return []
 
-    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+    def register_hooks(self, _interceptor: GovernanceInterceptor) -> None:
         return None
 
     def unregister_hooks(self) -> None:
@@ -133,7 +133,7 @@ class BlankVersionRangeAdapter(FrameworkAdapter):
     def get_supported_versions(self) -> list[str]:
         return ["   "]
 
-    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+    def register_hooks(self, _interceptor: GovernanceInterceptor) -> None:
         return None
 
     def unregister_hooks(self) -> None:
@@ -155,7 +155,7 @@ class AgentIdAwareAdapter(FrameworkAdapter):
     def get_supported_versions(self) -> list[str]:
         return [">=0.1.0"]
 
-    def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+    def register_hooks(self, _interceptor: GovernanceInterceptor) -> None:
         return None
 
     def unregister_hooks(self) -> None:

@@ -63,7 +63,7 @@ def test_emit_swallows_report_edge_exception() -> None:
     barrier = threading.Event()
 
     class _RaisingClient(_RecordingClient):
-        def report_edge(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        def report_edge(self, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
             try:
                 raise RuntimeError("gateway down")
             finally:
