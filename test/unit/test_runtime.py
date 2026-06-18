@@ -100,8 +100,7 @@ def test_is_running_true_when_listener_accepts(monkeypatch: pytest.MonkeyPatch) 
             return None
 
     monkeypatch.setattr(
-        runtime.socket,
-        "create_connection",
+        "agent_assembly.runtime.socket.create_connection",
         lambda _address, timeout: _FakeConn(),  # noqa: ARG005 — signature-matching stub
     )
 
@@ -114,14 +113,12 @@ def test_is_running_false_on_socket_error(monkeypatch: pytest.MonkeyPatch) -> No
     def refuse(address: object, timeout: object) -> object:
         raise ConnectionRefusedError("nothing listening")
 
-    monkeypatch.setattr(runtime.socket, "create_connection", refuse)
+    monkeypatch.setattr("agent_assembly.runtime.socket.create_connection", refuse)
 
     assert runtime.is_running(port=7878) is False
 
 
-def test_start_runtime_spawns_detached_serve_process(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_start_runtime_spawns_detached_serve_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """start_runtime opens the log file in the chosen dir and spawns the
     detached ``aasm serve --port`` subprocess with stdout/stderr redirected."""
     captured: dict[str, object] = {}
@@ -131,9 +128,9 @@ def test_start_runtime_spawns_detached_serve_process(
         captured["kwargs"] = kwargs
         return "popen-handle"
 
-    monkeypatch.setattr(runtime.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr("agent_assembly.runtime.subprocess.Popen", fake_popen)
 
-    handle = runtime.start_runtime(Path("/bin/aasm"), port=9001, log_dir=tmp_path)
+    handle: object = runtime.start_runtime(Path("/bin/aasm"), port=9001, log_dir=tmp_path)
 
     assert handle == "popen-handle"
     assert captured["cmd"] == ["/bin/aasm", "serve", "--port", "9001"]

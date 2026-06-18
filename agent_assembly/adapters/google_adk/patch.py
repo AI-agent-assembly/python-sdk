@@ -7,7 +7,10 @@ import inspect
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from agent_assembly.exceptions import PolicyViolationError
 
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
@@ -381,14 +384,14 @@ async def _record_async_tool_result(
             await recorded
 
 
-def _build_denied_error(tool_name: str, reason: str | None) -> Exception:
+def _build_denied_error(tool_name: str, reason: str | None) -> PolicyViolationError:
     from agent_assembly.exceptions import PolicyViolationError
 
     reason_text = reason or "No reason provided."
     return PolicyViolationError(f"Tool '{tool_name}' blocked by governance policy: {reason_text}")
 
 
-def _build_pending_rejected_error(tool_name: str, reason: str | None) -> Exception:
+def _build_pending_rejected_error(tool_name: str, reason: str | None) -> PolicyViolationError:
     from agent_assembly.exceptions import PolicyViolationError
 
     reason_text = reason or "No reason provided."

@@ -6,7 +6,10 @@ import importlib as importlib
 import importlib.util
 import inspect
 from dataclasses import dataclass
-from typing import Any, Literal, Mapping
+from typing import TYPE_CHECKING, Any, Literal, Mapping
+
+if TYPE_CHECKING:
+    from agent_assembly.exceptions import MCPToolBlockedError
 
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
@@ -224,16 +227,14 @@ def _build_blocked_error(
     server_identifier: str,
     reason: str | None,
     is_pending_rejection: bool,
-) -> Exception:
+) -> MCPToolBlockedError:
     from agent_assembly.exceptions import MCPToolBlockedError
 
     reason_text = reason or "No reason provided."
     if is_pending_rejection:
-        message = f"MCP tool '{tool_name}' on server '{server_identifier}' " f"rejected during approval: {reason_text}"
+        message = f"MCP tool '{tool_name}' on server '{server_identifier}' rejected during approval: {reason_text}"
     else:
-        message = (
-            f"MCP tool '{tool_name}' on server '{server_identifier}' " f"blocked by governance policy: {reason_text}"
-        )
+        message = f"MCP tool '{tool_name}' on server '{server_identifier}' blocked by governance policy: {reason_text}"
 
     return MCPToolBlockedError(
         message,

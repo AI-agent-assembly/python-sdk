@@ -244,7 +244,6 @@ def _is_tool_node(node_executor: Any) -> bool:
 
 
 def _wrap_tool_node_subgraphs(
-    node_name: str,
     tool_node: Any,
     process_agent_id: str | None,
 ) -> bool:
@@ -253,11 +252,10 @@ def _wrap_tool_node_subgraphs(
     if not isinstance(tools_by_name, dict):
         return False
     wrapped_any = False
-    for tool_name, tool in list(tools_by_name.items()):
+    for tool_name, tool in tools_by_name.items():
         tool_func = getattr(tool, "func", None)
         if tool_func is not None and _is_compiled_subgraph(tool_func):
             wrapper = _make_subgraph_spawn_wrapper(
-                str(tool_name),
                 tool_func,
                 process_agent_id,
                 spawned_by_tool=str(tool_name),
@@ -272,7 +270,6 @@ def _wrap_tool_node_subgraphs(
 
 
 def _make_subgraph_spawn_wrapper(
-    node_name: str,
     subgraph: Any,
     process_agent_id: str | None,
     *,
@@ -325,7 +322,6 @@ def _wrap_subgraph_spawn_node(node_map: Any, node_name: Any, node_executor: Any,
     """Wrap a compiled-subgraph node (spawn point) for lineage. Return True when wrapped."""
     node_delegation_reason = f"langgraph_node:{node_name}"
     sync_wrapper = _make_subgraph_spawn_wrapper(
-        str(node_name),
         node_executor,
         process_agent_id,
         spawned_by_tool=None,
@@ -335,7 +331,6 @@ def _wrap_subgraph_spawn_node(node_map: Any, node_name: Any, node_executor: Any,
         node_map[node_name] = sync_wrapper
     if hasattr(node_executor, "ainvoke") and not getattr(node_executor, "_agent_assembly_ainvoke_spawned", False):
         async_wrapper = _make_subgraph_spawn_wrapper(
-            str(node_name),
             node_executor,
             process_agent_id,
             async_=True,
@@ -369,7 +364,7 @@ def _wrap_node_entry(
     # ToolNode: intercept any compiled-subgraph tools it holds.
     # Must come before the callable() check since ToolNode is also callable.
     if _is_tool_node(node_executor):
-        return _wrap_tool_node_subgraphs(str(node_name), node_executor, process_agent_id)
+        return _wrap_tool_node_subgraphs(node_executor, process_agent_id)
 
     if callable(node_executor):
         return _wrap_callable_node_executor(node_map, node_name, node_executor, callback_handler)
