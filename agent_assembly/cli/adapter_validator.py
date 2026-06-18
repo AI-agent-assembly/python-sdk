@@ -173,11 +173,27 @@ def _check_unregister_hooks_idempotent(
 
 def _check_entry_point_metadata(cls: type, path_or_module: str) -> AdapterValidationResult:
     """Check entry point metadata in pyproject.toml if present at the given path."""
-    search_path = Path(path_or_module)
+    # Canonicalize the CLI-supplied path before any file access. resolve()
+    # collapses ".." segments and symlinks, breaking path-traversal taint flows
+    # (pythonsecurity:S8707): the validator only inspects the pyproject.toml that
+    # sits directly inside the resolved adapter directory, never one reached by
+    # escaping it.
+    search_path = Path(path_or_module).resolve()
     if search_path.is_file():
         search_path = search_path.parent
 
-    pyproject_path = search_path / "pyproject.toml"
+    pyproject_path = (search_path / "pyproject.toml").resolve()
+
+    # Containment guard: the resolved manifest must live directly under the
+    # resolved adapter directory. A symlinked pyproject.toml pointing outside the
+    # adapter root is rejected rather than read.
+    if pyproject_path.parent != search_path:
+        return AdapterValidationResult(
+            check_name="entry_point_metadata",
+            passed=False,
+            message="pyproject.toml resolves outside the adapter directory; refusing to read it.",
+        )
+
     if not pyproject_path.is_file():
         return AdapterValidationResult(
             check_name="entry_point_metadata",
