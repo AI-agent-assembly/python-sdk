@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import wraps
 from threading import local
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
@@ -227,31 +227,33 @@ def _unknown_decision(enforce: bool) -> tuple[Literal["allow", "deny", "pending"
     return "allow", None
 
 
+_KNOWN_STATUSES: frozenset[str] = frozenset({"allow", "deny", "pending"})
+
+
+def _coerce_known_status(value: str) -> Literal["allow", "deny", "pending"] | None:
+    """Return the verdict literal for a recognized status string, else ``None``."""
+    if value in _KNOWN_STATUSES:
+        return cast("Literal['allow', 'deny', 'pending']", value)
+    return None
+
+
 def _normalize_decision(
     decision: object,
     *,
     enforce: bool = False,
 ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
     if isinstance(decision, str):
-        normalized = decision.strip().lower()
-        if normalized == "allow":
-            return "allow", None
-        if normalized == "deny":
-            return "deny", None
-        if normalized == "pending":
-            return "pending", None
+        status = _coerce_known_status(decision.strip().lower())
+        if status is not None:
+            return status, None
         return _unknown_decision(enforce)
 
     if isinstance(decision, Mapping):
-        raw_status = str(decision.get("status", "")).strip().lower()
         reason_value = decision.get("reason")
         reason = str(reason_value) if reason_value is not None else None
-        if raw_status == "allow":
-            return "allow", reason
-        if raw_status == "deny":
-            return "deny", reason
-        if raw_status == "pending":
-            return "pending", reason
+        status = _coerce_known_status(str(decision.get("status", "")).strip().lower())
+        if status is not None:
+            return status, reason
         unknown_status, unknown_reason = _unknown_decision(enforce)
         return unknown_status, reason if reason is not None else unknown_reason
 
