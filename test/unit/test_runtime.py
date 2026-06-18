@@ -87,3 +87,72 @@ def test_init_assembly_idempotent_when_already_running(monkeypatch: pytest.Monke
 
     find_spy.assert_not_called()
     start_spy.assert_not_called()
+
+
+def test_is_running_true_when_listener_accepts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A successful connect on host:port reports the sidecar as up."""
+
+    class _FakeConn:
+        def __enter__(self) -> _FakeConn:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(
+        runtime.socket,
+        "create_connection",
+        lambda _address, timeout: _FakeConn(),  # noqa: ARG005 — signature-matching stub
+    )
+
+    assert runtime.is_running(port=7878) is True
+
+
+def test_is_running_false_on_socket_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Any OSError (refused / timeout / unreachable) means no sidecar."""
+
+    def refuse(address: object, timeout: object) -> object:
+        raise ConnectionRefusedError("nothing listening")
+
+    monkeypatch.setattr(runtime.socket, "create_connection", refuse)
+
+    assert runtime.is_running(port=7878) is False
+
+
+def test_start_runtime_spawns_detached_serve_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """start_runtime opens the log file in the chosen dir and spawns the
+    detached ``aasm serve --port`` subprocess with stdout/stderr redirected."""
+    captured: dict[str, object] = {}
+
+    def fake_popen(cmd: list[str], **kwargs: object) -> str:
+        captured["cmd"] = cmd
+        captured["kwargs"] = kwargs
+        return "popen-handle"
+
+    monkeypatch.setattr(runtime.subprocess, "Popen", fake_popen)
+
+    handle = runtime.start_runtime(Path("/bin/aasm"), port=9001, log_dir=tmp_path)
+
+    assert handle == "popen-handle"
+    assert captured["cmd"] == ["/bin/aasm", "serve", "--port", "9001"]
+    kwargs = captured["kwargs"]
+    assert isinstance(kwargs, dict)
+    assert kwargs["start_new_session"] is True
+    # The runtime log file is created in the supplied log_dir.
+    assert (tmp_path / runtime.RUNTIME_LOG_FILENAME).exists()
+
+
+def test_init_assembly_spawns_when_not_running(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When the sidecar is down and a binary exists, init_assembly resolves the
+    binary and starts the runtime exactly once."""
+    binary = Path("/usr/local/bin/aasm")
+    start_spy = MagicMock()
+    monkeypatch.setattr(runtime, "is_running", lambda *_a, **_kw: False)
+    monkeypatch.setattr(runtime, "find_aasm_binary", lambda: binary)
+    monkeypatch.setattr(runtime, "start_runtime", start_spy)
+
+    runtime.init_assembly(agent_id="ignored-at-this-layer", port=7878)
+
+    start_spy.assert_called_once_with(binary, port=7878)

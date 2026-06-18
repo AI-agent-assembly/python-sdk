@@ -107,6 +107,75 @@ def test_register_raises_validation_error_for_invalid_contract() -> None:
         InvalidRegistrationAdapter().register(object())
 
 
+class EmptyVersionsAdapter(FrameworkAdapter):
+    def get_framework_name(self) -> str:
+        return "math"
+
+    def get_supported_versions(self) -> list[str]:
+        return []
+
+    def register_hooks(self, _interceptor: GovernanceInterceptor) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_validate_registration_rejects_empty_supported_versions() -> None:
+    with pytest.raises(AdapterValidationError, match="supported versions must not be empty"):
+        EmptyVersionsAdapter().validate_registration()
+
+
+class BlankVersionRangeAdapter(FrameworkAdapter):
+    def get_framework_name(self) -> str:
+        return "math"
+
+    def get_supported_versions(self) -> list[str]:
+        return ["   "]
+
+    def register_hooks(self, _interceptor: GovernanceInterceptor) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_validate_registration_rejects_blank_version_range() -> None:
+    with pytest.raises(AdapterValidationError, match="version ranges must be non-empty"):
+        BlankVersionRangeAdapter().validate_registration()
+
+
+class AgentIdAwareAdapter(FrameworkAdapter):
+    def __init__(self) -> None:
+        self.process_agent_id: str | None = None
+
+    def get_framework_name(self) -> str:
+        return "math"
+
+    def get_supported_versions(self) -> list[str]:
+        return [">=0.1.0"]
+
+    def register_hooks(self, _interceptor: GovernanceInterceptor) -> None:
+        return None
+
+    def unregister_hooks(self) -> None:
+        return None
+
+
+def test_set_process_agent_id_sets_attribute_when_supported() -> None:
+    adapter = AgentIdAwareAdapter()
+    adapter.set_process_agent_id("proc-7")
+    assert adapter.process_agent_id == "proc-7"
+
+
+def test_set_process_agent_id_is_noop_when_attribute_absent() -> None:
+    # NonVersionedFrameworkAdapter has no process_agent_id attribute; the
+    # base no-op must not raise.
+    adapter = NonVersionedFrameworkAdapter()
+    adapter.set_process_agent_id("ignored")
+    assert not hasattr(adapter, "process_agent_id")
+
+
 class ValidRegistrationAdapter(FrameworkAdapter):
     def __init__(self) -> None:
         self.hooks_registered = False
