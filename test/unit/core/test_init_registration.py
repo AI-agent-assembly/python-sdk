@@ -67,7 +67,30 @@ def test_init_assembly_registers_agent_on_init(monkeypatch: pytest.MonkeyPatch) 
 
     context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="agent-7", mode="sdk-only")
     try:
-        assert runtime_client.register_calls == [("agent-7", "agent-7", "python", None)]
+        assert runtime_client.register_calls == [("agent-7", "agent-7", "python", None, None, None)]
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_forwards_team_and_parent_on_register(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """init_assembly forwards team_id/parent_agent_id to the native register (AAASM-3415)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(
+        gateway_url=_GW_URL,
+        api_key=_API_KEY,
+        agent_id="child-1",
+        mode="sdk-only",
+        team_id="team-payments",
+        parent_agent_id="parent-42",
+    )
+    try:
+        assert runtime_client.register_calls == [("child-1", "child-1", "python", None, "team-payments", "parent-42")]
     finally:
         context.shutdown()
 

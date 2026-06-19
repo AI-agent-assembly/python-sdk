@@ -22,7 +22,7 @@ class FakeRuntimeClient:
     def __init__(self, decision: str = "allow", reason: str = "") -> None:
         self._decision = decision
         self._reason = reason
-        self.register_calls: list[tuple[str, str, str, str | None]] = []
+        self.register_calls: list[tuple[str, str, str, str | None, str | None, str | None]] = []
         self.query_calls: list[tuple[Any, ...]] = []
         self.register_should_raise: Exception | None = None
 
@@ -32,10 +32,12 @@ class FakeRuntimeClient:
         name: str,
         framework: str,
         gateway_endpoint: str | None = None,
+        team_id: str | None = None,
+        parent_agent_id: str | None = None,
     ) -> str:
         if self.register_should_raise is not None:
             raise self.register_should_raise
-        self.register_calls.append((agent_id, name, framework, gateway_endpoint))
+        self.register_calls.append((agent_id, name, framework, gateway_endpoint, team_id, parent_agent_id))
         return "policy-id-001"
 
     def query_policy(
