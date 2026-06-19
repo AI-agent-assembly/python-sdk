@@ -95,6 +95,52 @@ impl RuntimeClient {
         })
     }
 
+    /// Register this agent with the governance gateway and store the issued
+    /// credential token.
+    ///
+    /// Delegates to [`aa_sdk_client::AssemblyClient::register`], the SDK's only
+    /// direct gateway gRPC call (ADR 0004): it hits `AgentLifecycleService.Register`,
+    /// and the returned `credential_token` is held by the shared client and
+    /// attached to every later [`query_policy`](Self::query_policy) so the
+    /// gateway's `validate_credential_token` does not deny a registered agent.
+    ///
+    /// `gateway_endpoint` is the gRPC endpoint (e.g. `"http://127.0.0.1:50051"`);
+    /// pass `None` to let the shared client resolve it from the environment or
+    /// its default. Returns the policy id the gateway assigns this agent.
+    ///
+    /// Raises `RuntimeError` when the gateway is unreachable or rejects the
+    /// registration — unlike `query_policy`, registration is not advisory, so a
+    /// failure surfaces rather than failing open.
+    #[pyo3(signature = (agent_id, name, framework, gateway_endpoint=None))]
+    fn register(
+        &self,
+        py: Python<'_>,
+        agent_id: String,
+        name: String,
+        framework: String,
+        gateway_endpoint: Option<String>,
+    ) -> PyResult<String> {
+        let config = AssemblyConfig {
+            agent_id,
+            socket_path: Some(self.socket_path.clone()),
+            gateway_endpoint,
+        };
+        // `register` is async (tonic). Release the GIL and drive the future on a
+        // private current-thread runtime so the blocking gRPC round-trip never
+        // stalls other Python threads.
+        py.detach(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|error| {
+                    PyRuntimeError::new_err(format!("failed to build register runtime: {error}"))
+                })?;
+            runtime
+                .block_on(self.client.register(&config, name, framework))
+                .map_err(map_sdk_error)
+        })
+    }
+
     /// Ship a captured governance event to the runtime (fire-and-forget).
     ///
     /// The event payload passes through `aa-sdk-client`'s advisory preflight
