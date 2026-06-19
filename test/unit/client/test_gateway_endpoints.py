@@ -1,8 +1,9 @@
 """Unit tests for the remaining `GatewayClient` HTTP endpoints.
 
-Covers `check_policy_compliance`, `report_edge`, the API-key auth header, and
-the `register_agent` failure branch — the success/error paths not already
-exercised by the topology and dispatch_tool suites.
+Covers `report_edge` and the API-key auth header — the success/error paths not
+already exercised by the dispatch_tool suite. The REST ``register_agent`` /
+``check_policy_compliance`` methods were retired in AAASM-3402 in favor of the
+native gRPC register / query_policy path, so they are no longer tested here.
 """
 
 from __future__ import annotations
@@ -52,34 +53,6 @@ def test_http_client_omits_auth_header_when_no_api_key() -> None:
         assert "Authorization" not in client.client.headers
     finally:
         client.close()
-
-
-@pytest.mark.asyncio
-async def test_register_agent_raises_gateway_error_on_http_error() -> None:
-    client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k")
-    mock_post = MagicMock(return_value=_raising(httpx.ConnectError("refused")))
-    with _patch_post(client, mock_post), pytest.raises(GatewayError, match="Failed to register agent"):
-        await client.register_agent()
-
-
-@pytest.mark.asyncio
-async def test_check_policy_compliance_returns_decision_on_success() -> None:
-    client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k")
-    mock_post = MagicMock(return_value=_ok({"allowed": True, "reason": "ok"}))
-    with _patch_post(client, mock_post):
-        result = await client.check_policy_compliance("send_email")
-
-    assert result == {"allowed": True, "reason": "ok"}
-    _, kwargs = mock_post.call_args
-    assert kwargs["json"] == {"action": "send_email"}
-
-
-@pytest.mark.asyncio
-async def test_check_policy_compliance_raises_gateway_error_on_http_error() -> None:
-    client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k")
-    mock_post = MagicMock(return_value=_raising(httpx.ReadTimeout("slow")))
-    with _patch_post(client, mock_post), pytest.raises(GatewayError, match="Failed to check policy compliance"):
-        await client.check_policy_compliance("send_email")
 
 
 def test_report_edge_serializes_metadata_and_returns_edge_id() -> None:

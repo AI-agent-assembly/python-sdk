@@ -37,19 +37,20 @@ class GatewayClient:
             api_key: Optional API key for authentication
             timeout: Request timeout in seconds
             control_plane_url: Optional URL of the control-plane HTTP API. When
-                set, the HTTP routes (``/agents/{id}/register``, ``/policy/check``,
-                ``/topology/edges``) are issued against it; when ``None`` (the
+                set, the remaining HTTP routes (``/topology/edges``,
+                ``/dispatch_tool``) are issued against it; when ``None`` (the
                 default) they fall back to ``gateway_url`` — the backwards-compatible
-                single-host OSS dev setup.
+                single-host OSS dev setup. Agent registration and policy checks
+                go through the native gRPC path (ADR 0004), not these HTTP routes.
             parent_agent_id: Parent agent ID for topology tracking
             team_id: Team ID this agent belongs to
             delegation_reason: Human-readable reason for delegation
             spawned_by_tool: Name of the tool that spawned this agent
             depth: Spawn depth in the agent lineage tree
-            enforcement_mode: Per-agent governance posture sent to the gateway
-                at registration. ``None`` (the default) omits the field from
-                the request body so a legacy gateway sees the same wire shape
-                as before; the gateway then defaults to live enforcement.
+            enforcement_mode: Per-agent governance posture for this agent.
+                ``None`` (the default) lets the gateway apply its server-side
+                default of live enforcement. Stored for reference; registration
+                itself now goes through the native gRPC path (ADR 0004).
         """
         self.gateway_url = gateway_url.rstrip("/")
         self.control_plane_url = control_plane_url.rstrip("/") if control_plane_url else None
@@ -95,64 +96,6 @@ class GatewayClient:
     def __exit__(self, *args: object) -> None:
         """Context manager exit."""
         self.close()
-
-    async def register_agent(self) -> dict[str, Any]:
-        """
-        Register the agent with the governance gateway.
-
-        Returns:
-            Registration response data
-
-        Raises:
-            GatewayError: If registration fails
-        """
-        body: dict[str, str | int] = {}
-        if self.parent_agent_id is not None:
-            body["parent_agent_id"] = self.parent_agent_id
-        if self.team_id is not None:
-            body["team_id"] = self.team_id
-        if self.delegation_reason is not None:
-            body["delegation_reason"] = self.delegation_reason
-        if self.spawned_by_tool is not None:
-            body["spawned_by_tool"] = self.spawned_by_tool
-        if self.depth is not None:
-            body["depth"] = self.depth
-        if self.enforcement_mode is not None:
-            body["enforcement_mode"] = self.enforcement_mode
-        try:
-            response = self.client.post(
-                f"/agents/{self.agent_id}/register",
-                json=body if body else None,
-            )
-            response.raise_for_status()
-            data: dict[str, Any] = response.json()
-            return data
-        except httpx.HTTPError as e:
-            raise GatewayError(f"Failed to register agent: {e}") from e
-
-    async def check_policy_compliance(self, action: str) -> dict[str, Any]:
-        """
-        Check if an action complies with governance policies.
-
-        Args:
-            action: The action to check
-
-        Returns:
-            Policy compliance response
-
-        Raises:
-            GatewayError: If policy check fails
-        """
-        try:
-            response = self.client.post(
-                f"/agents/{self.agent_id}/policy/check",
-                json={"action": action},
-            )
-            response.raise_for_status()
-            data: dict[str, Any] = response.json()
-            return data
-        except httpx.HTTPError as e:
-            raise GatewayError(f"Failed to check policy compliance: {e}") from e
 
     def report_edge(
         self,
