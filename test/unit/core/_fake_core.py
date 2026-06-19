@@ -22,7 +22,7 @@ class FakeRuntimeClient:
     def __init__(self, decision: str = "allow", reason: str = "") -> None:
         self._decision = decision
         self._reason = reason
-        self.register_calls: list[tuple[str, str, str, str | None]] = []
+        self.register_calls: list[tuple[str, str, str, str | None, str | None, str | None]] = []
         self.query_calls: list[tuple[Any, ...]] = []
         self.register_should_raise: Exception | None = None
 
@@ -32,10 +32,12 @@ class FakeRuntimeClient:
         name: str,
         framework: str,
         gateway_endpoint: str | None = None,
+        team_id: str | None = None,
+        parent_agent_id: str | None = None,
     ) -> str:
         if self.register_should_raise is not None:
             raise self.register_should_raise
-        self.register_calls.append((agent_id, name, framework, gateway_endpoint))
+        self.register_calls.append((agent_id, name, framework, gateway_endpoint, team_id, parent_agent_id))
         return "policy-id-001"
 
     def query_policy(
@@ -52,16 +54,42 @@ class FakeRuntimeClient:
         return None
 
 
+class LegacyRuntimeClient:
+    """Stand-in for an older native build whose ``register`` predates the
+    ``team_id`` / ``parent_agent_id`` parameters (AAASM-3415).
+
+    Its ``register`` only accepts the legacy positional signature, so calling it
+    with the lineage kwargs raises ``TypeError`` — exercising the SDK's
+    backwards-compatible fallback in ``register_agent``.
+    """
+
+    def __init__(self) -> None:
+        self.register_calls: list[tuple[str, str, str, str | None]] = []
+
+    def register(
+        self,
+        agent_id: str,
+        name: str,
+        framework: str,
+        gateway_endpoint: str | None = None,
+    ) -> str:
+        self.register_calls.append((agent_id, name, framework, gateway_endpoint))
+        return "policy-id-legacy"
+
+    def close(self) -> None:
+        return None
+
+
 def install_fake_core(
     monkeypatch: pytest.MonkeyPatch,
-    runtime_client: FakeRuntimeClient,
-) -> FakeRuntimeClient:
+    runtime_client: Any,
+) -> Any:
     """Install a fake ``agent_assembly._core`` whose ``RuntimeClient.connect``
     returns ``runtime_client``. Returns the same client for assertions."""
 
     class _ConnectingRuntimeClient:
         @staticmethod
-        def connect(_socket_path: str) -> FakeRuntimeClient:
+        def connect(_socket_path: str) -> Any:
             return runtime_client
 
     fake_core = types.ModuleType("agent_assembly._core")

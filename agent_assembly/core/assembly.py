@@ -228,6 +228,8 @@ def init_assembly(
                 runtime_client=runtime_client,
                 agent_id=resolved_agent_id,
                 enforcement_mode=enforcement_mode,
+                team_id=team_id,
+                parent_agent_id=parent_agent_id,
             )
             registered_adapters = _register_adapters(
                 client=client,
@@ -287,6 +289,8 @@ def _register_agent_with_gateway(
     runtime_client: Any | None,
     agent_id: str,
     enforcement_mode: EnforcementMode | None,
+    team_id: str | None = None,
+    parent_agent_id: str | None = None,
 ) -> None:
     """Register the agent with the gateway over the native gRPC ``register``.
 
@@ -294,6 +298,10 @@ def _register_agent_with_gateway(
     issued credential token is stored on the same client the
     ``RuntimeQueryInterceptor`` later uses for ``query_policy`` — the SDK never
     calls a core HTTP endpoint directly (ADR 0004).
+
+    ``team_id`` and ``parent_agent_id`` are forwarded to the native register so
+    the gateway gets the agent's team-budget scoping and topology lineage on the
+    native path, restoring what the legacy REST register sent (AAASM-3415).
 
     No native runtime (extension missing or socket unreachable) means there is
     nothing to register against: the call is skipped. Under ``enforce`` a native
@@ -305,7 +313,13 @@ def _register_agent_with_gateway(
         return
     framework = "python"
     try:
-        register_agent(runtime_client, agent_id, framework)
+        register_agent(
+            runtime_client,
+            agent_id,
+            framework,
+            team_id=team_id,
+            parent_agent_id=parent_agent_id,
+        )
     except Exception:
         if enforcement_mode == "enforce":
             raise

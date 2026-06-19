@@ -2,9 +2,9 @@
 
 The REST ``register_agent`` topology-forwarding tests were retired in
 AAASM-3402 when registration moved to the native gRPC ``register`` path. The
-native register call does not yet carry the lineage fields, so forwarding them
-over the native path is a tracked follow-up; until then this only asserts the
-fields are stored at construction.
+native register call now carries ``team_id`` / ``parent_agent_id`` again
+(AAASM-3415) — see ``test/unit/core/test_init_registration.py`` for the
+forwarding assertion. This file asserts the fields are stored at construction.
 """
 
 from __future__ import annotations
