@@ -14,7 +14,12 @@ from agent_assembly.adapters.langchain.runtime import get_active_callback_handle
 from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
 from agent_assembly.core.gateway_resolver import resolve_api_key, resolve_gateway_url
-from agent_assembly.core.runtime_interceptor import build_governance_interceptor
+from agent_assembly.core.runtime_interceptor import (
+    _native_core_available,
+    build_governance_interceptor,
+    connect_runtime_client,
+    register_agent,
+)
 from agent_assembly.core.spawn import _SPAWN_CTX
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
@@ -145,17 +150,24 @@ def init_assembly(
     optional auto-start) per Epic 17 S-G — see
     ``agent_assembly.core.gateway_resolver``.
 
+    Agent registration and the pre-execution policy check go through the native
+    ``aa-sdk-client`` shim to the core over gRPC/UDS (ADR 0004): ``init_assembly``
+    registers the agent on startup (storing the issued credential token on the
+    native client) and a tool call is checked via the native ``query_policy`` so
+    a ``deny`` blocks the tool before it runs. The SDK never calls a core HTTP
+    endpoint directly for registration or policy checks.
+
     :param control_plane_url: Optional URL of the control-plane HTTP API. When
-        supplied, the SDK issues its HTTP routes (agent registration, policy
-        checks, topology edges) against it instead of ``gateway_url``. When
-        omitted it falls back to ``gateway_url`` — the backwards-compatible
-        single-host OSS dev setup. Resolution order: explicit kwarg >
-        ``AA_CONTROL_PLANE_URL`` env-var > unset (falls back to ``gateway_url``).
-    :param enforcement_mode: Per-agent governance posture sent to the gateway
-        at registration (see :data:`EnforcementMode`). Defaults to ``None``,
-        which omits the field from the registration body — the gateway then
-        applies its server-side default (live ``enforce``). Pass ``"observe"``
-        to register the agent in dry-run / sandbox mode: every action
+        supplied, the SDK issues its remaining HTTP routes (topology edges,
+        secret dispatch) against it instead of ``gateway_url``. When omitted it
+        falls back to ``gateway_url`` — the backwards-compatible single-host OSS
+        dev setup. Resolution order: explicit kwarg > ``AA_CONTROL_PLANE_URL``
+        env-var > unset (falls back to ``gateway_url``).
+    :param enforcement_mode: Per-agent governance posture applied to this
+        agent's actions (see :data:`EnforcementMode`). Defaults to ``None``,
+        which lets the gateway apply its server-side default (live ``enforce``).
+        Pass ``"observe"`` to register the agent in dry-run / sandbox mode:
+        every action
         proceeds and the gateway records would-be violations as shadow audit
         events.
     """
@@ -210,10 +222,19 @@ def init_assembly(
         network_mode: NetworkMode = "sdk-only"
         network_shutdown: Callable[[], None] = _noop_shutdown
         try:
+            native_available = _native_core_available()
+            runtime_client = connect_runtime_client(resolved_agent_id) if native_available else None
+            _register_agent_with_gateway(
+                runtime_client=runtime_client,
+                agent_id=resolved_agent_id,
+                enforcement_mode=enforcement_mode,
+            )
             registered_adapters = _register_adapters(
                 client=client,
                 process_agent_id=resolved_agent_id,
                 enforcement_mode=enforcement_mode,
+                runtime_client=runtime_client,
+                native_available=native_available,
             )
             network_mode, network_shutdown = _start_network_layer(client=client, mode=mode)
         except Exception as error:
@@ -261,10 +282,41 @@ def _validate_inputs(
     return gateway_url, control_plane_url
 
 
+def _register_agent_with_gateway(
+    *,
+    runtime_client: Any | None,
+    agent_id: str,
+    enforcement_mode: EnforcementMode | None,
+) -> None:
+    """Register the agent with the gateway over the native gRPC ``register``.
+
+    Registration goes through the native runtime client (AAASM-3399) so the
+    issued credential token is stored on the same client the
+    ``RuntimeQueryInterceptor`` later uses for ``query_policy`` — the SDK never
+    calls a core HTTP endpoint directly (ADR 0004).
+
+    No native runtime (extension missing or socket unreachable) means there is
+    nothing to register against: the call is skipped. Under ``enforce`` a native
+    registration failure propagates so a misconfigured gateway surfaces at init;
+    under ``observe`` / ``disabled`` (or no mode) it is swallowed so the dry-run
+    / hermetic-test layer never hard-fails on registration.
+    """
+    if runtime_client is None:
+        return
+    framework = "python"
+    try:
+        register_agent(runtime_client, agent_id, framework)
+    except Exception:
+        if enforcement_mode == "enforce":
+            raise
+
+
 def _register_adapters(
     client: GatewayClient,
     process_agent_id: str,
     enforcement_mode: EnforcementMode | None = None,
+    runtime_client: Any | None = None,
+    native_available: bool = False,
 ) -> list[FrameworkAdapter]:
     """Detect available frameworks via AdapterRegistry and register hooks.
 
@@ -282,7 +334,13 @@ def _register_adapters(
     adapters = registry.get_available_adapters_by_priority()
 
     registered: list[FrameworkAdapter] = []
-    interceptor: Any = build_governance_interceptor(client, process_agent_id, enforcement_mode)
+    interceptor: Any = build_governance_interceptor(
+        client,
+        process_agent_id,
+        enforcement_mode,
+        runtime_client=runtime_client,
+        native_available=native_available,
+    )
 
     for adapter in adapters:
         adapter.set_process_agent_id(process_agent_id)

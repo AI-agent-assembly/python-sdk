@@ -209,13 +209,74 @@ class _FailClosedInterceptor:
         return {"status": "deny", "reason": self._reason}
 
 
-def build_governance_interceptor(client: Any, agent_id: str, enforcement_mode: str | None = None) -> Any:
+def connect_runtime_client(agent_id: str) -> Any | None:
+    """Connect a native ``RuntimeClient`` to the runtime UDS, or ``None``.
+
+    Returns ``None`` when the native extension is not built or the runtime
+    socket is unreachable — both cases mean there is no native fast path to
+    register against or query. The single returned client is reused for both
+    :func:`register_agent` and the :class:`RuntimeQueryInterceptor`'s
+    ``query_policy`` calls, so the credential token stored by ``register`` is
+    attached to subsequent checks.
+    """
+    try:
+        from agent_assembly._core import RuntimeClient
+    except ImportError:
+        return None
+
+    socket_path = _resolve_runtime_socket_path(agent_id)
+    try:
+        return RuntimeClient.connect(socket_path)
+    except Exception:
+        return None
+
+
+def register_agent(
+    runtime_client: Any,
+    agent_id: str,
+    framework: str,
+    gateway_endpoint: str | None = None,
+) -> str | None:
+    """Register ``agent_id`` with the gateway over the native ``register`` call.
+
+    Delegates to the native ``RuntimeClient.register`` (AAASM-3399), which makes
+    the SDK's only direct gateway gRPC call and stores the issued credential
+    token on the shared client so later ``query_policy`` checks authenticate
+    (ADR 0004 — the SDK never calls core HTTP endpoints directly).
+
+    Returns the policy id the gateway assigned, or ``None`` when ``register`` is
+    not exposed (older native build). Registration is authoritative: a native
+    failure raises ``RuntimeError`` and is allowed to propagate so init surfaces
+    a misconfigured gateway rather than silently running unregistered.
+    """
+    register = getattr(runtime_client, "register", None)
+    if register is None:
+        return None
+    return str(register(agent_id, agent_id, framework, gateway_endpoint))
+
+
+def _native_core_available() -> bool:
+    """Whether the native ``_core`` extension can be imported."""
+    try:
+        from agent_assembly._core import RuntimeClient  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def build_governance_interceptor(
+    client: Any,
+    agent_id: str,
+    enforcement_mode: str | None = None,
+    *,
+    runtime_client: Any | None = None,
+    native_available: bool | None = None,
+) -> Any:
     """Return the interceptor adapters should use for pre-execution checks.
 
-    When the native extension is importable and a runtime socket is reachable,
-    wrap ``client`` in a :class:`RuntimeQueryInterceptor` so a runtime ``deny``
-    actually blocks the tool. The failure posture depends on ``enforcement_mode``
-    (AAASM-3106):
+    When a native runtime is reachable, wrap ``client`` in a
+    :class:`RuntimeQueryInterceptor` so a runtime ``deny`` actually blocks the
+    tool. The failure posture depends on ``enforcement_mode`` (AAASM-3106):
 
     * The native extension is **missing**: return ``client`` unchanged in every
       mode. There is no native authority to consult, so there is nothing to fail
@@ -223,18 +284,29 @@ def build_governance_interceptor(client: Any, agent_id: str, enforcement_mode: s
     * The native extension is **present** but the runtime socket is unreachable:
       under ``enforce`` return a deny-all :class:`_FailClosedInterceptor`;
       otherwise return ``client`` unchanged (fail open).
+
+    :param runtime_client: A pre-connected native runtime client (e.g. the one
+        :func:`register_agent` registered the token on). When supplied it is
+        reused so register and ``query_policy`` share one client; when ``None``
+        a fresh connection is established here.
+    :param native_available: Whether the native extension is importable. Pass
+        this alongside a ``runtime_client`` of ``None`` to distinguish a missing
+        extension (fail open in every mode) from an unreachable runtime socket
+        (fail closed under enforce). When ``None`` it is detected here.
     """
     enforce = enforcement_mode == ENFORCE_MODE
-    try:
-        from agent_assembly._core import RuntimeClient
-    except ImportError:
-        # No native fast path at all — the SDK control is not engaged in any mode.
-        return client
 
-    socket_path = _resolve_runtime_socket_path(agent_id)
-    try:
-        runtime_client = RuntimeClient.connect(socket_path)
-    except Exception:
+    if runtime_client is None and native_available is None:
+        # No caller-supplied client or hint: detect + connect ourselves.
+        if not _native_core_available():
+            return client
+        runtime_client = connect_runtime_client(agent_id)
+        native_available = True
+
+    if runtime_client is None:
+        # Native missing → no authority to fail closed to, return bare client.
+        if not native_available:
+            return client
         # Native present but runtime unreachable: deny everything under enforce
         # (fail closed); proceed under observe / disabled (fail open).
         if enforce:
