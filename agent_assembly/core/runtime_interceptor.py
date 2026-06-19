@@ -236,6 +236,8 @@ def register_agent(
     agent_id: str,
     framework: str,
     gateway_endpoint: str | None = None,
+    team_id: str | None = None,
+    parent_agent_id: str | None = None,
 ) -> str | None:
     """Register ``agent_id`` with the gateway over the native ``register`` call.
 
@@ -243,6 +245,13 @@ def register_agent(
     the SDK's only direct gateway gRPC call and stores the issued credential
     token on the shared client so later ``query_policy`` checks authenticate
     (ADR 0004 — the SDK never calls core HTTP endpoints directly).
+
+    ``team_id`` and ``parent_agent_id`` carry the agent's lineage/team scoping to
+    the gateway (AAASM-3415): ``team_id`` drives team-budget attribution and
+    ``parent_agent_id`` the topology graph. They are forwarded to a native build
+    that accepts them; an older build (whose ``register`` predates these kwargs)
+    is retried with the legacy positional signature so the SDK keeps working
+    rather than raising.
 
     Returns the policy id the gateway assigned, or ``None`` when ``register`` is
     not exposed (older native build). Registration is authoritative: a native
@@ -252,7 +261,13 @@ def register_agent(
     register = getattr(runtime_client, "register", None)
     if register is None:
         return None
-    return str(register(agent_id, agent_id, framework, gateway_endpoint))
+    try:
+        return str(register(agent_id, agent_id, framework, gateway_endpoint, team_id, parent_agent_id))
+    except TypeError:
+        # Native build predates the team_id/parent_agent_id parameters
+        # (AAASM-3415). Fall back to the legacy signature so registration still
+        # succeeds — lineage/team are simply not forwarded against an old core.
+        return str(register(agent_id, agent_id, framework, gateway_endpoint))
 
 
 def _native_core_available() -> bool:
