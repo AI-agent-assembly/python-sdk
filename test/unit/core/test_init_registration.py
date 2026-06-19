@@ -95,6 +95,94 @@ def test_init_assembly_forwards_team_and_parent_on_register(
         context.shutdown()
 
 
+def test_init_assembly_forwards_only_team_when_parent_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only ``team_id`` set → team forwarded, parent stays ``None`` (AAASM-3415)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(
+        gateway_url=_GW_URL,
+        api_key=_API_KEY,
+        agent_id="team-only",
+        mode="sdk-only",
+        team_id="team-billing",
+    )
+    try:
+        assert runtime_client.register_calls == [("team-only", "team-only", "python", None, "team-billing", None)]
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_forwards_only_parent_when_team_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only ``parent_agent_id`` set → parent forwarded, team stays ``None`` (AAASM-3415)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(
+        gateway_url=_GW_URL,
+        api_key=_API_KEY,
+        agent_id="parent-only",
+        mode="sdk-only",
+        parent_agent_id="orchestrator-1",
+    )
+    try:
+        assert runtime_client.register_calls == [("parent-only", "parent-only", "python", None, None, "orchestrator-1")]
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_no_lineage_when_neither_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neither lineage field set → both forwarded as ``None``, no crash (AAASM-3415)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(
+        gateway_url=_GW_URL,
+        api_key=_API_KEY,
+        agent_id="solo",
+        mode="sdk-only",
+    )
+    try:
+        assert runtime_client.register_calls == [("solo", "solo", "python", None, None, None)]
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_lineage_values_round_trip_verbatim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unicode / long lineage ids are forwarded to register without mangling."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    team = "équipe-paiements-🌐"
+    parent = "parent-" + ("a" * 200)
+    context = init_assembly(
+        gateway_url=_GW_URL,
+        api_key=_API_KEY,
+        agent_id="unicode-child",
+        mode="sdk-only",
+        team_id=team,
+        parent_agent_id=parent,
+    )
+    try:
+        assert runtime_client.register_calls == [("unicode-child", "unicode-child", "python", None, team, parent)]
+    finally:
+        context.shutdown()
+
+
 def test_init_assembly_deny_blocks_tool_via_interceptor(monkeypatch: pytest.MonkeyPatch) -> None:
     """A native ``deny`` makes the adapter interceptor's check_tool_start block."""
     runtime_client = FakeRuntimeClient(decision="deny", reason="policy violation")
