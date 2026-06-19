@@ -82,6 +82,9 @@ impl RuntimeClient {
         let config = AssemblyConfig {
             agent_id: String::new(),
             socket_path: Some(socket_path.clone()),
+            // Registration is a separate explicit `register` call; connecting
+            // the runtime UDS does not need a gateway endpoint.
+            gateway_endpoint: None,
         };
         let handle = spawn_ipc_thread(config.resolve_socket_path()).map_err(|error| {
             PyRuntimeError::new_err(format!("failed to start runtime IPC thread: {error}"))
