@@ -126,15 +126,19 @@ What this does:
 ## Public API
 
 - `init_assembly(gateway_url, api_key, agent_id=None, mode="auto", *, control_plane_url=None) -> AssemblyContext`
-- `async GatewayClient.register_agent() -> dict`
-- `async GatewayClient.check_policy_compliance(action: str) -> dict`
 - Exceptions: `AssemblyError`, `AgentError`, `PolicyError`, `GatewayError`, `ConfigurationError`
 - Data models: `AgentConfig`, `AgentState`, `PolicyEvaluation`
 
+Agent **registration** and the **pre-execution policy check** are not REST
+calls: the SDK goes through the native `aa-sdk-client` shim to the core over
+gRPC/UDS (ADR 0004) — it never calls a core HTTP endpoint directly for those.
+`init_assembly` registers the agent on startup, and a tool call is checked via
+the native `query_policy` so a `deny` blocks it before the tool runs.
+
 ### Control-plane routing
 
-By default the SDK issues its HTTP routes (agent registration, policy checks,
-topology edges) against `gateway_url` — the single-host OSS dev setup. Pass
+By default the SDK issues its remaining HTTP routes (topology edges, secret
+dispatch) against `gateway_url` — the single-host OSS dev setup. Pass
 `control_plane_url` to route those HTTP calls to a separate control-plane host
 while `gateway_url` continues to serve the gRPC data path:
 
