@@ -11,6 +11,15 @@ import dataclasses
 import pytest
 
 from agent_assembly import AuditEvent, CallStackNode
+from agent_assembly.core.runtime_interceptor import _native_core_available
+
+# The native `_core` extension implements the wire codec; these import-error
+# guards only fire in pure-Python mode where it is absent (AAASM-3435).
+_NATIVE_CORE_PRESENT = _native_core_available()
+_requires_no_native_core = pytest.mark.skipif(
+    _NATIVE_CORE_PRESENT,
+    reason="native `_core` is present; the import-error path only exists without it",
+)
 
 
 def test_call_stack_node_required_fields() -> None:
@@ -98,6 +107,7 @@ def test_top_level_imports_resolve_to_types_module() -> None:
     assert CallStackNode is TypesCallStackNode
 
 
+@_requires_no_native_core
 def test_to_wire_bytes_raises_helpful_import_error_without_native_core() -> None:
     """In pure-Python mode the native `_core` extension is absent, so the
     encode path raises ImportError with a maturin/reinstall hint."""
@@ -110,6 +120,7 @@ def test_to_wire_bytes_raises_helpful_import_error_without_native_core() -> None
     assert "maturin develop" in message
 
 
+@_requires_no_native_core
 def test_from_wire_bytes_raises_helpful_import_error_without_native_core() -> None:
     """The decode path raises the same kind of guidance when `_core` is absent."""
     with pytest.raises(ImportError) as exc_info:
