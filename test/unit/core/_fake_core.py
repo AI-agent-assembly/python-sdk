@@ -54,16 +54,42 @@ class FakeRuntimeClient:
         return None
 
 
+class LegacyRuntimeClient:
+    """Stand-in for an older native build whose ``register`` predates the
+    ``team_id`` / ``parent_agent_id`` parameters (AAASM-3415).
+
+    Its ``register`` only accepts the legacy positional signature, so calling it
+    with the lineage kwargs raises ``TypeError`` — exercising the SDK's
+    backwards-compatible fallback in ``register_agent``.
+    """
+
+    def __init__(self) -> None:
+        self.register_calls: list[tuple[str, str, str, str | None]] = []
+
+    def register(
+        self,
+        agent_id: str,
+        name: str,
+        framework: str,
+        gateway_endpoint: str | None = None,
+    ) -> str:
+        self.register_calls.append((agent_id, name, framework, gateway_endpoint))
+        return "policy-id-legacy"
+
+    def close(self) -> None:
+        return None
+
+
 def install_fake_core(
     monkeypatch: pytest.MonkeyPatch,
-    runtime_client: FakeRuntimeClient,
-) -> FakeRuntimeClient:
+    runtime_client: Any,
+) -> Any:
     """Install a fake ``agent_assembly._core`` whose ``RuntimeClient.connect``
     returns ``runtime_client``. Returns the same client for assertions."""
 
     class _ConnectingRuntimeClient:
         @staticmethod
-        def connect(_socket_path: str) -> FakeRuntimeClient:
+        def connect(_socket_path: str) -> Any:
             return runtime_client
 
     fake_core = types.ModuleType("agent_assembly._core")

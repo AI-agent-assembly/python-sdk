@@ -15,9 +15,10 @@ from agent_assembly import init_assembly
 from agent_assembly.adapters.base import FrameworkAdapter, GovernanceInterceptor
 from agent_assembly.core import assembly as core_assembly
 from agent_assembly.core.runtime_interceptor import build_governance_interceptor
+from agent_assembly.core.spawn import SpawnContext, spawn_context_scope
 from agent_assembly.exceptions import ConfigurationError
 
-from ._fake_core import FakeRuntimeClient, install_fake_core
+from ._fake_core import FakeRuntimeClient, LegacyRuntimeClient, install_fake_core
 
 _GW_URL = "http://gateway.test"
 _API_KEY = "test-key"
@@ -154,6 +155,88 @@ def test_init_assembly_no_lineage_when_neither_set(monkeypatch: pytest.MonkeyPat
     )
     try:
         assert runtime_client.register_calls == [("solo", "solo", "python", None, None, None)]
+    finally:
+        context.shutdown()
+
+
+def test_init_assembly_forwards_ambient_spawn_parent_on_register(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ambient spawn lineage fills ``parent_agent_id`` when config omits it (AAASM-3415).
+
+    A spawned child that does not pass ``parent_agent_id`` explicitly inherits it
+    from the ambient ``_SPAWN_CTX`` set at the spawn point, and that implicit
+    parent is forwarded to the native register.
+    """
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    ctx = SpawnContext(parent_agent_id="ambient-parent", depth=1, spawned_by_tool="delegate")
+    with spawn_context_scope(ctx):
+        context = init_assembly(
+            gateway_url=_GW_URL,
+            api_key=_API_KEY,
+            agent_id="spawned-child",
+            mode="sdk-only",
+        )
+    try:
+        assert runtime_client.register_calls == [
+            ("spawned-child", "spawned-child", "python", None, None, "ambient-parent")
+        ]
+    finally:
+        context.shutdown()
+
+
+def test_explicit_parent_overrides_ambient_spawn_parent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Explicit ``parent_agent_id`` wins over the ambient spawn parent (AAASM-3415)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    ctx = SpawnContext(parent_agent_id="ambient-parent", depth=2, spawned_by_tool="delegate")
+    with spawn_context_scope(ctx):
+        context = init_assembly(
+            gateway_url=_GW_URL,
+            api_key=_API_KEY,
+            agent_id="override-child",
+            mode="sdk-only",
+            parent_agent_id="explicit-parent",
+        )
+    try:
+        assert runtime_client.register_calls == [
+            ("override-child", "override-child", "python", None, None, "explicit-parent")
+        ]
+    finally:
+        context.shutdown()
+
+
+def test_register_falls_back_on_older_native_build_without_lineage_kwargs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An older native ``register`` (no lineage kwargs) is retried with the legacy
+    positional signature rather than crashing (AAASM-3415)."""
+    legacy_client = LegacyRuntimeClient()
+    install_fake_core(monkeypatch, legacy_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(
+        gateway_url=_GW_URL,
+        api_key=_API_KEY,
+        agent_id="legacy-agent",
+        mode="sdk-only",
+        team_id="team-x",
+        parent_agent_id="parent-y",
+    )
+    try:
+        # Lineage is dropped against an old core, but registration still succeeds
+        # via the 4-arg legacy signature — no exception.
+        assert legacy_client.register_calls == [("legacy-agent", "legacy-agent", "python", None)]
     finally:
         context.shutdown()
 
