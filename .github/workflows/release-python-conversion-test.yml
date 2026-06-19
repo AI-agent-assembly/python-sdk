@@ -42,7 +42,7 @@ jobs:
     name: Run tag → PEP 440 fixture suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Lint conversion + test scripts
         run: |
           shellcheck .github/scripts/tag-to-pep440.sh

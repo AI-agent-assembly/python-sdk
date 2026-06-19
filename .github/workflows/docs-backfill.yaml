@@ -65,7 +65,7 @@ jobs:
           echo "Backfilling docs for release tag: ${RELEASE_TAG}"
 
       - name: Checkout (full history for mike + git-revision-date plugins)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: master
