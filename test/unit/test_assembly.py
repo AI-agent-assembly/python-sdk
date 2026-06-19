@@ -578,6 +578,11 @@ def test_init_assembly_enforcement_mode_forwarded_to_client(
     mode: str,
 ) -> None:
     """All three valid EnforcementMode values land on the GatewayClient."""
+    # Force the pure-Python path so `enforce` does not trigger the AAASM-3402
+    # native gRPC registration (which would fail-closed without a live gateway).
+    # This keeps the test focused on enforcement-mode forwarding regardless of
+    # whether the native `_core` extension is built (AAASM-3435).
+    monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
     monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
     monkeypatch.setattr(
         core_assembly,
