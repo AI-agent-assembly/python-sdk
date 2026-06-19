@@ -83,8 +83,10 @@ impl RuntimeClient {
             agent_id: String::new(),
             socket_path: Some(socket_path.clone()),
             // Registration is a separate explicit `register` call; connecting
-            // the runtime UDS does not need a gateway endpoint.
+            // the runtime UDS does not need a gateway endpoint or lineage.
             gateway_endpoint: None,
+            team_id: None,
+            parent_agent_id: None,
         };
         let handle = spawn_ipc_thread(config.resolve_socket_path()).map_err(|error| {
             PyRuntimeError::new_err(format!("failed to start runtime IPC thread: {error}"))
@@ -108,10 +110,19 @@ impl RuntimeClient {
     /// pass `None` to let the shared client resolve it from the environment or
     /// its default. Returns the policy id the gateway assigns this agent.
     ///
+    /// `team_id` and `parent_agent_id` carry the agent's lineage/team scoping to
+    /// the gateway on the native register (AAASM-3415): `team_id` drives
+    /// team-budget attribution and `parent_agent_id` the topology graph. Both
+    /// are optional — `None` leaves the agent team-unscoped / root.
+    ///
     /// Raises `RuntimeError` when the gateway is unreachable or rejects the
     /// registration — unlike `query_policy`, registration is not advisory, so a
     /// failure surfaces rather than failing open.
-    #[pyo3(signature = (agent_id, name, framework, gateway_endpoint=None))]
+    // Each parameter is a distinct optional Python kwarg crossing the PyO3
+    // boundary; bundling them into a struct would force callers to build one in
+    // Python, complicating the call site for no benefit.
+    #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (agent_id, name, framework, gateway_endpoint=None, team_id=None, parent_agent_id=None))]
     fn register(
         &self,
         py: Python<'_>,
@@ -119,11 +130,15 @@ impl RuntimeClient {
         name: String,
         framework: String,
         gateway_endpoint: Option<String>,
+        team_id: Option<String>,
+        parent_agent_id: Option<String>,
     ) -> PyResult<String> {
         let config = AssemblyConfig {
             agent_id,
             socket_path: Some(self.socket_path.clone()),
             gateway_endpoint,
+            team_id,
+            parent_agent_id,
         };
         // `register` is async (tonic). Release the GIL and drive the future on a
         // private current-thread runtime so the blocking gRPC round-trip never
