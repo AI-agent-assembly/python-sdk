@@ -16,9 +16,9 @@ crate-type = ["cdylib"]
 #
 # Pinned to the merge commit of agent-assembly PR #1160, which adds the
 # `team_id` / `parent_agent_id` fields to `AssemblyConfig` the shim now sets.
-aa-core = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "fdff8e402e83f01bda3fbbf1f3f7f831b391b62b", package = "aa-core", features = ["serde"] }
-aa-proto = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "fdff8e402e83f01bda3fbbf1f3f7f831b391b62b", package = "aa-proto" }
-aa-sdk-client = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "fdff8e402e83f01bda3fbbf1f3f7f831b391b62b", package = "aa-sdk-client" }
+aa-core = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "ebc4d7dc9da81cdf4f265d681c138500ca6e98e7", package = "aa-core", features = ["serde"] }
+aa-proto = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "ebc4d7dc9da81cdf4f265d681c138500ca6e98e7", package = "aa-proto" }
+aa-sdk-client = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "ebc4d7dc9da81cdf4f265d681c138500ca6e98e7", package = "aa-sdk-client" }
 prost = "0.14"
 pyo3 = { version = "0.29", features = ["extension-module"] }
 serde = { version = "1.0", features = ["derive"] }
