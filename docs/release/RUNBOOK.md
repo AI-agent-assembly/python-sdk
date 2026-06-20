@@ -6,7 +6,7 @@
 > (decoupled release story) and AAASM-2858 (this runbook).
 
 This runbook assumes the operator has push rights to
-`AI-agent-assembly/python-sdk` and that the `agent-assembly` PyPI
+`ai-agent-assembly/python-sdk` and that the `agent-assembly` PyPI
 project has the python-sdk repo + `release-python.yml` workflow path
 configured as its PyPI Trusted Publisher.
 

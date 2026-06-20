@@ -50,7 +50,7 @@ Static trace through the merged workflow is high-quality because:
 
 ### R2 — `repository_dispatch` coordinated wheel + sdist publish
 
-**Trigger:** simulated `gh api repos/AI-agent-assembly/python-sdk/dispatches -f event_type=agent-assembly-release-published -f 'client_payload[release_tag]=v0.0.1-alpha.8'`.
+**Trigger:** simulated `gh api repos/ai-agent-assembly/python-sdk/dispatches -f event_type=agent-assembly-release-published -f 'client_payload[release_tag]=v0.0.1-alpha.8'`.
 
 **Trace through `.github/workflows/release-python.yml` + `.github/actions/sync-version/action.yml` at master HEAD:**
 
@@ -77,7 +77,7 @@ Static trace through the merged workflow is high-quality because:
 
 ### H3 — workflow_dispatch dry-run mode
 
-**Trigger:** `gh workflow run release-python.yml --repo AI-agent-assembly/python-sdk --ref master -f pypi_version=0.0.1a8.post1 -f binary_source_tag=v0.0.1-alpha.8 -f dry-run=true`
+**Trigger:** `gh workflow run release-python.yml --repo ai-agent-assembly/python-sdk --ref master -f pypi_version=0.0.1a8.post1 -f binary_source_tag=v0.0.1-alpha.8 -f dry-run=true`
 
 **Trace:**
 
