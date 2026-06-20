@@ -15,11 +15,19 @@ code awaits the slot via :meth:`OpControlSubscriber.await_op`:
 If a signal arrives for an ``op_id`` no one is currently awaiting, it's
 buffered into the per-op slot so the next ``await_op`` call sees it.
 
-Out of scope for PR-E (deferred):
+Wiring (AAASM-3491): a subscriber can be handed to
+:func:`agent_assembly.core.runtime_interceptor.build_governance_interceptor`
+(``op_control=...``); the resulting interceptor calls :meth:`await_op` for the
+tool call's ``op_id`` in ``check_tool_start``, so an operator terminate/pause
+reaches the running tool path. ``init_assembly`` does not construct the
+subscriber automatically yet — callers opt in by passing one.
+
+Out of scope (deferred):
   - Reconnection / heartbeat on stream close (caller observes via
     ``stream_alive`` and re-instantiates if desired).
-  - Auto-wiring into ``init_assembly`` / adapter ``check_action`` hooks
-    (separate sub-task once the adapter surface is stable).
+  - Automatic construction inside ``init_assembly`` (the consumer is wired into
+    the interceptor; auto-instantiation is a follow-up once the gateway-url and
+    composite-id resolution at init time is settled).
 """
 
 from __future__ import annotations

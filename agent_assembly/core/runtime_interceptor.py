@@ -36,6 +36,8 @@ import json
 import os
 from typing import Any
 
+from agent_assembly.exceptions import OpTerminatedError
+
 ENV_RUNTIME_SOCKET = "AA_RUNTIME_SOCKET"
 ACTION_TYPE_TOOL_CALL = "tool_call"
 ENFORCE_MODE = "enforce"
@@ -89,6 +91,25 @@ def _extract_tool_name(serialized: Any, kwargs: dict[str, Any]) -> str | None:
     return None
 
 
+def _extract_op_id(kwargs: dict[str, Any]) -> str | None:
+    """Resolve the op id ("{trace_id}:{span_id}") from a check_tool_start call.
+
+    Prefers an explicit ``op_id`` kwarg; otherwise composes it from
+    ``trace_id`` / ``span_id`` when an adapter supplies them. Returns ``None``
+    when no trace identity is present (the call is not part of a tracked op, so
+    there is nothing for the kill switch to address).
+    """
+    op_id = kwargs.get("op_id")
+    if isinstance(op_id, str) and op_id:
+        return op_id
+    trace_id = kwargs.get("trace_id")
+    if isinstance(trace_id, str) and trace_id:
+        span_id = kwargs.get("span_id")
+        span = span_id if isinstance(span_id, str) else ""
+        return f"{trace_id}:{span}"
+    return None
+
+
 def _extract_tool_args_json(input_str: Any, kwargs: dict[str, Any]) -> str | None:
     """Serialize the tool arguments to JSON for the native ``query_policy``.
 
@@ -121,11 +142,25 @@ class RuntimeQueryInterceptor:
     proceed (fail open), preserving the observe / disabled behavior.
     """
 
-    def __init__(self, client: Any, runtime_client: Any, agent_id: str, *, enforce: bool = False) -> None:
+    def __init__(
+        self,
+        client: Any,
+        runtime_client: Any,
+        agent_id: str,
+        *,
+        enforce: bool = False,
+        op_control: Any | None = None,
+    ) -> None:
         self._client = client
         self._runtime_client = runtime_client
         self._agent_id = agent_id
         self._enforce = enforce
+        # Optional live op-control consumer (AAASM-3491). When wired, the
+        # gateway's kill switch is honored *in this tool path*: a terminate
+        # fast-fails the call and a pause blocks it cooperatively before the
+        # runtime is even queried. Without it, op control only reaches the agent
+        # via the native runtime's own OpControlStream consumer.
+        self._op_control = op_control
 
     def __getattr__(self, name: str) -> Any:
         # Delegate anything not defined here (e.g. report_event, on_tool_end,
@@ -152,7 +187,17 @@ class RuntimeQueryInterceptor:
         * A raising ``query_policy`` or an error-sentinel ``decision``
           (``query_failed`` / ``channel_closed`` / ``shutdown``) → ``deny`` under
           ``enforce`` (fail closed, AAASM-3106), else ``allow`` (fail open).
+
+        Before any of the above, the live op-control kill switch (AAASM-3491) is
+        consulted when an ``op_id`` is supplied and a subscriber is wired: a
+        terminated op is denied immediately and a paused op blocks here until
+        the gateway resumes it, so an operator terminate/pause reaches this tool
+        path directly rather than relying solely on the native runtime.
         """
+        op_block = self._check_op_control(_extract_op_id(kwargs))
+        if op_block is not None:
+            return op_block
+
         tool_name = _extract_tool_name(serialized, kwargs)
         tool_args_json = _extract_tool_args_json(input_str, kwargs)
 
@@ -186,6 +231,24 @@ class RuntimeQueryInterceptor:
         if self._enforce:
             return {"status": "deny", "reason": reason}
         return {"status": "allow"}
+
+    def _check_op_control(self, op_id: str | None) -> dict[str, str] | None:
+        """Consult the live op-control kill switch for ``op_id`` (AAASM-3491).
+
+        Returns a ``deny`` status dict when the op has been terminated, ``None``
+        otherwise — including when no subscriber is wired or no ``op_id`` is
+        available, so the call proceeds to the normal runtime query. When the op
+        is *paused*, ``await_op`` blocks here until the gateway resumes (or
+        terminates) it; this is the cooperative-pause point on the Python tool
+        path.
+        """
+        if self._op_control is None or not op_id:
+            return None
+        try:
+            self._op_control.await_op(op_id)
+        except OpTerminatedError as exc:
+            return {"status": "deny", "reason": str(exc)}
+        return None
 
 
 class _FailClosedInterceptor:
@@ -286,6 +349,7 @@ def build_governance_interceptor(
     *,
     runtime_client: Any | None = None,
     native_available: bool | None = None,
+    op_control: Any | None = None,
 ) -> Any:
     """Return the interceptor adapters should use for pre-execution checks.
 
@@ -328,4 +392,4 @@ def build_governance_interceptor(
             return _FailClosedInterceptor(client, "runtime unreachable")
         return client
 
-    return RuntimeQueryInterceptor(client, runtime_client, agent_id, enforce=enforce)
+    return RuntimeQueryInterceptor(client, runtime_client, agent_id, enforce=enforce, op_control=op_control)
