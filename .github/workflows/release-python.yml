@@ -1,12 +1,15 @@
 name: Release Python SDK
 
 on:
-  # Triggered by agent-assembly's `notify-downstream` job after the upstream
-  # GitHub Release is created and aasm-* binaries are uploaded. Payload:
-  #   { "release_tag": "v0.0.1-alpha.4" }
-  # See ai-agent-assembly/agent-assembly PR #842 for the dispatcher side.
-  repository_dispatch:
-    types: [agent-assembly-release-published]
+  # Operator-dispatch only. The Python SDK versions independently of the
+  # agent-assembly core, so the SDK registry version must NOT be derived from
+  # a core release tag. Auto-publishing on the core
+  # `agent-assembly-release-published` repository_dispatch derived pypi_version
+  # from the core tag and forced a real publish, which PyPI rejected as a
+  # duplicate every core release (AAASM-3503). Per the AAASM-3007 SOP, an SDK
+  # release must wait for the FFI-pin PR merge and be operator-driven via
+  # workflow_dispatch. The core's separate update-python-sdk-ffi-pin PR job
+  # handles the FFI-pin handoff, so dropping this trigger loses nothing.
   workflow_dispatch:
     inputs:
       pypi_version:
@@ -65,7 +68,6 @@ jobs:
           DISPATCH_BINARY_TAG: ${{ inputs.binary_source_tag }}
           DISPATCH_PYPI_VERSION: ${{ inputs.pypi_version }}
           DISPATCH_DRY_RUN: ${{ inputs.dry-run }}
-          DISPATCH_PAYLOAD_TAG: ${{ github.event.client_payload.release_tag }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -81,22 +83,12 @@ jobs:
             fi
             pypi_version="$DISPATCH_PYPI_VERSION"
             dry_run="$DISPATCH_DRY_RUN"
-          elif [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
-            binary_source_tag="$DISPATCH_PAYLOAD_TAG"
-            # Convert agent-assembly tag (e.g. v0.0.1-alpha.8) to PEP 440 form
-            # (0.0.1a8). Mirrors the sync-version-from-dispatch composite action
-            # so the repository_dispatch path produces identical wheel + version
-            # state to today. The conversion lives in a sourceable script so
-            # the AAASM-2863 unit tests exercise the same code path this
-            # workflow runs (instead of a copy of the regex).
-            # shellcheck source=.github/scripts/tag-to-pep440.sh
-            source "${GITHUB_WORKSPACE}/.github/scripts/tag-to-pep440.sh"
-            pypi_version="$(tag_to_pep440 "$DISPATCH_PAYLOAD_TAG")"
-            # repository_dispatch is always a real publish — it is fired by
-            # agent-assembly after a real upstream release.
-            dry_run="false"
           else
-            echo "::error::unexpected event_name '$EVENT_NAME'"
+            # AAASM-3503: this workflow is workflow_dispatch-only. The
+            # auto-publish repository_dispatch path was removed because it
+            # derived the SDK version from the core tag and forced a publish
+            # PyPI rejected as a duplicate every core release.
+            echo "::error::unexpected event_name '$EVENT_NAME' — release-python is workflow_dispatch-only"
             exit 1
           fi
           # Fail fast: a real publish (dry_run != true) MUST have a non-empty
@@ -128,16 +120,13 @@ jobs:
           fi
           # Resolve the canonical SemVer release tag the create-github-release
           # job will cut at the published version (AAASM-2956). The
-          # repository_dispatch event already carries the canonical tag, so use
-          # it verbatim. The workflow_dispatch path only has the PEP 440
-          # pypi_version, so derive the tag from it via the single-source-of-
-          # truth inverse converter. .post/.dev republish forms have no own
-          # GitHub Release tag, so leave release_tag empty for those.
+          # workflow_dispatch path has only the PEP 440 pypi_version, so derive
+          # the tag from it via the single-source-of-truth inverse converter.
+          # .post/.dev republish forms have no own GitHub Release tag, so leave
+          # release_tag empty for those.
           release_tag=""
           if [[ "$dry_run" != "true" ]]; then
-            if [[ "$EVENT_NAME" == "repository_dispatch" ]]; then
-              release_tag="$DISPATCH_PAYLOAD_TAG"
-            elif [[ "$pypi_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)?[0-9]*$ ]]; then
+            if [[ "$pypi_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)?[0-9]*$ ]]; then
               # shellcheck source=.github/scripts/pep440-to-tag.sh
               source "${GITHUB_WORKSPACE}/.github/scripts/pep440-to-tag.sh"
               release_tag="$(pep440_to_tag "$pypi_version")"
@@ -203,13 +192,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p agent_assembly/bin
-          # binary_source_tag is now guaranteed non-empty by the resolve job
-          # (either set explicitly via workflow_dispatch input, defaulted to
-          # the latest agent-assembly release, or derived from
-          # client_payload.release_tag for repository_dispatch).
-          # Hard error on missing binary: the repository_dispatch event
-          # guarantees the aasm-* assets exist on the upstream release
-          # at this point (see ai-agent-assembly/agent-assembly#842).
+          # binary_source_tag is guaranteed non-empty by the resolve job
+          # (set explicitly via workflow_dispatch input, or defaulted to the
+          # latest agent-assembly release).
+          # Hard error on missing binary: the operator points binary_source_tag
+          # at a published agent-assembly release whose aasm-* assets exist.
           gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-x86_64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
@@ -287,9 +274,8 @@ jobs:
           set -euo pipefail
           mkdir -p agent_assembly/bin
           # See linux-x86_64 above for binary_source_tag resolution rationale.
-          # Hard error on missing binary: the repository_dispatch event
-          # guarantees the aasm-* assets exist on the upstream release
-          # at this point (see ai-agent-assembly/agent-assembly#842).
+          # Hard error on missing binary: the operator points binary_source_tag
+          # at a published agent-assembly release whose aasm-* assets exist.
           gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-aarch64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
@@ -359,9 +345,8 @@ jobs:
           set -euo pipefail
           mkdir -p agent_assembly/bin
           # See linux-x86_64 above for binary_source_tag resolution rationale.
-          # Hard error on missing binary: the repository_dispatch event
-          # guarantees the aasm-* assets exist on the upstream release
-          # at this point (see ai-agent-assembly/agent-assembly#842).
+          # Hard error on missing binary: the operator points binary_source_tag
+          # at a published agent-assembly release whose aasm-* assets exist.
           gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-aarch64-apple-darwin.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
@@ -414,9 +399,8 @@ jobs:
           set -euo pipefail
           mkdir -p agent_assembly/bin
           # See linux-x86_64 above for binary_source_tag resolution rationale.
-          # Hard error on missing binary: the repository_dispatch event
-          # guarantees the aasm-* assets exist on the upstream release
-          # at this point (see ai-agent-assembly/agent-assembly#842).
+          # Hard error on missing binary: the operator points binary_source_tag
+          # at a published agent-assembly release whose aasm-* assets exist.
           gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-x86_64-apple-darwin.tar.gz' --dir agent_assembly/bin/
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
@@ -462,8 +446,7 @@ jobs:
       - build-macos-x86_64
     runs-on: ubuntu-latest
     # Publish whenever the resolve job decided this is a real publish (not a
-    # dry-run). repository_dispatch is hardcoded to dry_run='false' in the
-    # resolve step; workflow_dispatch passes through its dry-run input (which
+    # dry-run). workflow_dispatch passes through its dry-run input (which
     # defaults to false after AAASM-2856).
     if: needs.resolve.outputs.dry_run != 'true'
     environment:
@@ -503,7 +486,6 @@ jobs:
       - name: Create tag and GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # client_payload is attacker-controllable on repository_dispatch;
           # RELEASE_TAG was validated as a SemVer tag by the resolve job and
           # is only ever passed through env (never inlined into a run: body).
           RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
@@ -545,19 +527,23 @@ jobs:
   publish-release-tag:
     name: Publish release tag for docs
     needs:
+      - resolve
       - publish
     runs-on: ubuntu-latest
-    # Only the real release path (repository_dispatch) carries a tag; the
-    # workflow_dispatch dry-run has no tag and no docs snapshot to cut.
-    if: github.event_name == 'repository_dispatch'
+    # AAASM-3503: gate on the resolve job's computed release_tag rather than
+    # the (removed) repository_dispatch client_payload. release_tag is non-empty
+    # only on a real publish that cut its own SemVer tag (empty for dry-runs and
+    # .post/.dev republishes), so a docs snapshot is recorded for exactly the
+    # operator releases that have one.
+    if: needs.resolve.outputs.release_tag != ''
     steps:
       - name: Write release tag to file
         env:
-          RELEASE_TAG: ${{ github.event.client_payload.release_tag }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
         run: |
           set -euo pipefail
           if [ -z "${RELEASE_TAG}" ]; then
-            echo "::error::client_payload.release_tag is empty on a release dispatch"
+            echo "::error::resolve.outputs.release_tag is empty on a release path"
             exit 1
           fi
           printf '%s\n' "${RELEASE_TAG}" > release-tag.txt
