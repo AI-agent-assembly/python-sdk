@@ -95,7 +95,7 @@ this order: explicit args → env (`AAASM_GATEWAY_URL` / `AAASM_API_KEY`) →
 - **Push remote is `remote`** (→ `ai-agent-assembly/python-sdk`, canonical), not
   `origin` (a personal fork). Scope changes against `remote/master`, which is often
   ahead of a fork checkout. The "This repository moved"
-  (`AI-agent-assembly`→`ai-agent-assembly`) redirect notice on push is harmless.
+  (old-uppercase→`ai-agent-assembly`) redirect notice on push is harmless.
 - **Docs-only PRs run NO CI.** `ci.yaml`'s `pull_request.paths` allow-list covers
   only `agent_assembly/**/*.py`, `test/**/*.py`, and specific config files — it
   **excludes** `docs/**`, `*.md`, and `examples/**`. A docs-only PR with no CI is
@@ -113,7 +113,7 @@ this order: explicit args → env (`AAASM_GATEWAY_URL` / `AAASM_API_KEY`) →
 ## Project policy
 
 - **JIRA:** project AAASM; set **Component** (`customfield_10041`) to
-  `AI-agent-assembly/python-sdk`; Team (`customfield_10001`) = Pioneer.
+  `ai-agent-assembly/python-sdk`; Team (`customfield_10001`) = Pioneer.
   Epic → Story → Subtask (one Subtask ≈ one commit) + a `Verify …` subtask per Story.
 - **Self-hosted deployment is out of scope** product-wide — don't propose
   Helm/Terraform/air-gapped/migration work even if the spec mentions it.
