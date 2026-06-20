@@ -23,7 +23,7 @@ from agent_assembly.core.runtime_interceptor import (
     RuntimeQueryInterceptor,
     build_governance_interceptor,
 )
-from agent_assembly.exceptions import ToolExecutionBlockedError
+from agent_assembly.exceptions import OpTerminatedError, ToolExecutionBlockedError
 
 
 class _FakeRuntimeClient:
@@ -337,3 +337,83 @@ def test_resolve_socket_path_prefers_env(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_resolve_socket_path_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("AA_RUNTIME_SOCKET", raising=False)
     assert runtime_interceptor._resolve_runtime_socket_path("agent-001") == "/tmp/aa-runtime-agent-001.sock"
+
+
+# ── Live op-control kill switch (AAASM-3491) ──────────────────────────────────
+
+
+class _FakeOpControl:
+    """Minimal OpControlSubscriber stand-in driving await_op behavior.
+
+    ``terminated`` op_ids raise OpTerminatedError; any other op_id records the
+    await and returns — modelling the real subscriber once a pause has been
+    resumed (it blocks on a threading.Event then returns).
+    """
+
+    def __init__(self, *, terminated: set[str] | None = None, paused: set[str] | None = None) -> None:
+        self._terminated = terminated or set()
+        # `paused` is accepted for call-site readability; the fake models the
+        # post-resume return for both paused and non-paused ops.
+        self._paused = paused or set()
+        self.awaited: list[str] = []
+
+    def await_op(self, op_id: str, **_kwargs: Any) -> None:
+        self.awaited.append(op_id)
+        if op_id in self._terminated:
+            raise OpTerminatedError(f"op {op_id} was terminated by the gateway", op_id=op_id)
+
+
+def test_terminated_op_denies_before_runtime_query() -> None:
+    """A terminate for the call's op halts the tool — and the runtime is never
+    even queried (the kill switch short-circuits)."""
+    runtime_client = _FakeRuntimeClient("allow")
+    op_control = _FakeOpControl(terminated={"trace-1:span-1"})
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), runtime_client, "agent-001", op_control=op_control)
+
+    result = interceptor.check_tool_start(
+        serialized={"name": "web_search"},
+        input_str="query",
+        trace_id="trace-1",
+        span_id="span-1",
+    )
+
+    assert result["status"] == "deny"
+    assert "terminated" in result["reason"]
+    assert op_control.awaited == ["trace-1:span-1"]
+    # Short-circuited: the runtime query must not have run for a terminated op.
+    assert runtime_client.calls == []
+
+
+def test_paused_op_consults_await_then_proceeds() -> None:
+    """A paused op blocks in await_op; once it returns (resume) the tool
+    proceeds to the normal runtime allow."""
+    runtime_client = _FakeRuntimeClient("allow")
+    op_control = _FakeOpControl(paused={"trace-2:span-2"})
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), runtime_client, "agent-001", op_control=op_control)
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i", op_id="trace-2:span-2")
+
+    assert result == {"status": "allow"}
+    assert op_control.awaited == ["trace-2:span-2"]
+    assert len(runtime_client.calls) == 1
+
+
+def test_no_op_id_skips_op_control() -> None:
+    """Without a trace identity there is no op to address — the subscriber is
+    never consulted and the call proceeds normally."""
+    op_control = _FakeOpControl(terminated={"trace-x:span-x"})
+    interceptor = RuntimeQueryInterceptor(
+        _FakeGatewayClient(), _FakeRuntimeClient("allow"), "agent-001", op_control=op_control
+    )
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result == {"status": "allow"}
+    assert op_control.awaited == []
+
+
+def test_op_id_composed_from_trace_and_span() -> None:
+    assert runtime_interceptor._extract_op_id({"trace_id": "t", "span_id": "s"}) == "t:s"
+    assert runtime_interceptor._extract_op_id({"op_id": "explicit"}) == "explicit"
+    assert runtime_interceptor._extract_op_id({"trace_id": "t"}) == "t:"
+    assert runtime_interceptor._extract_op_id({}) is None
