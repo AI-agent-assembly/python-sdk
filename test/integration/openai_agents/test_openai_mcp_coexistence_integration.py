@@ -22,27 +22,23 @@ async def test_openai_agents_and_mcp_layers_both_emit_governance_events(
             payload = arguments or {}
             return f"mcp:{name}:{payload.get('q', '')}"
 
-    class FakeToolResult:
-        def __init__(self, *, error: str | None = None, output: Any = None) -> None:
-            self.error = error
-            self.output = output
-
     class FakeFunctionTool:
+        """Shaped like ``agents.FunctionTool``: per-instance ``on_invoke_tool``."""
+
         def __init__(self, name: str) -> None:
             self.name = name
 
-        async def __call__(self, ctx: Any, tool_input: Any) -> dict[str, Any]:
-            mcp_result = await FakeMCPClientSession().call_tool("mcp_tool", {"q": "hello"})
-            return {"name": self.name, "ctx": ctx, "tool_input": tool_input, "mcp_result": mcp_result}
+            async def _invoke(ctx: Any, tool_input: Any) -> dict[str, Any]:
+                mcp_result = await FakeMCPClientSession().call_tool("mcp_tool", {"q": "hello"})
+                return {"name": self.name, "ctx": ctx, "tool_input": tool_input, "mcp_result": mcp_result}
 
-    fake_openai_agents_module = SimpleNamespace(
-        FunctionTool=FakeFunctionTool,
-        ToolResult=FakeToolResult,
-    )
+            self.on_invoke_tool = _invoke
+
+    fake_openai_agents_module = SimpleNamespace(FunctionTool=FakeFunctionTool)
     fake_mcp_module = SimpleNamespace(ClientSession=FakeMCPClientSession)
 
     def fake_import_module(name: str) -> object:
-        if name == "openai.agents":
+        if name == "agents":
             return fake_openai_agents_module
         if name == "mcp":
             return fake_mcp_module
@@ -78,7 +74,8 @@ async def test_openai_agents_and_mcp_layers_both_emit_governance_events(
         is True
     )
 
-    result = await FakeFunctionTool("openai_tool")(SimpleNamespace(agent_id="agent-openai"), {"step": "run"})
+    tool = FakeFunctionTool("openai_tool")
+    result = await tool.on_invoke_tool(SimpleNamespace(agent_id="agent-openai"), {"step": "run"})
 
     assert result["name"] == "openai_tool"
     assert result["mcp_result"] == "mcp:mcp_tool:hello"

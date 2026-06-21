@@ -235,6 +235,14 @@ def test_auto_detect_is_idempotent_for_entry_point_adapters(
         raise ImportError
 
     monkeypatch.setattr("agent_assembly.adapters.base.importlib.import_module", fake_import_module)
+    # AAASM-3528: the OpenAI adapter overrides is_available() with a find_spec
+    # probe of the real top-level ``agents`` package (a dev/test dependency), so
+    # it bypasses the base import mock above. Stub it absent to keep this test
+    # isolated to the entry-point adapter under test.
+    monkeypatch.setattr(
+        "agent_assembly.adapters.openai_agents.adapter.importlib.util.find_spec",
+        lambda _name: None,
+    )
 
     first = registry.auto_detect()
     second = registry.auto_detect()

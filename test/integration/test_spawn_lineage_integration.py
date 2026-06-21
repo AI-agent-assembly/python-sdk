@@ -194,23 +194,28 @@ def test_exception_in_scope_still_resets_ctx() -> None:
 async def test_chained_handoff_abc_depth_and_parent_agent_id() -> None:
     """Chained A→B→C handoffs: depth increments 1→2→3; spawned_by_tool is None."""
     from agent_assembly.adapters.openai_agents.patch import (
-        _apply_handoff_call_patch,
-        _revert_handoff_call_patch,
+        _apply_handoff_patch,
+        _revert_handoff_patch,
     )
 
     captured: list[SpawnContext] = []
 
     class FakeHandoff:
+        """Shaped like ``agents.Handoff``: per-instance ``on_invoke_handoff``."""
+
         def __init__(self, tool_description: str = "") -> None:
             self.tool_description = tool_description
+            self.agent_name = "downstream"
 
-        async def __call__(self, *_args: object, **_kwargs: object) -> str:
-            sc = _SPAWN_CTX.get()
-            if sc is not None:
-                captured.append(sc)
-            return "result"
+            async def _invoke(ctx: object, input_json: object) -> str:
+                sc = _SPAWN_CTX.get()
+                if sc is not None:
+                    captured.append(sc)
+                return "result"
 
-    _apply_handoff_call_patch(FakeHandoff, "process-agent")
+            self.on_invoke_handoff = _invoke
+
+    _apply_handoff_patch(FakeHandoff, "process-agent")
     try:
         # Simulate Runner.run establishing depth=1 context for Agent A
         ctx_a = SpawnContext(
@@ -221,16 +226,16 @@ async def test_chained_handoff_abc_depth_and_parent_agent_id() -> None:
         with spawn_context_scope(ctx_a):
             # Agent A hands off to B — patch creates depth=2 spawn context
             handoff_b = FakeHandoff(tool_description="Transfer to agent B")
-            await handoff_b()
+            await handoff_b.on_invoke_handoff(None, "{}")
 
         # Simulate Runner establishing depth=2 context for Agent B
         ctx_b = SpawnContext(parent_agent_id="process-agent", depth=2, spawned_by_tool=None)
         with spawn_context_scope(ctx_b):
             # Agent B hands off to C — patch creates depth=3 spawn context
             handoff_c = FakeHandoff(tool_description="Transfer to agent C")
-            await handoff_c()
+            await handoff_c.on_invoke_handoff(None, "{}")
     finally:
-        _revert_handoff_call_patch(FakeHandoff)
+        _revert_handoff_patch(FakeHandoff)
 
     assert len(captured) == 2
 

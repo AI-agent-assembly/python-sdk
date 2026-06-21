@@ -30,9 +30,15 @@ class OpenAIAgentsAdapter(FrameworkAdapter):
         return [">=1.0.0"]
 
     def is_available(self) -> bool:
-        """Check specifically for openai.agents module, not just openai base."""
+        """Check for the OpenAI Agents framework's top-level ``agents`` package.
+
+        WHY ``agents`` and not ``openai.agents`` (AAASM-3528): the shipped
+        ``openai-agents`` distribution exposes a top-level ``agents`` package;
+        ``openai.agents`` does not exist. Detecting the wrong module made the
+        adapter report unavailable (or, when patched, a silent no-op).
+        """
         try:
-            return importlib.util.find_spec("openai.agents") is not None
+            return importlib.util.find_spec("agents") is not None
         except (ModuleNotFoundError, ValueError):
             return False
 

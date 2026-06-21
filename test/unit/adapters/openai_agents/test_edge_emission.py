@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
 from agent_assembly.adapters.openai_agents.patch import (
-    _apply_handoff_call_patch,
-    _revert_handoff_call_patch,
+    _apply_handoff_patch,
+    _revert_handoff_patch,
+    _wrap_on_invoke_handoff,
     set_edge_emitter,
     set_process_agent_id,
 )
 
 _HANDOFF_PATCHED_FLAG = "_agent_assembly_openai_agents_handoff_patched"
-_ORIGINAL_HANDOFF_CALL = "_agent_assembly_original_openai_agents_handoff_call"
+_ORIGINAL_HANDOFF_INIT = "_agent_assembly_original_openai_agents_handoff_init"
 
 
 class RecordingEdgeEmitter:
@@ -28,28 +30,30 @@ class RecordingEdgeEmitter:
 
 
 class FakeHandoff:
-    """Minimal Handoff stand-in."""
+    """Stand-in for ``agents.Handoff`` — delegation via ``on_invoke_handoff``."""
 
     def __init__(self, agent_name: str = "agent_b", tool_description: str = "Transfer to B") -> None:
         self.agent_name = agent_name
         self.tool_description = tool_description
 
-    async def __call__(self, *_args: Any, **_kwargs: Any) -> str:
-        return "handoff-result"
+        async def _invoke(ctx: Any, input_json: Any) -> str:
+            return "handoff-result"
+
+        self.on_invoke_handoff = _invoke
 
 
 class TestHandoffEdgeEmission:
     def setup_method(self) -> None:
         set_process_agent_id("agent-a")
-        for attr in (_HANDOFF_PATCHED_FLAG, _ORIGINAL_HANDOFF_CALL):
+        for attr in (_HANDOFF_PATCHED_FLAG, _ORIGINAL_HANDOFF_INIT):
             if hasattr(FakeHandoff, attr):
                 delattr(FakeHandoff, attr)
 
     def teardown_method(self) -> None:
-        _revert_handoff_call_patch(FakeHandoff)
+        _revert_handoff_patch(FakeHandoff)
         set_process_agent_id(None)
         set_edge_emitter(None)
-        for attr in (_HANDOFF_PATCHED_FLAG, _ORIGINAL_HANDOFF_CALL):
+        for attr in (_HANDOFF_PATCHED_FLAG, _ORIGINAL_HANDOFF_INIT):
             if hasattr(FakeHandoff, attr):
                 delattr(FakeHandoff, attr)
 
@@ -57,10 +61,10 @@ class TestHandoffEdgeEmission:
     async def test_delegates_to_edge_emitted_on_handoff(self) -> None:
         emitter = RecordingEdgeEmitter()
         set_edge_emitter(emitter)
-        _apply_handoff_call_patch(FakeHandoff, "agent-a")
+        _apply_handoff_patch(FakeHandoff, "agent-a")
 
         h = FakeHandoff(agent_name="agent_b", tool_description="Transfer to B")
-        await h()
+        await h.on_invoke_handoff(MagicMock(), "{}")
 
         assert len(emitter.edges) == 1
         src, tgt, etype, meta = emitter.edges[0]
@@ -73,19 +77,19 @@ class TestHandoffEdgeEmission:
     @pytest.mark.asyncio
     async def test_no_edge_emitted_when_emitter_is_none(self) -> None:
         set_edge_emitter(None)
-        _apply_handoff_call_patch(FakeHandoff, "agent-a")
+        _apply_handoff_patch(FakeHandoff, "agent-a")
 
         h = FakeHandoff(agent_name="agent_b")
-        await h()  # Should not raise
+        await h.on_invoke_handoff(MagicMock(), "{}")  # Should not raise
 
     @pytest.mark.asyncio
     async def test_no_edge_emitted_when_process_agent_id_is_none(self) -> None:
         emitter = RecordingEdgeEmitter()
         set_edge_emitter(emitter)
-        _apply_handoff_call_patch(FakeHandoff, None)
+        _apply_handoff_patch(FakeHandoff, None)
 
         h = FakeHandoff(agent_name="agent_b")
-        await h()
+        await h.on_invoke_handoff(MagicMock(), "{}")
 
         assert emitter.edges == []
 
@@ -97,15 +101,18 @@ class TestHandoffEdgeEmission:
         class NameOnlyHandoff:
             """Handoff with no agent_name but with name."""
 
-            name = "fallback_agent"
-            agent_name: None = None
+            def __init__(self) -> None:
+                self.name = "fallback_agent"
+                self.agent_name = None
 
-            async def __call__(self, *_args: Any, **_kwargs: Any) -> str:
-                return "handoff-result"
+                async def _invoke(ctx: Any, input_json: Any) -> str:
+                    return "handoff-result"
 
-        _apply_handoff_call_patch(NameOnlyHandoff, "agent-a")
+                self.on_invoke_handoff = _invoke
+
         h = NameOnlyHandoff()
-        await h()
+        _wrap_on_invoke_handoff(h, "agent-a")
+        await h.on_invoke_handoff(MagicMock(), "{}")
 
         assert len(emitter.edges) == 1
         assert emitter.edges[0][1] == "fallback_agent"

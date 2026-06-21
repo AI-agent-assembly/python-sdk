@@ -75,6 +75,13 @@ test = [
     # installs `dev`), so the function-tool governance regression is actually
     # exercised instead of skipped.
     "pydantic-ai>=0.3.0",
+    # AAASM-3528: dev/test-only (NOT a runtime dependency). The shipped OpenAI
+    # Agents framework is the top-level `agents` package (NOT `openai.agents`),
+    # and a tool runs via its per-instance `on_invoke_tool` coroutine (NOT a
+    # `FunctionTool.__call__`). Installing it lets the `importorskip`-guarded
+    # integration test drive a real tool call, so a regression to the old
+    # fail-open no-op patch is actually caught instead of silently skipped.
+    "openai-agents>=0.1.0",
 ]
 pre-commit-ci = [
     "pre-commit>=3.5.0,<5",

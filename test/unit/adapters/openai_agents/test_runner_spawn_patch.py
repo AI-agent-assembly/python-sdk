@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from agent_assembly.adapters.openai_agents.patch import (
-    _apply_handoff_call_patch,
+    _apply_handoff_patch,
     _apply_runner_run_patch,
     _extract_handoff_delegation_reason,
     _load_openai_agents_handoff_class,
     _load_openai_agents_runner_class,
-    _revert_handoff_call_patch,
+    _revert_handoff_patch,
     _revert_runner_run_patch,
     set_process_agent_id,
 )
@@ -19,7 +20,7 @@ from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext
 _RUNNER_PATCHED_FLAG = "_agent_assembly_openai_agents_runner_patched"
 _ORIGINAL_RUNNER_RUN = "_agent_assembly_original_openai_agents_runner_run"
 _HANDOFF_PATCHED_FLAG = "_agent_assembly_openai_agents_handoff_patched"
-_ORIGINAL_HANDOFF_CALL = "_agent_assembly_original_openai_agents_handoff_call"
+_ORIGINAL_HANDOFF_INIT = "_agent_assembly_original_openai_agents_handoff_init"
 
 
 class TestLoadRunnerClass:
@@ -156,26 +157,33 @@ class TestExtractHandoffDelegationReason:
 
 
 class FakeHandoff:
-    """Minimal Handoff stand-in for patching tests."""
+    """Stand-in for ``agents.Handoff``.
 
-    def __init__(self, tool_description: str = "") -> None:
+    Like the real dataclass, delegation runs through a per-instance
+    ``on_invoke_handoff`` coroutine; there is NO ``__call__``.
+    """
+
+    def __init__(self, tool_description: str = "", agent_name: str = "agent_b") -> None:
         self.tool_description = tool_description
+        self.agent_name = agent_name
 
-    async def __call__(self, *_args: object, **_kwargs: object) -> str:
-        return "handoff-result"
+        async def _invoke(ctx: Any, input_json: Any) -> str:
+            return "handoff-result"
+
+        self.on_invoke_handoff = _invoke
 
 
-class TestApplyHandoffCallPatch:
+class TestApplyHandoffPatch:
     def setup_method(self) -> None:
         set_process_agent_id("process-agent-001")
-        for attr in (_HANDOFF_PATCHED_FLAG, _ORIGINAL_HANDOFF_CALL):
+        for attr in (_HANDOFF_PATCHED_FLAG, _ORIGINAL_HANDOFF_INIT):
             if hasattr(FakeHandoff, attr):
                 delattr(FakeHandoff, attr)
 
     def teardown_method(self) -> None:
-        _revert_handoff_call_patch(FakeHandoff)
+        _revert_handoff_patch(FakeHandoff)
         set_process_agent_id(None)
-        for attr in (_HANDOFF_PATCHED_FLAG, _ORIGINAL_HANDOFF_CALL):
+        for attr in (_HANDOFF_PATCHED_FLAG, _ORIGINAL_HANDOFF_INIT):
             if hasattr(FakeHandoff, attr):
                 delattr(FakeHandoff, attr)
 
@@ -183,116 +191,83 @@ class TestApplyHandoffCallPatch:
     async def test_patched_handoff_sets_spawn_ctx(self) -> None:
         captured: list[SpawnContext | None] = []
 
-        class CapturingHandoff(FakeHandoff):
-            async def __call__(self, *_args: object, **_kwargs: object) -> str:
-                captured.append(_SPAWN_CTX.get())
-                return "done"
+        _apply_handoff_patch(FakeHandoff, "process-agent-001")
+        h = FakeHandoff(tool_description="transfer to B")
 
-        _apply_handoff_call_patch(CapturingHandoff, "process-agent-001")
-        h = CapturingHandoff(tool_description="transfer to B")
-        await h()
+        async def capturing_invoke(ctx: Any, input_json: Any) -> str:
+            captured.append(_SPAWN_CTX.get())
+            return "done"
+
+        # Replace the underlying invoke, then re-wrap to capture spawn ctx.
+        h.on_invoke_handoff = capturing_invoke
+        from agent_assembly.adapters.openai_agents.patch import _wrap_on_invoke_handoff
+
+        _wrap_on_invoke_handoff(h, "process-agent-001")
+        await h.on_invoke_handoff(MagicMock(), "{}")
 
         assert len(captured) == 1
         sc = captured[0]
         assert sc is not None
         assert sc.parent_agent_id == "process-agent-001"
         assert sc.depth == 1
-
-    @pytest.mark.asyncio
-    async def test_spawned_by_tool_is_none_for_handoff(self) -> None:
-        captured: list[SpawnContext | None] = []
-
-        class CapturingHandoff(FakeHandoff):
-            async def __call__(self, *_args: object, **_kwargs: object) -> str:
-                captured.append(_SPAWN_CTX.get())
-                return "done"
-
-        _apply_handoff_call_patch(CapturingHandoff, "process-agent-001")
-        await CapturingHandoff()()
-
-        assert captured[0] is not None
-        assert captured[0].spawned_by_tool is None
-
-    @pytest.mark.asyncio
-    async def test_delegation_reason_from_tool_description(self) -> None:
-        captured: list[SpawnContext | None] = []
-
-        class CapturingHandoff(FakeHandoff):
-            async def __call__(self, *_args: object, **_kwargs: object) -> str:
-                captured.append(_SPAWN_CTX.get())
-                return "done"
-
-        _apply_handoff_call_patch(CapturingHandoff, "process-agent-001")
-        h = CapturingHandoff(tool_description="Transfer to agent B")
-        await h()
-
-        assert captured[0] is not None
-        assert captured[0].delegation_reason == "Transfer to agent B"
-
-    @pytest.mark.asyncio
-    async def test_delegation_reason_fallback_when_no_description(self) -> None:
-        captured: list[SpawnContext | None] = []
-
-        class CapturingHandoff(FakeHandoff):
-            def __init__(self) -> None:
-                pass  # no tool_description
-
-            async def __call__(self, *_args: object, **_kwargs: object) -> str:
-                captured.append(_SPAWN_CTX.get())
-                return "done"
-
-        _apply_handoff_call_patch(CapturingHandoff, "process-agent-001")
-        await CapturingHandoff()()
-
-        assert captured[0] is not None
-        assert captured[0].delegation_reason == "handoff"
+        assert sc.spawned_by_tool is None
+        assert sc.delegation_reason == "transfer to B"
 
     @pytest.mark.asyncio
     async def test_spawn_ctx_reset_after_handoff(self) -> None:
-        _apply_handoff_call_patch(FakeHandoff, "process-agent-001")
+        _apply_handoff_patch(FakeHandoff, "process-agent-001")
         h = FakeHandoff()
-        await h()
+        await h.on_invoke_handoff(MagicMock(), "{}")
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
     async def test_spawn_ctx_reset_on_exception(self) -> None:
-        class FailingHandoff(FakeHandoff):
-            async def __call__(self, *_args: object, **_kwargs: object) -> str:
-                raise RuntimeError("handoff failed")
+        _apply_handoff_patch(FakeHandoff, "process-agent-001")
+        h = FakeHandoff()
 
-        _apply_handoff_call_patch(FailingHandoff, "process-agent-001")
+        async def failing_invoke(ctx: Any, input_json: Any) -> str:
+            raise RuntimeError("handoff failed")
+
+        h.on_invoke_handoff = failing_invoke
+        from agent_assembly.adapters.openai_agents.patch import _wrap_on_invoke_handoff
+
+        _wrap_on_invoke_handoff(h, "process-agent-001")
         with pytest.raises(RuntimeError, match="handoff failed"):
-            await FailingHandoff()()
+            await h.on_invoke_handoff(MagicMock(), "{}")
         assert _SPAWN_CTX.get() is None
 
     def test_idempotent_apply(self) -> None:
-        _apply_handoff_call_patch(FakeHandoff, "process-agent-001")
-        original = getattr(FakeHandoff, _ORIGINAL_HANDOFF_CALL, None)
-        _apply_handoff_call_patch(FakeHandoff, "process-agent-001")
-        assert getattr(FakeHandoff, _ORIGINAL_HANDOFF_CALL, None) is original
+        _apply_handoff_patch(FakeHandoff, "process-agent-001")
+        original = getattr(FakeHandoff, _ORIGINAL_HANDOFF_INIT, None)
+        _apply_handoff_patch(FakeHandoff, "process-agent-001")
+        assert getattr(FakeHandoff, _ORIGINAL_HANDOFF_INIT, None) is original
 
     def test_revert_restores_original(self) -> None:
-        _apply_handoff_call_patch(FakeHandoff, "process-agent-001")
-        _revert_handoff_call_patch(FakeHandoff)
+        _apply_handoff_patch(FakeHandoff, "process-agent-001")
+        _revert_handoff_patch(FakeHandoff)
         assert not hasattr(FakeHandoff, _HANDOFF_PATCHED_FLAG)
-        assert not hasattr(FakeHandoff, _ORIGINAL_HANDOFF_CALL)
+        assert not hasattr(FakeHandoff, _ORIGINAL_HANDOFF_INIT)
 
     @pytest.mark.asyncio
     async def test_depth_increments_when_inside_existing_spawn_ctx(self) -> None:
+        from agent_assembly.adapters.openai_agents.patch import _wrap_on_invoke_handoff
         from agent_assembly.core.spawn import spawn_context_scope
 
         captured: list[SpawnContext | None] = []
 
-        class CapturingHandoff(FakeHandoff):
-            async def __call__(self, *_args: object, **_kwargs: object) -> str:
-                captured.append(_SPAWN_CTX.get())
-                return "done"
+        _apply_handoff_patch(FakeHandoff, "process-agent-001")
+        h = FakeHandoff(tool_description="transfer")
 
-        _apply_handoff_call_patch(CapturingHandoff, "process-agent-001")
+        async def capturing_invoke(ctx: Any, input_json: Any) -> str:
+            captured.append(_SPAWN_CTX.get())
+            return "done"
+
+        h.on_invoke_handoff = capturing_invoke
+        _wrap_on_invoke_handoff(h, "process-agent-001")
 
         outer = SpawnContext(parent_agent_id="root", depth=2)
         with spawn_context_scope(outer):
-            await CapturingHandoff()()
+            await h.on_invoke_handoff(MagicMock(), "{}")
 
         assert captured[0] is not None
         assert captured[0].depth == 3  # outer.depth + 1
