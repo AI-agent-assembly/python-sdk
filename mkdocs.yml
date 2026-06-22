@@ -200,6 +200,7 @@ nav:
       - Models: api-reference/models.md
   - Compatibility & Versioning:
       - compatibility/index.md
+      - Framework compatibility: compatibility/frameworks.md
       - Runtime compatibility: compatibility/runtime.md
       - Release process: compatibility/release-process.md
       - Release notes: compatibility/release-notes.md

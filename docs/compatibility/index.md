@@ -5,6 +5,7 @@ core runtime does a given SDK build talk to?*, and *how do versions and releases
 
 | Page | What it answers |
 | --- | --- |
+| [Framework compatibility](frameworks.md) | Which AI-agent frameworks the SDK governs (LangChain, LangGraph, Pydantic AI, CrewAI, Google ADK, MCP, OpenAI Agents) and at what version ranges / tested versions. |
 | [Runtime compatibility](runtime.md) | Supported Python versions, and how the pure-Python client vs. the pinned native extension each track the core runtime. |
 | [Release process](release-process.md) | How a version goes from `master` to PyPI (platform wheels, Trusted Publisher) and the docs site. |
 | [Release notes](release-notes.md) | Per-release change history. |
