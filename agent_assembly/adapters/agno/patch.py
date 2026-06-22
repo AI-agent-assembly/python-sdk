@@ -72,7 +72,8 @@ class AgnoPatch:
         function_call_cls = _load_agno_functioncall_class()
         if function_call_cls is None:
             return False
-        return _apply_execute_patch(function_call_cls, self.callback_handler)
+        _apply_execute_patch(function_call_cls, self.callback_handler)
+        return True
 
     def revert(self) -> None:
         """Revert the Agno ``FunctionCall`` patches when present."""
@@ -175,9 +176,9 @@ def _evaluate_decision(
     return status, reason, is_pending_flow
 
 
-def _apply_execute_patch(function_call_cls: type[Any], callback_handler: Any) -> bool:
+def _apply_execute_patch(function_call_cls: type[Any], callback_handler: Any) -> None:
     if getattr(function_call_cls, _TOOLS_PATCHED_FLAG, False):
-        return True
+        return
 
     original_execute = function_call_cls.execute
     original_aexecute = getattr(function_call_cls, "aexecute", None)
@@ -228,7 +229,6 @@ def _apply_execute_patch(function_call_cls: type[Any], callback_handler: Any) ->
         function_call_cls.aexecute = patched_aexecute
 
     setattr(function_call_cls, _TOOLS_PATCHED_FLAG, True)
-    return True
 
 
 def _revert_execute_patch(function_call_cls: type[Any]) -> None:
