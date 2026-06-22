@@ -5,6 +5,7 @@ from importlib import metadata
 from threading import Lock
 from typing import Callable, Literal
 
+from agent_assembly.adapters.agno.adapter import AgnoAdapter
 from agent_assembly.adapters.base import FrameworkAdapter
 from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
 from agent_assembly.adapters.google_adk.adapter import GoogleADKAdapter
@@ -28,6 +29,7 @@ _ADAPTER_PRIORITY: dict[str, int] = {
     "google_adk": 5,
     "haystack": 6,
     "smolagents": 6,
+    "agno": 6,
     "mcp": 99,
 }
 
@@ -72,6 +74,7 @@ class AdapterRegistry:
             GoogleADKAdapter(),
             HaystackAdapter(),
             SmolagentsAdapter(),
+            AgnoAdapter(),
             MCPAdapter(),
         ]
         for adapter in builtin_adapters:
