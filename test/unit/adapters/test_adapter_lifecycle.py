@@ -122,9 +122,25 @@ def test_openai_agents_adapter_metadata_and_lifecycle(monkeypatch: pytest.Monkey
     assert adapter._patch is None
 
 
-def test_openai_agents_is_available_false_when_module_absent() -> None:
-    # openai.agents is not installed in the test env.
+def test_openai_agents_is_available_false_when_module_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # AAASM-3528: availability is keyed on the shipped top-level ``agents``
+    # package (NOT ``openai.agents``). The framework is a dev/test dependency,
+    # so simulate its absence by stubbing find_spec to None.
+    monkeypatch.setattr(
+        "agent_assembly.adapters.openai_agents.adapter.importlib.util.find_spec",
+        lambda _name: None,
+    )
     assert OpenAIAgentsAdapter().is_available() is False
+
+
+def test_openai_agents_is_available_true_when_agents_installed() -> None:
+    # AAASM-3528 regression guard: with the real ``agents`` package installed,
+    # the adapter must report available (the old ``openai.agents`` probe wrongly
+    # reported unavailable, making the patch a silent no-op).
+    pytest.importorskip("agents")
+    assert OpenAIAgentsAdapter().is_available() is True
 
 
 def test_openai_agents_is_available_false_when_find_spec_raises(

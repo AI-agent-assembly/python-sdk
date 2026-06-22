@@ -33,8 +33,9 @@ from agent_assembly.adapters.mcp.patch import (
     _revert_client_session_patch,
 )
 from agent_assembly.adapters.openai_agents.patch import (
-    _apply_function_tool_call_patch,
-    _revert_function_tool_call_patch,
+    _apply_function_tool_patch,
+    _revert_function_tool_patch,
+    _wrap_on_invoke_tool,
 )
 from agent_assembly.adapters.pydantic_ai.patch import (
     _apply_tool_run_patch,
@@ -75,10 +76,15 @@ class _BenchPydanticAITool:
 
 
 class _BenchOpenAIFunctionTool:
-    name = "bench_tool"
+    """Shaped like ``agents.FunctionTool``: per-instance ``on_invoke_tool``."""
 
-    async def __call__(self, ctx: Any, input_str: str) -> str:
-        return "result"
+    def __init__(self) -> None:
+        self.name = "bench_tool"
+
+        async def _invoke(ctx: Any, input_str: str) -> str:
+            return "result"
+
+        self.on_invoke_tool = _invoke
 
 
 class _BenchMCPClientSession:
@@ -180,19 +186,22 @@ def test_openai_agents_patched_call_overhead(
     noop_interceptor: Any,
     bench_event_loop: asyncio.AbstractEventLoop,
 ) -> None:
-    """Benchmark per-call overhead of governance-patched FunctionTool.__call__()."""
-    _apply_function_tool_call_patch(_BenchOpenAIFunctionTool, noop_interceptor)
+    """Benchmark per-call overhead of governance-wrapped FunctionTool.on_invoke_tool()."""
+    _apply_function_tool_patch(_BenchOpenAIFunctionTool, noop_interceptor)
     tool = _BenchOpenAIFunctionTool()
+    # The class patch wraps on_invoke_tool at construction; for instances built
+    # before apply() (or stub classes) wrap directly to benchmark the hot path.
+    _wrap_on_invoke_tool(tool, noop_interceptor)
     ctx = type("FakeCtx", (), {"agent_id": None})()
 
     try:
 
         def call() -> None:
-            bench_event_loop.run_until_complete(tool(ctx, "bench input"))
+            bench_event_loop.run_until_complete(tool.on_invoke_tool(ctx, "bench input"))
 
         benchmark(call)
     finally:
-        _revert_function_tool_call_patch(_BenchOpenAIFunctionTool)
+        _revert_function_tool_patch(_BenchOpenAIFunctionTool)
 
 
 @pytest.mark.benchmark(group="patched-call")

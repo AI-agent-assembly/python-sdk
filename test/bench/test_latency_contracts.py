@@ -35,8 +35,9 @@ from agent_assembly.adapters.mcp.patch import (
     _revert_client_session_patch,
 )
 from agent_assembly.adapters.openai_agents.patch import (
-    _apply_function_tool_call_patch,
-    _revert_function_tool_call_patch,
+    _apply_function_tool_patch,
+    _revert_function_tool_patch,
+    _wrap_on_invoke_tool,
 )
 from agent_assembly.adapters.pydantic_ai.patch import (
     _apply_tool_run_patch,
@@ -88,10 +89,15 @@ class _FakePydanticAITool:
 
 
 class _FakeOpenAIFunctionTool:
-    name = "bench_tool"
+    """Shaped like ``agents.FunctionTool``: per-instance ``on_invoke_tool``."""
 
-    async def __call__(self, ctx: Any, input_str: str) -> str:
-        return "result"
+    def __init__(self) -> None:
+        self.name = "bench_tool"
+
+        async def _invoke(ctx: Any, input_str: str) -> str:
+            return "result"
+
+        self.on_invoke_tool = _invoke
 
 
 class _FakeMCPClientSession:
@@ -216,17 +222,18 @@ def test_pydantic_ai_per_call_latency_under_2ms() -> None:
 
 
 def test_openai_agents_per_call_latency_under_2ms() -> None:
-    """Fail if OpenAI Agents patched FunctionTool.__call__() P99 exceeds 2ms."""
+    """Fail if OpenAI Agents governed FunctionTool.on_invoke_tool() P99 exceeds 2ms."""
     interceptor = _NoopInterceptor()
-    _apply_function_tool_call_patch(_FakeOpenAIFunctionTool, interceptor)
+    _apply_function_tool_patch(_FakeOpenAIFunctionTool, interceptor)
     tool = _FakeOpenAIFunctionTool()
+    _wrap_on_invoke_tool(tool, interceptor)
     ctx = type("FakeCtx", (), {"agent_id": None})()
 
     async def measure() -> list[int]:
         samples: list[int] = []
         for _ in range(_ITERATIONS):
             start = time.perf_counter_ns()
-            await tool(ctx, "benchmark input")
+            await tool.on_invoke_tool(ctx, "benchmark input")
             elapsed = time.perf_counter_ns() - start
             samples.append(elapsed)
         return samples
@@ -234,7 +241,7 @@ def test_openai_agents_per_call_latency_under_2ms() -> None:
     try:
         samples = asyncio.run(measure())
     finally:
-        _revert_function_tool_call_patch(_FakeOpenAIFunctionTool)
+        _revert_function_tool_patch(_FakeOpenAIFunctionTool)
 
     p50, p95, p99 = _percentiles(samples)
     assert p99 < MAX_PER_CALL_NS, (
