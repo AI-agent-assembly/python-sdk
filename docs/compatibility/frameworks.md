@@ -49,6 +49,7 @@ to work but are not continuously tested.
 | CrewAI | `crewai` | `agent_assembly.adapters.crewai` | `>=0.1.0` | `1.14.x` |
 | Google ADK | `google.adk` | `agent_assembly.adapters.google_adk` | `>=1.0.0,<2.0` | `1.x` line |
 | Haystack | `haystack` | `agent_assembly.adapters.haystack` | `>=2.0.0,<3.0` (the Haystack 2.x `Tool.invoke` hook point, used by both `Tool.invoke()` and the `Agent`/`ToolInvoker` tool-call loop) | `2.30.x` |
+| LlamaIndex | `llama_index.core` | `agent_assembly.adapters.llamaindex` | `>=0.10.0` | `0.14.x` |
 | MCP | `mcp` | `agent_assembly.adapters.mcp` | `>=1.0.0` | `1.27.x` |
 | OpenAI Agents | `agents` | `agent_assembly.adapters.openai_agents` | `>=0.1.0` | `0.17.x` |
 | Smolagents | `smolagents` | `agent_assembly.adapters.smolagents` | `>=1.0.0,<2.0.0` | `1.26.x` |
@@ -79,6 +80,20 @@ work through the `Tool._run` hook but are not exercised in CI.
 > and stated that governance hooks only attach on the `0.1.x`–`0.2.x` line. That
 > predated the `>=0.3.0` `AbstractToolset.call_tool` support and is no longer accurate;
 > the example and that pin now track the tested `>=0.3.0` line.
+
+### LlamaIndex hook point
+
+The LlamaIndex adapter patches the concrete `FunctionTool.call` (sync) and
+`FunctionTool.acall` (async) tool-execution methods — the exact path the agent loop
+drives. The modern agent stack (`FunctionAgent` / `ReActAgent` via `AgentWorkflow`)
+awaits `tool.acall(...)`, while legacy / sync callers use `tool.call(...)`; both are
+hooked so a denied tool's underlying function never runs. The base
+`BaseTool.call`/`acall` are abstract, so the patch targets the concrete `FunctionTool`
+rather than the base class. On a deny verdict the adapter returns a `ToolOutput` flagged
+`is_error=True` so the agent loop receives a well-formed result instead of crashing.
+
+The **tested line is `llama-index-core>=0.10.0`** (the `0.14.x` line is exercised by the
+`importorskip`-guarded tests and the live smoke suite).
 
 ### Agno (formerly Phidata)
 

@@ -95,6 +95,12 @@ test = [
     # the negative-control deny test fails if the patch ever regresses to a no-op
     # instead of being silently skipped.
     "agno>=2.0.0",
+    # AAASM-3536: dev/test-only (NOT a runtime dependency). LlamaIndex routes
+    # tool execution through the concrete `FunctionTool.call` / `acall` methods;
+    # installing it lets the `importorskip`-guarded governance tests drive a
+    # real `FunctionTool` so a regression to a fail-open no-op patch is caught
+    # rather than silently skipped.
+    "llama-index-core>=0.10.0",
 ]
 pre-commit-ci = [
     "pre-commit>=3.5.0,<5",
