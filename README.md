@@ -15,7 +15,7 @@ Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agen
 
 ## Why use it
 
-- **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, Google ADK, Haystack, Agno, and MCP servers — drop in, no SDK rewrites required.
+- **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, Google ADK, Haystack, Smolagents, Agno, and MCP servers — drop in, no SDK rewrites required.
 - **Pre-execution policy enforcement** via the `FrameworkAdapter` ABC — block disallowed tool calls before they hit the LLM.
 - **Audit trail** — every tool call, prompt, and policy decision is emitted to the gateway with full agent lineage (parent / root / team).
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need sub-millisecond policy checks.
@@ -40,6 +40,7 @@ are expected to work but are not continuously tested.
 | Haystack | `haystack` | `>=2.0.0,<3.0` | `2.30.x` |
 | MCP | `mcp` | `>=1.0.0` | `1.27.x` |
 | OpenAI Agents | `agents` | `>=0.1.0` | `0.17.x` |
+| Smolagents | `smolagents` | `>=1.0.0,<2.0.0` | `1.26.x` |
 | Agno | `agno` | `>=2.0.0` | `2.6.x` |
 
 Python framework compatibility is documented **authoritatively in the SDK docs** —

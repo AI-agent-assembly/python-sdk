@@ -15,6 +15,7 @@ from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
 from agent_assembly.adapters.mcp.adapter import MCPAdapter
 from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
 from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
+from agent_assembly.adapters.smolagents.adapter import SmolagentsAdapter
 
 # LangChain must be first: its callback handler threads through to all
 # subsequent adapters.  MCP must be last: it acts as a fallback for
@@ -27,7 +28,8 @@ _ADAPTER_PRIORITY: dict[str, int] = {
     "openai": 4,
     "google_adk": 5,
     "haystack": 6,
-    "agno": 6,
+    "smolagents": 7,
+    "agno": 8,
     "mcp": 99,
 }
 
@@ -71,6 +73,7 @@ class AdapterRegistry:
             OpenAIAgentsAdapter(),
             GoogleADKAdapter(),
             HaystackAdapter(),
+            SmolagentsAdapter(),
             AgnoAdapter(),
             MCPAdapter(),
         ]

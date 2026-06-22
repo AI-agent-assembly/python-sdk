@@ -82,6 +82,12 @@ test = [
     # integration test drive a real tool call, so a regression to the old
     # fail-open no-op patch is actually caught instead of silently skipped.
     "openai-agents>=0.1.0",
+    # AAASM-3539: dev/test-only (NOT a runtime dependency). smolagents routes
+    # every tool execution through `smolagents.tools.Tool.__call__` (which calls
+    # `self.forward`); installing it lets the `importorskip`-guarded adapter
+    # tests drive a real `Tool` subclass, so a regression to a fail-open no-op
+    # patch is caught (deny must block `forward`) instead of silently skipped.
+    "smolagents>=1.0.0,<2.0.0",
     # AAASM-3537: dev/test-only (NOT a runtime dependency). Agno (formerly
     # Phidata) runs every function-tool body through
     # `agno.tools.function.FunctionCall.execute` / `aexecute`. Installing it lets
