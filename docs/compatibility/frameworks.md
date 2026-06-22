@@ -50,6 +50,7 @@ to work but are not continuously tested.
 | Google ADK | `google.adk` | `agent_assembly.adapters.google_adk` | `>=1.0.0,<2.0` | `1.x` line |
 | MCP | `mcp` | `agent_assembly.adapters.mcp` | `>=1.0.0` | `1.27.x` |
 | OpenAI Agents | `agents` | `agent_assembly.adapters.openai_agents` | `>=0.1.0` | `0.17.x` |
+| Microsoft Agent Framework | `agent_framework` | `agent_assembly.adapters.microsoft_agent_framework` | `>=1.0.0,<2.0` | `1.9.x` — see [note below](#microsoft-agent-framework-version-range) |
 
 !!! note "Adapter present vs. example present"
     Every framework above has an adapter that is implemented and registered —
@@ -75,6 +76,23 @@ work through the `Tool._run` hook but are not exercised in CI.
 > and stated that governance hooks only attach on the `0.1.x`–`0.2.x` line. That
 > predated the `>=0.3.0` `AbstractToolset.call_tool` support and is no longer accurate;
 > the example and that pin now track the tested `>=0.3.0` line.
+
+### Microsoft Agent Framework version range
+
+Microsoft's unified **Agent Framework** ships on PyPI as `agent-framework` but imports
+as the top-level module **`agent_framework`** — so the adapter's `is_available()` probes
+`agent_framework`, not its framework name. The single interception point is
+`agent_framework.FunctionTool.invoke`, the async coroutine through which **every**
+function tool executes (both `@agent_framework.tool`-decorated callables and direct
+`FunctionTool(...)` instances). Patching that one method governs all tool execution
+without requiring the user to register any framework middleware.
+
+The **tested line is `agent-framework>=1.9.0`** — the first stable 1.x line. The adapter
+pins `>=1.0.0,<2.0`; the 2.x surface is unverified. The package is **pre-release-heavy**:
+several of its sub-distributions (`agent-framework-azure-ai-search`, etc.) are published
+as pre-releases, so an installer that does not allow pre-releases (notably `uv`) needs an
+explicit pre-release opt-in (e.g. `uv pip install --prerelease=allow agent-framework`).
+`pip install agent-framework` resolves them without a flag.
 
 ## Declaring frameworks in your own project
 
