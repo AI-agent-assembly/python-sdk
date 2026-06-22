@@ -1,27 +1,30 @@
-# LlamaIndex — manual tool policy
+# LlamaIndex
 
-Add Agent Assembly governance to [LlamaIndex](https://docs.llamaindex.ai/) tool calls by wrapping each `FunctionTool` with a `GovernedToolRunner`, since LlamaIndex has no native adapter yet.
+Integrates Agent Assembly with [LlamaIndex](https://docs.llamaindex.ai/) using the **native `LlamaIndexAdapter`**, so every tool call a LlamaIndex agent makes is governed automatically — no per-tool wrapper.
 
 ## What this example demonstrates
 
-Because LlamaIndex does not yet have a native Agent Assembly adapter, this example shows the **manual wrapper pattern**: each `FunctionTool` is wrapped with `GovernedToolRunner` so governance runs before every tool invocation. This pattern works for any Python callable.
-
-It walks through:
-
-- Initializing Agent Assembly with `init_assembly()`.
-- Applying governance to `FunctionTool` calls using `GovernedToolRunner`.
-- Running an **allowed** tool call (`query_index`).
-- Running another **allowed** tool call (`summarize_docs`).
-- Running a **denied** tool call (`execute_sql` — blocked by `deny_arbitrary_execution`).
-- How to add governance to any framework that lacks a native adapter.
+- Initializing Agent Assembly with `init_assembly()` in offline `sdk-only` mode.
+- Registering the native `LlamaIndexAdapter`, which patches the concrete `llama_index.core.tools.FunctionTool.call` / `acall` execution methods — the exact methods a `FunctionAgent` / `ReActAgent` invokes to run a tool.
+- Running an **allowed** tool call (`query_index`) and another **allowed** call (`summarize_docs`) through the patched `FunctionTool.call`.
+- Running a **denied** tool call (`execute_sql`, blocked by `deny_arbitrary_execution`) — its body never executes; the adapter returns a `ToolOutput` flagged `is_error=True` carrying a `[BLOCKED by governance policy]` message instead of raising, so the agent loop can react.
+- A fully **offline** run — no API key, no running gateway, and no live LLM.
 
 ## The framework / library
 
-[LlamaIndex](https://docs.llamaindex.ai/) — the example depends on `llama-index-core>=0.10.0` for its `FunctionTool` abstraction, and on the Agent Assembly Python SDK pinned at `agent-assembly>=0.0.1a2` (per `pyproject.toml`). Python `>=3.12` is required.
+[LlamaIndex](https://docs.llamaindex.ai/) is the agent framework governed in this example. The package is imported as `llama_index.core`, and the adapter advertises support for `>=0.10.0` via `get_supported_versions()`.
+
+Version pins (from `pyproject.toml`):
+
+| Dependency | Version |
+|---|---|
+| `llama-index-core` | `>=0.14.22` |
+| `agent-assembly` | `>=0.0.1b5` (the release that ships the LlamaIndex adapter) |
+| Python | `>=3.12` |
 
 ## How it works
 
-`main.py` opens an Agent Assembly context with `init_assembly()`, passing `agent_id="llamaindex-demo-agent"` and `mode="sdk-only"` so the demo runs offline:
+`init_assembly()` is opened as a context manager in offline `sdk-only` mode with the agent id `llamaindex-demo-agent`:
 
 ```python
 with init_assembly(
@@ -33,17 +36,31 @@ with init_assembly(
     ...
 ```
 
-The `gateway_url` defaults to `http://localhost:8080` (read from `AGENT_ASSEMBLY_GATEWAY_URL`), and `api_key` comes from `AGENT_ASSEMBLY_API_KEY`. Neither is required for the offline demo.
+**The hook point.** LlamaIndex routes every tool invocation through a `BaseTool` subclass, but `BaseTool.call` / `acall` are *abstract* — the real bodies live on concrete classes such as `FunctionTool`. The adapter therefore patches the concrete `FunctionTool.call` (sync) and `acall` (async) methods directly:
 
-Each tool is then wrapped in a `GovernedToolRunner`, which holds the callable plus an `AssemblyCallbackHandler` configured with a `LocalPolicyEngine`. Calling `runner.run(**kwargs)` first fires `on_tool_start`, which routes through the policy engine before the underlying function executes. When the policy denies a tool (here, `execute_sql` and `run_shell_command`), the call surfaces as a `ToolExecutionBlockedError`, which `main.py` catches and prints as `❌ BLOCKED`.
+```python
+from agent_assembly.adapters.llamaindex import LlamaIndexAdapter
 
-Unlike the native-adapter examples — where `init_assembly()` wires governance into the framework automatically — this is the fallback path for frameworks that lack a native adapter: you place the `GovernedToolRunner` in front of each callable yourself. As `main.py` notes, once a native LlamaIndex adapter exists, `GovernedToolRunner` will no longer be needed.
+adapter = LlamaIndexAdapter()
+adapter.register_hooks(interceptor)
+# FunctionTool.call / acall are now governed.
+...
+adapter.unregister_hooks()  # restores the original methods
+```
+
+Because both methods are patched, the modern agent stack is covered either way: `FunctionAgent` / `ReActAgent` (via `AgentWorkflow`) `await tool.acall(...)`, while the legacy / sync path calls `tool.call(...)`.
+
+**The `@dispatcher.span` descriptor nuance.** LlamaIndex wraps `call` / `acall` with an instrumentation decorator (`@dispatcher.span`), so `FunctionTool.call` yields a fresh bound wrapper on every attribute access. The adapter captures the stable original from the class `__dict__` (not the attribute) to restore on revert, and invokes the original through the descriptor protocol (`original_call.__get__(self, type(self))(...)`) so the instance binds correctly as `self` — a plain unbound call would lose `self`. This is handled inside the adapter; the example does not need to deal with it.
+
+The adapter calls `interceptor.check_tool_start(...)` before a tool body runs. The example's `LocalPolicyEngine` (`src/policy.py`) is that interceptor: it returns a gateway-format `{"status": "allow"}` / `{"status": "deny", "reason": ...}` verdict, denying `execute_sql` and `run_shell_command` and allowing everything else. An unknown / malformed verdict denies rather than silently allowing.
+
+**Deny is non-raising.** On a `deny`, the patch does not raise — it returns a `ToolOutput(is_error=True)` whose `content` carries the `[BLOCKED by governance policy]` message. The security-relevant invariant is that the tool's underlying function never executes; returning a well-formed error result lets an agent loop observe the block and choose another approach instead of crashing.
 
 ## Prerequisites & running it
 
 See [Preparing the runtime environment](preparing-the-runtime-environment.md) for the shared prerequisites.
 
-Then:
+Then run the example (offline — no API key and no running gateway required):
 
 ```bash
 cd python/llamaindex-tool-policy
@@ -51,83 +68,7 @@ uv sync --extra dev
 uv run python src/main.py
 ```
 
-The demo runs fully offline — no API key and no running gateway are required.
-
-## Code walkthrough
-
-`policy.py` defines the local policy engine and the runner that bridges any callable into governance. The denied tools are a static set, and `check_tool_start` returns an allow/deny verdict:
-
-```python
-DENIED_TOOLS: frozenset[str] = frozenset({
-    "execute_sql",
-    "run_shell_command",
-})
-
-
-class LocalPolicyEngine:
-    """Simulates Agent Assembly gateway policy enforcement in offline mode."""
-
-    def check_tool_start(self, serialized, input_str, run_id=None, **kwargs):
-        tool_name = serialized.get("name", "")
-        if tool_name in DENIED_TOOLS:
-            return {
-                "status": "deny",
-                "reason": (
-                    f"Tool '{tool_name}' is blocked by policy rule "
-                    "'deny_arbitrary_execution'."
-                ),
-            }
-        return {"status": "allow"}
-```
-
-`GovernedToolRunner.run()` serializes the kwargs, calls the handler's `on_tool_start` to enforce policy, then invokes the wrapped function:
-
-```python
-def run(self, **kwargs: Any) -> Any:
-    import json
-
-    input_str = json.dumps(kwargs)
-    self._handler.on_tool_start(
-        serialized={"name": self._tool_name, "type": "tool"},
-        input_str=input_str,
-        run_id=uuid4(),
-    )
-    return self._fn(**kwargs)
-```
-
-`tools.py` defines the three LlamaIndex `FunctionTool`s used by the demo:
-
-```python
-query_index = FunctionTool.from_defaults(
-    fn=_query_index_fn,
-    name="query_index",
-    description="Query the document index for relevant information.",
-)
-```
-
-`main.py` builds a runner per tool and executes the demo calls:
-
-```python
-runners = {
-    name: GovernedToolRunner(name, fn, policy)
-    for name, fn, _ in _DEMO_CALLS
-}
-```
-
-## Notes & caveats
-
-!!! note "Manual pattern for frameworks without a native adapter"
-    LlamaIndex does not yet have a native Agent Assembly adapter, so governance is applied explicitly via `GovernedToolRunner`. When a native adapter becomes available, `init_assembly()` will apply governance automatically and the manual runner will no longer be needed.
-
-Troubleshooting (from the README):
-
-| Problem | Fix |
-|---|---|
-| `ModuleNotFoundError: agent_assembly` | Run `uv sync` first |
-| `ModuleNotFoundError: llama_index` | Run `uv sync` — `llama-index-core` is a required dependency |
-| `ToolExecutionBlockedError` in tests | Expected — the deny policy rule for `execute_sql` is intentional |
-
-## Expected behavior
+### Expected output
 
 ```
 ==============================================================
@@ -143,8 +84,8 @@ Policy rules (local simulation of gateway policy):
   DENY   — execute_sql, run_shell_command  (arbitrary execution)
   ALLOW  — everything else
 
-Wrapping LlamaIndex tools with GovernedToolRunner...
-  Tools wrapped: query_index, summarize_docs, execute_sql
+Registering the native LlamaIndex governance adapter...
+  FunctionTool.call / acall are now governed by Agent Assembly.
 
 Running governed tool calls:
 --------------------------------------------
@@ -155,11 +96,25 @@ Running governed tool calls:
      ✅ ALLOWED  — 📝 Summary for 'policy enforcement': Agent Assembly provides governance...
 
   → execute_sql({'sql': 'DROP TABLE users; --'})
-     ❌ BLOCKED  — Tool 'execute_sql' is blocked by policy rule 'deny_arbitrary_execution'.
+     ❌ BLOCKED  — [BLOCKED by governance policy] Tool 'execute_sql' is blocked by policy rule 'deny_arbitrary_execution'. ...
+```
+
+The two safe tools run and return their results; `execute_sql` is blocked before its body runs, surfacing the `[BLOCKED by governance policy]` message from the `ToolOutput` the adapter returns.
+
+### Switching to production mode
+
+In `sdk-only` mode the example reverts the auto-detected no-op patch and wires its own `LocalPolicyEngine` as the live interceptor. Against a real deployment you instead start an Agent Assembly gateway (or use your SaaS workspace URL), supply credentials via `.env`, and let `init_assembly()` auto-detect and register the LlamaIndex adapter against the live gateway interceptor — the tool-call code does not change; only the policy source does.
+
+## Run the smoke tests
+
+The example ships offline smoke tests that drive the **real** adapter — `LlamaIndexAdapter.register_hooks` patches `FunctionTool.call`, then an allowed tool runs and a denied tool's body never executes (the test asserts the tool function was never invoked and that the `[BLOCKED by governance policy]` marker is present). Each test reverts the patch so the global `FunctionTool` class is left clean.
+
+```bash
+uv run pytest tests/ -v
 ```
 
 ## Links
 
 - [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/llamaindex-tool-policy)
 - [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/llamaindex-tool-policy/README.md)
-- [LlamaIndex docs](https://docs.llamaindex.ai/)
+- [LlamaIndex documentation](https://docs.llamaindex.ai/)

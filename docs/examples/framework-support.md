@@ -47,8 +47,11 @@ repository.
 | OpenAI Agents | `agent_assembly.adapters.openai_agents` | ✅ Validated — see [OpenAI Agents SDK](openai-agents-sdk.md). |
 | Pydantic AI | `agent_assembly.adapters.pydantic_ai` | ✅ Validated — see [Pydantic AI](pydantic-ai.md). |
 | Google ADK | `agent_assembly.adapters.google_adk` | ✅ Validated — see [Google ADK](google-adk.md). |
-| Microsoft Agent Framework | `agent_assembly.adapters.microsoft_agent_framework` | ✅ Validated — governs `agent_framework.FunctionTool.invoke`; see the [`microsoft-agent-framework-tool-policy`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/microsoft-agent-framework-tool-policy) example. |
-| LlamaIndex | _no native adapter_ | ✅ Validated (manual wrapper) — see [LlamaIndex — manual tool policy](llamaindex-tool-policy.md); governs `FunctionTool` calls via `GovernedToolRunner`. |
+| Haystack | `agent_assembly.adapters.haystack` | ✅ Validated — governs `haystack.tools.Tool.invoke` (Haystack 2.x); see [Haystack](haystack.md). |
+| LlamaIndex | `agent_assembly.adapters.llamaindex` | ✅ Validated — governs the concrete `FunctionTool.call` / `acall`; see [LlamaIndex](llamaindex-tool-policy.md). |
+| Smolagents | `agent_assembly.adapters.smolagents` | ✅ Validated — governs `smolagents.tools.Tool.__call__`; see [Smolagents](smolagents.md). |
+| Agno | `agent_assembly.adapters.agno` | ✅ Validated — governs `agno.tools.function.FunctionCall.execute` / `aexecute`; see [Agno](agno.md). |
+| Microsoft Agent Framework | `agent_assembly.adapters.microsoft_agent_framework` | ✅ Validated — governs `agent_framework.FunctionTool.invoke`; see [Microsoft Agent Framework](microsoft-agent-framework.md). |
 | MCP servers | `agent_assembly.adapters.mcp` | ⏳ Planned — adapter ships; a curated example is not yet vendored. |
 
 !!! note "Adapter present vs. example present"

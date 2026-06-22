@@ -30,16 +30,20 @@ adapter flow wires the framework, an annotated code walkthrough, and the expecte
 | [OpenAI Agents SDK](openai-agents-sdk.md) | OpenAI Agents SDK | Approval-gated and denied tool calls, intercepting `FunctionTool.__call__`. |
 | [Pydantic AI](pydantic-ai.md) | Pydantic AI | Tool-call governance driven offline by the built-in `TestModel`. |
 | [Google ADK](google-adk.md) | Google ADK | A scripted offline tool trajectory governing `BaseTool.run_async` — no cloud credentials. |
-| [LlamaIndex — manual tool policy](llamaindex-tool-policy.md) | LlamaIndex | The manual wrapper pattern (`GovernedToolRunner`) for a framework with no native adapter. |
+| [Haystack](haystack.md) | Haystack | Real `haystack.tools.Tool` instances run through a `ToolInvoker`, governing `Tool.invoke`. |
+| [LlamaIndex](llamaindex-tool-policy.md) | LlamaIndex | Native adapter governing the concrete `FunctionTool.call` / `acall` — a denied tool returns a blocked `ToolOutput`. |
+| [Smolagents](smolagents.md) | Smolagents | Governs `smolagents.tools.Tool.__call__`; a denied tool's `forward()` body never runs. |
+| [Agno](agno.md) | Agno | Governs `agno.tools.function.FunctionCall.execute`; a denied tool returns a failure result. |
+| [Microsoft Agent Framework](microsoft-agent-framework.md) | Microsoft Agent Framework | Governs the async `FunctionTool.invoke`; offline mock path + a live path. |
 | [Custom tool policy (no framework)](custom-tool-policy.md) | — | Govern plain Python functions with the minimal `governed()` helper — no AI framework required. |
 
 ## How the examples fit together
 
 - **No native adapter?** [Custom tool policy](custom-tool-policy.md) shows the minimal
-  `governed()` building block; [LlamaIndex — manual tool policy](llamaindex-tool-policy.md)
-  builds on it with `GovernedToolRunner`. Use these patterns for any framework Agent Assembly
-  does not hook automatically.
-- **Native adapter?** The LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, and Google
-  ADK examples each rely on `init_assembly()` detecting the framework and installing its
-  governance hooks for you — see [Framework support](framework-support.md) for the full
-  adapter list and priority order.
+  `governed()` building block. Use that pattern for any framework Agent Assembly does not
+  hook automatically.
+- **Native adapter?** The LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, Google
+  ADK, Haystack, LlamaIndex, Smolagents, Agno, and Microsoft Agent Framework examples each
+  rely on `init_assembly()` detecting the framework and installing its governance hooks for
+  you — see [Framework support](framework-support.md) for the full adapter list and priority
+  order.
