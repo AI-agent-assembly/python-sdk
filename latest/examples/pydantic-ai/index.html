@@ -1802,6 +1802,8 @@
       
         
       
+        
+      
     
     
     
@@ -1854,6 +1856,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../compatibility/frameworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -2301,16 +2331,18 @@
 </ul>
 <h2 id="the-framework-library">The framework / library<a class="headerlink" href="#the-framework-library" title="Permanent link">&para;</a></h2>
 <p>This example builds on <a href="https://ai.pydantic.dev/">Pydantic AI</a>, the agent framework from the Pydantic team.</p>
-<p>The Agent Assembly Pydantic AI adapter hooks the internal <code>Tool._run</code> entry point, which exists in the Pydantic AI <code>0.1.x</code>–<code>0.2.x</code> line. Accordingly, <code>pyproject.toml</code> pins:</p>
+<p>The Agent Assembly Pydantic AI adapter auto-detects the framework's tool-execution hook across versions (<code>Tool._run</code> on <code>&lt;0.3.0</code>, <code>AbstractToolset.call_tool</code> on <code>&gt;=0.3.0</code>). This example targets the tested <code>&gt;=0.3.0</code> line, so <code>pyproject.toml</code> pins:</p>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="s2">&quot;agent-assembly&gt;=0.0.1a2&quot;</span><span class="p">,</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="c1"># The Agent Assembly Pydantic AI adapter patches `Tool._run`, which is</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="c1"># present in the 0.1.x–0.2.x line. Newer 1.x releases renamed that internal</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="c1"># entry point; pin to the supported range so governance hooks attach.</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="s2">&quot;pydantic-ai&gt;=0.1.0,&lt;0.3.0&quot;</span><span class="p">,</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">]</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="c1"># The Agent Assembly Pydantic AI adapter auto-detects the tool-execution</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="c1"># hook across versions: `Tool._run` on &lt;0.3.0, and `AbstractToolset.call_tool`</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="c1"># on &gt;=0.3.0 (where that internal entry point was renamed). `&gt;=0.3.0` is the</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="c1"># tested line — the SDK&#39;s own dev/test group pins it, so it is the version</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="c1"># exercised in CI.</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="s2">&quot;pydantic-ai&gt;=0.3.0&quot;</span><span class="p">,</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">]</span>
 </span></code></pre></div>
-<p>Newer Pydantic AI <code>1.x</code> releases renamed that internal API, so the governance hooks would not attach there. The example requires Python <code>&gt;= 3.12</code> and the Agent Assembly Python SDK <code>&gt;= 0.0.1a2</code>.</p>
+<p>The adapter installs governance hooks on both the legacy (<code>&lt;0.3.0</code>) and current (<code>&gt;=0.3.0</code>) Pydantic AI lines; <code>&gt;=0.3.0</code> is the continuously-tested line and the one this example targets. The example requires Python <code>&gt;= 3.12</code> and the Agent Assembly Python SDK <code>&gt;= 0.0.1a2</code>. For the full version-range table, see <a href="../../compatibility/frameworks/">Framework compatibility</a>.</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <p><code>init_assembly()</code> runs in <code>sdk-only</code> mode and, in production, auto-detects Pydantic AI and registers the adapter automatically. The <code>PydanticAIAdapter</code> patches <code>pydantic_ai.tools.Tool._run</code>, so every tool invocation is routed through a governance check before the tool body runs.</p>
 <p>In <code>src/main.py</code>, the adapter is registered <em>before</em> <code>init_assembly()</code>. Because the patch is idempotent, registering first makes <code>init_assembly</code>'s auto-detection a no-op and keeps the offline <code>LocalPolicyEngine</code> wired as the governance interceptor:</p>
@@ -2397,9 +2429,9 @@
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="p">}</span>
 </span></code></pre></div>
 <h2 id="notes-caveats">Notes &amp; caveats<a class="headerlink" href="#notes-caveats" title="Permanent link">&para;</a></h2>
-<div class="admonition warning">
-<p class="admonition-title">Pydantic AI version pin</p>
-<p>The adapter hooks the internal <code>Tool._run</code> entry point, which exists in the Pydantic AI <code>0.1.x</code>–<code>0.2.x</code> line. <code>pyproject.toml</code> pins <code>pydantic-ai&gt;=0.1.0,&lt;0.3.0</code> so the governance hooks attach. Newer <code>1.x</code> releases renamed that internal API. If governance hooks do not fire, ensure <code>pydantic-ai</code> resolves to the pinned <code>0.1.x</code>–<code>0.2.x</code> range.</p>
+<div class="admonition note">
+<p class="admonition-title">Pydantic AI version support</p>
+<p>The adapter auto-detects the tool-execution hook across versions: it patches <code>pydantic_ai.tools.Tool._run</code> on <code>&lt;0.3.0</code>, and <code>AbstractToolset.call_tool</code> (plus the concrete toolsets that override it) on <code>&gt;=0.3.0</code>, where that internal entry point was renamed. The <strong>tested line is <code>pydantic-ai&gt;=0.3.0</code></strong> — the SDK's own dev/test group pins it, so it is the version exercised in CI. Earlier <code>0.1.x</code>–<code>0.2.x</code> releases still work through the <code>Tool._run</code> hook but are not continuously tested. See <a href="../../compatibility/frameworks/">Framework compatibility</a> for the full matrix.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Offline TestModel</p>
@@ -2410,7 +2442,7 @@
 <ul>
 <li><code>ModuleNotFoundError: agent_assembly</code> → run <code>uv sync</code> first.</li>
 <li><code>ModuleNotFoundError: pydantic_ai</code> → run <code>uv sync</code>; <code>pydantic-ai</code> is a required dependency.</li>
-<li>Governance hooks do not fire → ensure <code>pydantic-ai</code> resolves to the pinned <code>0.1.x</code>–<code>0.2.x</code> range.</li>
+<li>Governance hooks do not fire → ensure <code>pydantic-ai</code> resolves within the supported range (<code>&gt;=0.1.0</code>; <code>&gt;=0.3.0</code> is the tested line).</li>
 <li><code>PolicyViolationError</code> in tests → expected; the deny/pending policy rules are intentional.</li>
 </ul>
 </div>
@@ -2472,7 +2504,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 14, 2026 20:30:38 CST"><span class="timeago" datetime="2026-06-14T20:30:38+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 14, 2026 20:30:38 CST">2026-06-14</span> by Chisanan232</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 22, 2026 10:17:40 CST"><span class="timeago" datetime="2026-06-22T10:17:40+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 22, 2026 10:17:40 CST">2026-06-22</span> by Chisanan232</span>
 
     
     
