@@ -21,6 +21,31 @@ Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agen
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need sub-millisecond policy checks.
 - **Typed throughout** — Pydantic models for every gateway payload, mypy strict on adapter base and registry.
 
+## Framework compatibility
+
+The SDK governs these AI-agent frameworks; install whichever one your agent already
+uses alongside `agent-assembly` and the matching adapter activates automatically (the
+frameworks are **not** runtime dependencies of the SDK — you pin the framework, within
+the supported range). **Tested version** is the exact line exercised by the live smoke
+suite (AAASM-3525) and the integration tests; older releases within the supported range
+are expected to work but are not continuously tested.
+
+| Framework | Import name | Supported range | Tested version |
+| --- | --- | --- | --- |
+| LangChain | `langchain` | `>=0.1.0` | `0.3.x` line |
+| LangGraph | `langgraph` | `>=0.1.0` | `0.2.x` line |
+| Pydantic AI | `pydantic_ai` | `>=0.1.0` | `>=0.3.0` |
+| CrewAI | `crewai` | `>=0.1.0` | `1.14.x` |
+| Google ADK | `google.adk` | `>=1.0.0,<2.0` | `1.x` line |
+| MCP | `mcp` | `>=1.0.0` | `1.27.x` |
+| OpenAI Agents | `agents` | `>=0.1.0` | `0.17.x` |
+
+The **canonical, cross-component matrix** (core runtime + all three SDKs) lives in the
+core docs: [framework-compatibility matrix](https://ai-agent-assembly.github.io/agent-assembly/stable/reference/framework-compatibility.html)
+(a `/stable/` link — it 404s until the first GA release, by design). For the
+Python-specific detail, version-sync policy, and the Pydantic AI hook-point note, see
+[Framework compatibility](./docs/compatibility/frameworks.md).
+
 ## Project status
 
 **Pre-1.0 (`0.x`) — published and usable, API not yet frozen.** The SDK is released to
