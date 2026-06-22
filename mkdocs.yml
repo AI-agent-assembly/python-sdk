@@ -157,6 +157,24 @@ extra:
   analytics:
     provider: google
     property: G-L8JTJDG8G7
+    # Native "Was this page helpful?" widget — mkdocs-material sends a GA4
+    # `feedback` event carrying the chosen rating's `data` value. No free-text
+    # is sent to GA: the negative note links to a pre-filled GitHub issue so the
+    # reader explains there instead.
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: This page was helpful
+          data: 1
+          note: >-
+            Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: This page could be improved
+          data: 0
+          note: >-
+            Thanks for your feedback! Help us improve this page by
+            <a href="https://github.com/ai-agent-assembly/python-sdk/issues/new?labels=docs,feedback&title=Docs%20feedback&body=Page%3A%20(paste%20the%20page%20URL)%0A%0AWhat%20could%20be%20improved%3F" target="_blank" rel="noopener">opening an issue</a>.
   # Cookie consent (GDPR) — gate analytics cookies behind explicit opt-in.
   consent:
     title: Cookie consent
