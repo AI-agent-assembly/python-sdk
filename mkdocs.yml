@@ -190,7 +190,11 @@ nav:
       - OpenAI Agents SDK: examples/openai-agents-sdk.md
       - Pydantic AI: examples/pydantic-ai.md
       - Google ADK: examples/google-adk.md
-      - LlamaIndex — manual tool policy: examples/llamaindex-tool-policy.md
+      - Haystack: examples/haystack.md
+      - LlamaIndex: examples/llamaindex-tool-policy.md
+      - Smolagents: examples/smolagents.md
+      - Agno: examples/agno.md
+      - Microsoft Agent Framework: examples/microsoft-agent-framework.md
       - Custom tool policy (no framework): examples/custom-tool-policy.md
   - Configuration: configuration.md
   - API Reference:
