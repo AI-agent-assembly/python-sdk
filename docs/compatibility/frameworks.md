@@ -52,6 +52,7 @@ to work but are not continuously tested.
 | LlamaIndex | `llama_index.core` | `agent_assembly.adapters.llamaindex` | `>=0.10.0` | `0.14.x` |
 | MCP | `mcp` | `agent_assembly.adapters.mcp` | `>=1.0.0` | `1.27.x` |
 | OpenAI Agents | `agents` | `agent_assembly.adapters.openai_agents` | `>=0.1.0` | `0.17.x` |
+| Smolagents | `smolagents` | `agent_assembly.adapters.smolagents` | `>=1.0.0,<2.0.0` | `1.26.x` |
 
 !!! note "Adapter present vs. example present"
     Every framework above has an adapter that is implemented and registered —
@@ -100,7 +101,7 @@ your agent already uses, alongside the SDK, and the matching adapter activates
 automatically:
 
 ```bash
-pip install agent-assembly langchain   # or crewai, pydantic-ai, mcp, openai-agents, ...
+pip install agent-assembly langchain   # or crewai, pydantic-ai, mcp, openai-agents, smolagents, ...
 ```
 
 The SDK deliberately does **not** declare these frameworks as `pip install
