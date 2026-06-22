@@ -157,6 +157,19 @@ extra:
   analytics:
     provider: google
     property: G-L8JTJDG8G7
+  # Cookie consent (GDPR) — gate analytics cookies behind explicit opt-in.
+  consent:
+    title: Cookie consent
+    description: >-
+      We use analytics cookies to understand how you use the docs so we can improve them.
+    actions:
+      - accept
+      - reject
+      - manage
+    cookies:
+      analytics:
+        name: Google Analytics
+        checked: false
   # Versioning documentation
   version:
     provider: mike
