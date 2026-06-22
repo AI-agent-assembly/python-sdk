@@ -40,11 +40,14 @@ are expected to work but are not continuously tested.
 | MCP | `mcp` | `>=1.0.0` | `1.27.x` |
 | OpenAI Agents | `agents` | `>=0.1.0` | `0.17.x` |
 
-The **canonical, cross-component matrix** (core runtime + all three SDKs) lives in the
-core docs: [framework-compatibility matrix](https://ai-agent-assembly.github.io/agent-assembly/stable/reference/framework-compatibility.html)
-(a `/stable/` link — it 404s until the first GA release, by design). For the
-Python-specific detail, version-sync policy, and the Pydantic AI hook-point note, see
-[Framework compatibility](./docs/compatibility/frameworks.md).
+Python framework compatibility is documented **authoritatively in the SDK docs** —
+[Framework compatibility](./docs/compatibility/frameworks.md) — because the Python
+adapters and the ranges they advertise via `get_supported_versions()` are the source of
+truth (Python-specific detail, version-sync policy, and the Pydantic AI hook-point note
+live there). The core docs provide a cross-SDK
+[index/hub](https://ai-agent-assembly.github.io/agent-assembly/stable/reference/framework-compatibility.html)
+that links out to each SDK's own page (Python here, plus Node and Go) — an index, not the
+canonical matrix (a `/stable/` link — it 404s until the first GA release, by design).
 
 ## Project status
 

@@ -10,18 +10,25 @@ frameworks are importable in your process and installs governance hooks for each
 [Framework support](../examples/framework-support.md) for the adapter ↔ example status,
 and [Core Concepts](../concepts/index.md#the-adapter-pattern) for the adapter pattern).
 
-## Canonical, cross-component matrix
+## Authoritative for Python — and where the cross-SDK index lives
 
-The **canonical, org-wide framework-compatibility matrix** — which covers the core
-runtime and is shared across the Python, Node, and Go SDKs — lives in the core docs:
+**This page is the authoritative framework-compatibility reference for the Python SDK.**
+The Python adapters under `agent_assembly/adapters/` and the ranges each one advertises
+via `FrameworkAdapter.get_supported_versions()` are the source of truth — so the Python
+table below is what to trust for Python, not a mirror of some other page.
 
-- **[Core framework-compatibility matrix →](https://ai-agent-assembly.github.io/agent-assembly/stable/reference/framework-compatibility.html)**
+The core docs host a **cross-SDK index/hub** that links out to each language SDK's own
+compatibility page (this one for Python, plus the Node and Go equivalents). It is an
+index, not the canonical matrix — each SDK's page is authoritative for its own language,
+because the adapters live in the SDK:
+
+- **[Cross-SDK framework-compatibility index →](https://ai-agent-assembly.github.io/agent-assembly/stable/reference/framework-compatibility.html)**
 
 !!! note "The `/stable/` link 404s until GA"
     That URL points at the `stable` documentation channel, which only activates at the
     first general-availability (`vX.Y.0`) release. Until then it returns *404 Not Found*
     by design — the same convention the other compatibility links follow. The Python
-    table below is authoritative for the Python SDK in the meantime.
+    table below is authoritative for the Python SDK regardless.
 
 ## Supported frameworks (Python SDK)
 
