@@ -88,6 +88,13 @@ test = [
     # tests drive a real `Tool` subclass, so a regression to a fail-open no-op
     # patch is caught (deny must block `forward`) instead of silently skipped.
     "smolagents>=1.0.0,<2.0.0",
+    # AAASM-3537: dev/test-only (NOT a runtime dependency). Agno (formerly
+    # Phidata) runs every function-tool body through
+    # `agno.tools.function.FunctionCall.execute` / `aexecute`. Installing it lets
+    # the `importorskip`-guarded integration test drive a real `FunctionCall`, so
+    # the negative-control deny test fails if the patch ever regresses to a no-op
+    # instead of being silently skipped.
+    "agno>=2.0.0",
     # AAASM-3536: dev/test-only (NOT a runtime dependency). LlamaIndex routes
     # tool execution through the concrete `FunctionTool.call` / `acall` methods;
     # installing it lets the `importorskip`-guarded governance tests drive a
