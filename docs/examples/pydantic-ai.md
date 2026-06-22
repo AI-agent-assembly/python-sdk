@@ -14,19 +14,21 @@ Integrate Agent Assembly with [Pydantic AI](https://ai.pydantic.dev/) to enforce
 
 This example builds on [Pydantic AI](https://ai.pydantic.dev/), the agent framework from the Pydantic team.
 
-The Agent Assembly Pydantic AI adapter hooks the internal `Tool._run` entry point, which exists in the Pydantic AI `0.1.x`–`0.2.x` line. Accordingly, `pyproject.toml` pins:
+The Agent Assembly Pydantic AI adapter auto-detects the framework's tool-execution hook across versions (`Tool._run` on `<0.3.0`, `AbstractToolset.call_tool` on `>=0.3.0`). This example targets the tested `>=0.3.0` line, so `pyproject.toml` pins:
 
 ```toml
 dependencies = [
     "agent-assembly>=0.0.1a2",
-    # The Agent Assembly Pydantic AI adapter patches `Tool._run`, which is
-    # present in the 0.1.x–0.2.x line. Newer 1.x releases renamed that internal
-    # entry point; pin to the supported range so governance hooks attach.
-    "pydantic-ai>=0.1.0,<0.3.0",
+    # The Agent Assembly Pydantic AI adapter auto-detects the tool-execution
+    # hook across versions: `Tool._run` on <0.3.0, and `AbstractToolset.call_tool`
+    # on >=0.3.0 (where that internal entry point was renamed). `>=0.3.0` is the
+    # tested line — the SDK's own dev/test group pins it, so it is the version
+    # exercised in CI.
+    "pydantic-ai>=0.3.0",
 ]
 ```
 
-Newer Pydantic AI `1.x` releases renamed that internal API, so the governance hooks would not attach there. The example requires Python `>= 3.12` and the Agent Assembly Python SDK `>= 0.0.1a2`.
+The adapter installs governance hooks on both the legacy (`<0.3.0`) and current (`>=0.3.0`) Pydantic AI lines; `>=0.3.0` is the continuously-tested line and the one this example targets. The example requires Python `>= 3.12` and the Agent Assembly Python SDK `>= 0.0.1a2`. For the full version-range table, see [Framework compatibility](../compatibility/frameworks.md).
 
 ## How it works
 
@@ -136,8 +138,8 @@ Pending tools route to `wait_for_tool_approval`, which denies them offline becau
 
 ## Notes & caveats
 
-!!! warning "Pydantic AI version pin"
-    The adapter hooks the internal `Tool._run` entry point, which exists in the Pydantic AI `0.1.x`–`0.2.x` line. `pyproject.toml` pins `pydantic-ai>=0.1.0,<0.3.0` so the governance hooks attach. Newer `1.x` releases renamed that internal API. If governance hooks do not fire, ensure `pydantic-ai` resolves to the pinned `0.1.x`–`0.2.x` range.
+!!! note "Pydantic AI version support"
+    The adapter auto-detects the tool-execution hook across versions: it patches `pydantic_ai.tools.Tool._run` on `<0.3.0`, and `AbstractToolset.call_tool` (plus the concrete toolsets that override it) on `>=0.3.0`, where that internal entry point was renamed. The **tested line is `pydantic-ai>=0.3.0`** — the SDK's own dev/test group pins it, so it is the version exercised in CI. Earlier `0.1.x`–`0.2.x` releases still work through the `Tool._run` hook but are not continuously tested. See [Framework compatibility](../compatibility/frameworks.md) for the full matrix.
 
 !!! note "Offline TestModel"
     The agent is driven by Pydantic AI's built-in `TestModel`, so the demo runs deterministically with no API key and no network. No running Agent Assembly gateway is required for the offline demo.
@@ -145,7 +147,7 @@ Pending tools route to `wait_for_tool_approval`, which denies them offline becau
 !!! tip "Troubleshooting"
     - `ModuleNotFoundError: agent_assembly` → run `uv sync` first.
     - `ModuleNotFoundError: pydantic_ai` → run `uv sync`; `pydantic-ai` is a required dependency.
-    - Governance hooks do not fire → ensure `pydantic-ai` resolves to the pinned `0.1.x`–`0.2.x` range.
+    - Governance hooks do not fire → ensure `pydantic-ai` resolves within the supported range (`>=0.1.0`; `>=0.3.0` is the tested line).
     - `PolicyViolationError` in tests → expected; the deny/pending policy rules are intentional.
 
 To move to production mode: start an Agent Assembly gateway (or use your SaaS workspace URL), copy `.env.example` to `.env` and fill in credentials, swap `TestModel` for a real model (e.g. `openai:gpt-4o`) and set `OPENAI_API_KEY`, then run with the gateway environment variables:
