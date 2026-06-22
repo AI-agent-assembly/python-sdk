@@ -66,6 +66,8 @@ theme:
 
 # Plugins
 plugins:
+  # Built-in client-side search — restores the search bar in the rendered site.
+  - search
   # Doc-as-Code — render Python API reference inline from package docstrings.
   - mkdocstrings:
       handlers:
