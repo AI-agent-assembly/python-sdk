@@ -51,6 +51,7 @@ to work but are not continuously tested.
 | Haystack | `haystack` | `agent_assembly.adapters.haystack` | `>=2.0.0,<3.0` (the Haystack 2.x `Tool.invoke` hook point, used by both `Tool.invoke()` and the `Agent`/`ToolInvoker` tool-call loop) | `2.30.x` |
 | MCP | `mcp` | `agent_assembly.adapters.mcp` | `>=1.0.0` | `1.27.x` |
 | OpenAI Agents | `agents` | `agent_assembly.adapters.openai_agents` | `>=0.1.0` | `0.17.x` |
+| Smolagents | `smolagents` | `agent_assembly.adapters.smolagents` | `>=1.0.0,<2.0.0` | `1.26.x` |
 | Microsoft Agent Framework | `agent_framework` | `agent_assembly.adapters.microsoft_agent_framework` | `>=1.0.0,<2.0` | `1.9.x` — see [note below](#microsoft-agent-framework-version-range) |
 
 !!! note "Adapter present vs. example present"
@@ -103,7 +104,7 @@ your agent already uses, alongside the SDK, and the matching adapter activates
 automatically:
 
 ```bash
-pip install agent-assembly langchain   # or crewai, pydantic-ai, mcp, openai-agents, ...
+pip install agent-assembly langchain   # or crewai, pydantic-ai, mcp, openai-agents, smolagents, ...
 ```
 
 The SDK deliberately does **not** declare these frameworks as `pip install
