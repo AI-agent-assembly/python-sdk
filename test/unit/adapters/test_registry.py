@@ -282,3 +282,6 @@ def test_builtin_registry_keys_match_adapter_framework_name() -> None:
 
     assert "pydantic_ai" in registry._registered
     assert registry._registered["pydantic_ai"].get_framework_name() == "pydantic_ai"
+
+    assert "smolagents" in registry._registered
+    assert registry._registered["smolagents"].get_framework_name() == "smolagents"
