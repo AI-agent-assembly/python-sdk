@@ -48,6 +48,7 @@ to work but are not continuously tested.
 | Pydantic AI | `pydantic_ai` | `agent_assembly.adapters.pydantic_ai` | `>=0.1.0` (both the `<0.3` `Tool._run` and `>=0.3` `AbstractToolset.call_tool` hook points) | `>=0.3.0` — see [note below](#pydantic-ai-version-range) |
 | CrewAI | `crewai` | `agent_assembly.adapters.crewai` | `>=0.1.0` | `1.14.x` |
 | Google ADK | `google.adk` | `agent_assembly.adapters.google_adk` | `>=1.0.0,<2.0` | `1.x` line |
+| Haystack | `haystack` | `agent_assembly.adapters.haystack` | `>=2.0.0,<3.0` (the Haystack 2.x `Tool.invoke` hook point, used by both `Tool.invoke()` and the `Agent`/`ToolInvoker` tool-call loop) | `2.30.x` |
 | MCP | `mcp` | `agent_assembly.adapters.mcp` | `>=1.0.0` | `1.27.x` |
 | OpenAI Agents | `agents` | `agent_assembly.adapters.openai_agents` | `>=0.1.0` | `0.17.x` |
 | Microsoft Agent Framework | `agent_framework` | `agent_assembly.adapters.microsoft_agent_framework` | `>=1.0.0,<2.0` | `1.9.x` — see [note below](#microsoft-agent-framework-version-range) |

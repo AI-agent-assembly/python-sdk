@@ -8,6 +8,7 @@ from typing import Callable, Literal
 from agent_assembly.adapters.base import FrameworkAdapter
 from agent_assembly.adapters.crewai.adapter import CrewAIAdapter
 from agent_assembly.adapters.google_adk.adapter import GoogleADKAdapter
+from agent_assembly.adapters.haystack.adapter import HaystackAdapter
 from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
 from agent_assembly.adapters.mcp.adapter import MCPAdapter
@@ -27,6 +28,7 @@ _ADAPTER_PRIORITY: dict[str, int] = {
     "pydantic_ai": 3,
     "openai": 4,
     "google_adk": 5,
+    "haystack": 6,
     "microsoft_agent_framework": 6,
     "mcp": 99,
 }
@@ -70,6 +72,7 @@ class AdapterRegistry:
             PydanticAIAdapter(),
             OpenAIAgentsAdapter(),
             GoogleADKAdapter(),
+            HaystackAdapter(),
             MicrosoftAgentFrameworkAdapter(),
             MCPAdapter(),
         ]
