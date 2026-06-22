@@ -28,8 +28,8 @@ _ADAPTER_PRIORITY: dict[str, int] = {
     "openai": 4,
     "google_adk": 5,
     "haystack": 6,
-    "smolagents": 7,
-    "agno": 8,
+    "smolagents": 6,
+    "agno": 6,
     "mcp": 99,
 }
 
