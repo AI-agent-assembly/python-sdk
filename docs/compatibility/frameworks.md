@@ -50,6 +50,7 @@ to work but are not continuously tested.
 | Google ADK | `google.adk` | `agent_assembly.adapters.google_adk` | `>=1.0.0,<2.0` | `1.x` line |
 | MCP | `mcp` | `agent_assembly.adapters.mcp` | `>=1.0.0` | `1.27.x` |
 | OpenAI Agents | `agents` | `agent_assembly.adapters.openai_agents` | `>=0.1.0` | `0.17.x` |
+| Agno | `agno` | `agent_assembly.adapters.agno` | `>=2.0.0` (patches `FunctionCall.execute` / `aexecute`) | `2.6.x` |
 
 !!! note "Adapter present vs. example present"
     Every framework above has an adapter that is implemented and registered —
@@ -75,6 +76,21 @@ work through the `Tool._run` hook but are not exercised in CI.
 > and stated that governance hooks only attach on the `0.1.x`–`0.2.x` line. That
 > predated the `>=0.3.0` `AbstractToolset.call_tool` support and is no longer accurate;
 > the example and that pin now track the tested `>=0.3.0` line.
+
+### Agno (formerly Phidata)
+
+Agno (pip `agno`; the package was previously published as `phidata`) routes **every**
+function-tool body through a single chokepoint: `agno.tools.function.FunctionCall.execute`
+(sync) and `FunctionCall.aexecute` (async). An `Agent` builds a `FunctionCall` from the
+model's tool-call request and invokes that method, which runs the user's tool entrypoint
+and wraps the return in a `FunctionExecutionResult`.
+
+The Agno adapter patches that one method, so the pre-execution governance check runs
+*before* the tool body. A `deny` short-circuits the body entirely — the tool never runs —
+and returns a `FunctionExecutionResult(status="failure", ...)` carrying the block message,
+which Agno surfaces to the model as a tool error. An `allow` runs the body and records the
+result. The **tested line is `agno>=2.0.0`** (currently `2.6.x`), installed by the SDK's
+dev/test dependency group and exercised by the `importorskip`-guarded integration test.
 
 ## Declaring frameworks in your own project
 
