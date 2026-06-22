@@ -11,6 +11,9 @@ from agent_assembly.adapters.google_adk.adapter import GoogleADKAdapter
 from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
 from agent_assembly.adapters.mcp.adapter import MCPAdapter
+from agent_assembly.adapters.microsoft_agent_framework.adapter import (
+    MicrosoftAgentFrameworkAdapter,
+)
 from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
 from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
 
@@ -24,6 +27,7 @@ _ADAPTER_PRIORITY: dict[str, int] = {
     "pydantic_ai": 3,
     "openai": 4,
     "google_adk": 5,
+    "microsoft_agent_framework": 6,
     "mcp": 99,
 }
 
@@ -66,6 +70,7 @@ class AdapterRegistry:
             PydanticAIAdapter(),
             OpenAIAgentsAdapter(),
             GoogleADKAdapter(),
+            MicrosoftAgentFrameworkAdapter(),
             MCPAdapter(),
         ]
         for adapter in builtin_adapters:
