@@ -15,10 +15,10 @@
         <link rel="canonical" href="https://ai-agent-assembly.github.io/python-sdk/latest/examples/llamaindex-tool-policy/">
       
       
-        <link rel="prev" href="../google-adk/">
+        <link rel="prev" href="../haystack/">
       
       
-        <link rel="next" href="../custom-tool-policy/">
+        <link rel="next" href="../smolagents/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>LlamaIndex — manual tool policy - Agent Assembly Python SDK</title>
+        <title>LlamaIndex - Agent Assembly Python SDK</title>
       
     
     
@@ -86,7 +86,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#llamaindex-manual-tool-policy" class="md-skip">
+        <a href="#llamaindex" class="md-skip">
           Skip to content
         </a>
       
@@ -213,7 +213,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              LlamaIndex — manual tool policy
+              LlamaIndex
             
           </span>
         </div>
@@ -1085,6 +1085,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1398,6 +1406,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../haystack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Haystack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -1417,7 +1453,7 @@
   <span class="md-ellipsis">
     
   
-    LlamaIndex — manual tool policy
+    LlamaIndex
   
 
     
@@ -1435,7 +1471,7 @@
   <span class="md-ellipsis">
     
   
-    LlamaIndex — manual tool policy
+    LlamaIndex
   
 
     
@@ -1502,35 +1538,41 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#code-walkthrough" class="md-nav__link">
+    <nav class="md-nav" aria-label="Prerequisites &amp; running it">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#expected-output" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Code walkthrough
+        Expected output
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#notes-caveats" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#switching-to-production-mode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notes &amp; caveats
+        Switching to production mode
       
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#expected-behavior" class="md-nav__link">
+  <a href="#run-the-smoke-tests" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Expected behavior
+        Run the smoke tests
       
     </span>
   </a>
@@ -1552,6 +1594,90 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../smolagents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Smolagents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agno/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agno
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../microsoft-agent-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Microsoft Agent Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2240,35 +2366,41 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#code-walkthrough" class="md-nav__link">
+    <nav class="md-nav" aria-label="Prerequisites &amp; running it">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#expected-output" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Code walkthrough
+        Expected output
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#notes-caveats" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#switching-to-production-mode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notes &amp; caveats
+        Switching to production mode
       
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#expected-behavior" class="md-nav__link">
+  <a href="#run-the-smoke-tests" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Expected behavior
+        Run the smoke tests
       
     </span>
   </a>
@@ -2319,23 +2451,43 @@
   
 
 
-<h1 id="llamaindex-manual-tool-policy">LlamaIndex — manual tool policy<a class="headerlink" href="#llamaindex-manual-tool-policy" title="Permanent link">&para;</a></h1>
-<p>Add Agent Assembly governance to <a href="https://docs.llamaindex.ai/">LlamaIndex</a> tool calls by wrapping each <code>FunctionTool</code> with a <code>GovernedToolRunner</code>, since LlamaIndex has no native adapter yet.</p>
+<h1 id="llamaindex">LlamaIndex<a class="headerlink" href="#llamaindex" title="Permanent link">&para;</a></h1>
+<p>Integrates Agent Assembly with <a href="https://docs.llamaindex.ai/">LlamaIndex</a> using the <strong>native <code>LlamaIndexAdapter</code></strong>, so every tool call a LlamaIndex agent makes is governed automatically — no per-tool wrapper.</p>
 <h2 id="what-this-example-demonstrates">What this example demonstrates<a class="headerlink" href="#what-this-example-demonstrates" title="Permanent link">&para;</a></h2>
-<p>Because LlamaIndex does not yet have a native Agent Assembly adapter, this example shows the <strong>manual wrapper pattern</strong>: each <code>FunctionTool</code> is wrapped with <code>GovernedToolRunner</code> so governance runs before every tool invocation. This pattern works for any Python callable.</p>
-<p>It walks through:</p>
 <ul>
-<li>Initializing Agent Assembly with <code>init_assembly()</code>.</li>
-<li>Applying governance to <code>FunctionTool</code> calls using <code>GovernedToolRunner</code>.</li>
-<li>Running an <strong>allowed</strong> tool call (<code>query_index</code>).</li>
-<li>Running another <strong>allowed</strong> tool call (<code>summarize_docs</code>).</li>
-<li>Running a <strong>denied</strong> tool call (<code>execute_sql</code> — blocked by <code>deny_arbitrary_execution</code>).</li>
-<li>How to add governance to any framework that lacks a native adapter.</li>
+<li>Initializing Agent Assembly with <code>init_assembly()</code> in offline <code>sdk-only</code> mode.</li>
+<li>Registering the native <code>LlamaIndexAdapter</code>, which patches the concrete <code>llama_index.core.tools.FunctionTool.call</code> / <code>acall</code> execution methods — the exact methods a <code>FunctionAgent</code> / <code>ReActAgent</code> invokes to run a tool.</li>
+<li>Running an <strong>allowed</strong> tool call (<code>query_index</code>) and another <strong>allowed</strong> call (<code>summarize_docs</code>) through the patched <code>FunctionTool.call</code>.</li>
+<li>Running a <strong>denied</strong> tool call (<code>execute_sql</code>, blocked by <code>deny_arbitrary_execution</code>) — its body never executes; the adapter returns a <code>ToolOutput</code> flagged <code>is_error=True</code> carrying a <code>[BLOCKED by governance policy]</code> message instead of raising, so the agent loop can react.</li>
+<li>A fully <strong>offline</strong> run — no API key, no running gateway, and no live LLM.</li>
 </ul>
 <h2 id="the-framework-library">The framework / library<a class="headerlink" href="#the-framework-library" title="Permanent link">&para;</a></h2>
-<p><a href="https://docs.llamaindex.ai/">LlamaIndex</a> — the example depends on <code>llama-index-core&gt;=0.10.0</code> for its <code>FunctionTool</code> abstraction, and on the Agent Assembly Python SDK pinned at <code>agent-assembly&gt;=0.0.1a2</code> (per <code>pyproject.toml</code>). Python <code>&gt;=3.12</code> is required.</p>
+<p><a href="https://docs.llamaindex.ai/">LlamaIndex</a> is the agent framework governed in this example. The package is imported as <code>llama_index.core</code>, and the adapter advertises support for <code>&gt;=0.10.0</code> via <code>get_supported_versions()</code>.</p>
+<p>Version pins (from <code>pyproject.toml</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>llama-index-core</code></td>
+<td><code>&gt;=0.14.22</code></td>
+</tr>
+<tr>
+<td><code>agent-assembly</code></td>
+<td><code>&gt;=0.0.1b5</code> (the release that ships the LlamaIndex adapter)</td>
+</tr>
+<tr>
+<td>Python</td>
+<td><code>&gt;=3.12</code></td>
+</tr>
+</tbody>
+</table>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p><code>main.py</code> opens an Agent Assembly context with <code>init_assembly()</code>, passing <code>agent_id="llamaindex-demo-agent"</code> and <code>mode="sdk-only"</code> so the demo runs offline:</p>
+<p><code>init_assembly()</code> is opened as a context manager in offline <code>sdk-only</code> mode with the agent id <code>llamaindex-demo-agent</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">with</span> <span class="n">init_assembly</span><span class="p">(</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">gateway_url</span><span class="o">=</span><span class="n">gateway_url</span><span class="p">,</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">,</span>
@@ -2344,126 +2496,66 @@
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">...</span>
 </span></code></pre></div>
-<p>The <code>gateway_url</code> defaults to <code>http://localhost:8080</code> (read from <code>AGENT_ASSEMBLY_GATEWAY_URL</code>), and <code>api_key</code> comes from <code>AGENT_ASSEMBLY_API_KEY</code>. Neither is required for the offline demo.</p>
-<p>Each tool is then wrapped in a <code>GovernedToolRunner</code>, which holds the callable plus an <code>AssemblyCallbackHandler</code> configured with a <code>LocalPolicyEngine</code>. Calling <code>runner.run(**kwargs)</code> first fires <code>on_tool_start</code>, which routes through the policy engine before the underlying function executes. When the policy denies a tool (here, <code>execute_sql</code> and <code>run_shell_command</code>), the call surfaces as a <code>ToolExecutionBlockedError</code>, which <code>main.py</code> catches and prints as <code>❌ BLOCKED</code>.</p>
-<p>Unlike the native-adapter examples — where <code>init_assembly()</code> wires governance into the framework automatically — this is the fallback path for frameworks that lack a native adapter: you place the <code>GovernedToolRunner</code> in front of each callable yourself. As <code>main.py</code> notes, once a native LlamaIndex adapter exists, <code>GovernedToolRunner</code> will no longer be needed.</p>
+<p><strong>The hook point.</strong> LlamaIndex routes every tool invocation through a <code>BaseTool</code> subclass, but <code>BaseTool.call</code> / <code>acall</code> are <em>abstract</em> — the real bodies live on concrete classes such as <code>FunctionTool</code>. The adapter therefore patches the concrete <code>FunctionTool.call</code> (sync) and <code>acall</code> (async) methods directly:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">agent_assembly.adapters.llamaindex</span><span class="w"> </span><span class="kn">import</span> <span class="n">LlamaIndexAdapter</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">adapter</span> <span class="o">=</span> <span class="n">LlamaIndexAdapter</span><span class="p">()</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">adapter</span><span class="o">.</span><span class="n">register_hooks</span><span class="p">(</span><span class="n">interceptor</span><span class="p">)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># FunctionTool.call / acall are now governed.</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="o">...</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">adapter</span><span class="o">.</span><span class="n">unregister_hooks</span><span class="p">()</span>  <span class="c1"># restores the original methods</span>
+</span></code></pre></div>
+<p>Because both methods are patched, the modern agent stack is covered either way: <code>FunctionAgent</code> / <code>ReActAgent</code> (via <code>AgentWorkflow</code>) <code>await tool.acall(...)</code>, while the legacy / sync path calls <code>tool.call(...)</code>.</p>
+<p><strong>The <code>@dispatcher.span</code> descriptor nuance.</strong> LlamaIndex wraps <code>call</code> / <code>acall</code> with an instrumentation decorator (<code>@dispatcher.span</code>), so <code>FunctionTool.call</code> yields a fresh bound wrapper on every attribute access. The adapter captures the stable original from the class <code>__dict__</code> (not the attribute) to restore on revert, and invokes the original through the descriptor protocol (<code>original_call.__get__(self, type(self))(...)</code>) so the instance binds correctly as <code>self</code> — a plain unbound call would lose <code>self</code>. This is handled inside the adapter; the example does not need to deal with it.</p>
+<p>The adapter calls <code>interceptor.check_tool_start(...)</code> before a tool body runs. The example's <code>LocalPolicyEngine</code> (<code>src/policy.py</code>) is that interceptor: it returns a gateway-format <code>{"status": "allow"}</code> / <code>{"status": "deny", "reason": ...}</code> verdict, denying <code>execute_sql</code> and <code>run_shell_command</code> and allowing everything else. An unknown / malformed verdict denies rather than silently allowing.</p>
+<p><strong>Deny is non-raising.</strong> On a <code>deny</code>, the patch does not raise — it returns a <code>ToolOutput(is_error=True)</code> whose <code>content</code> carries the <code>[BLOCKED by governance policy]</code> message. The security-relevant invariant is that the tool's underlying function never executes; returning a well-formed error result lets an agent loop observe the block and choose another approach instead of crashing.</p>
 <h2 id="prerequisites-running-it">Prerequisites &amp; running it<a class="headerlink" href="#prerequisites-running-it" title="Permanent link">&para;</a></h2>
 <p>See <a href="../preparing-the-runtime-environment/">Preparing the runtime environment</a> for the shared prerequisites.</p>
-<p>Then:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>python/llamaindex-tool-policy
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>src/main.py
+<p>Then run the example (offline — no API key and no running gateway required):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>python/llamaindex-tool-policy
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>src/main.py
 </span></code></pre></div>
-<p>The demo runs fully offline — no API key and no running gateway are required.</p>
-<h2 id="code-walkthrough">Code walkthrough<a class="headerlink" href="#code-walkthrough" title="Permanent link">&para;</a></h2>
-<p><code>policy.py</code> defines the local policy engine and the runner that bridges any callable into governance. The denied tools are a static set, and <code>check_tool_start</code> returns an allow/deny verdict:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">DENIED_TOOLS</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="s2">&quot;execute_sql&quot;</span><span class="p">,</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="s2">&quot;run_shell_command&quot;</span><span class="p">,</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">})</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">class</span><span class="w"> </span><span class="nc">LocalPolicyEngine</span><span class="p">:</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Simulates Agent Assembly gateway policy enforcement in offline mode.&quot;&quot;&quot;</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">check_tool_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">serialized</span><span class="p">,</span> <span class="n">input_str</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>        <span class="n">tool_name</span> <span class="o">=</span> <span class="n">serialized</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>        <span class="k">if</span> <span class="n">tool_name</span> <span class="ow">in</span> <span class="n">DENIED_TOOLS</span><span class="p">:</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>            <span class="k">return</span> <span class="p">{</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;deny&quot;</span><span class="p">,</span>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>                <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="p">(</span>
-</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>                    <span class="sa">f</span><span class="s2">&quot;Tool &#39;</span><span class="si">{</span><span class="n">tool_name</span><span class="si">}</span><span class="s2">&#39; is blocked by policy rule &quot;</span>
-</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>                    <span class="s2">&quot;&#39;deny_arbitrary_execution&#39;.&quot;</span>
-</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>                <span class="p">),</span>
-</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>            <span class="p">}</span>
-</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;allow&quot;</span><span class="p">}</span>
+<h3 id="expected-output">Expected output<a class="headerlink" href="#expected-output" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>==============================================================
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  Agent Assembly — LlamaIndex Tool Policy Demo
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>==============================================================
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>Initializing Agent Assembly (gateway: http://localhost:8080, sdk-only mode)...
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  Agent:    llamaindex-demo-agent
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  Gateway:  http://localhost:8080
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  Mode:     sdk-only (offline demo)
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>Policy rules (local simulation of gateway policy):
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>  DENY   — execute_sql, run_shell_command  (arbitrary execution)
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  ALLOW  — everything else
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>Registering the native LlamaIndex governance adapter...
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>  FunctionTool.call / acall are now governed by Agent Assembly.
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>Running governed tool calls:
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>--------------------------------------------
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>  → query_index({&#39;query&#39;: &#39;what is Agent Assembly?&#39;})
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>     ✅ ALLOWED  — 📚 Index results for &#39;what is Agent Assembly?&#39;: ...
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>  → summarize_docs({&#39;topic&#39;: &#39;policy enforcement&#39;})
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>     ✅ ALLOWED  — 📝 Summary for &#39;policy enforcement&#39;: Agent Assembly provides governance...
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>  → execute_sql({&#39;sql&#39;: &#39;DROP TABLE users; --&#39;})
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>     ❌ BLOCKED  — [BLOCKED by governance policy] Tool &#39;execute_sql&#39; is blocked by policy rule &#39;deny_arbitrary_execution&#39;. ...
 </span></code></pre></div>
-<p><code>GovernedToolRunner.run()</code> serializes the kwargs, calls the handler's <code>on_tool_start</code> to enforce policy, then invokes the wrapped function:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">input_str</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_handler</span><span class="o">.</span><span class="n">on_tool_start</span><span class="p">(</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>        <span class="n">serialized</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tool_name</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;tool&quot;</span><span class="p">},</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>        <span class="n">input_str</span><span class="o">=</span><span class="n">input_str</span><span class="p">,</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        <span class="n">run_id</span><span class="o">=</span><span class="n">uuid4</span><span class="p">(),</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="p">)</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fn</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-</span></code></pre></div>
-<p><code>tools.py</code> defines the three LlamaIndex <code>FunctionTool</code>s used by the demo:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">query_index</span> <span class="o">=</span> <span class="n">FunctionTool</span><span class="o">.</span><span class="n">from_defaults</span><span class="p">(</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">fn</span><span class="o">=</span><span class="n">_query_index_fn</span><span class="p">,</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;query_index&quot;</span><span class="p">,</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Query the document index for relevant information.&quot;</span><span class="p">,</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">)</span>
-</span></code></pre></div>
-<p><code>main.py</code> builds a runner per tool and executes the demo calls:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">runners</span> <span class="o">=</span> <span class="p">{</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">name</span><span class="p">:</span> <span class="n">GovernedToolRunner</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">policy</span><span class="p">)</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">_DEMO_CALLS</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">}</span>
-</span></code></pre></div>
-<h2 id="notes-caveats">Notes &amp; caveats<a class="headerlink" href="#notes-caveats" title="Permanent link">&para;</a></h2>
-<div class="admonition note">
-<p class="admonition-title">Manual pattern for frameworks without a native adapter</p>
-<p>LlamaIndex does not yet have a native Agent Assembly adapter, so governance is applied explicitly via <code>GovernedToolRunner</code>. When a native adapter becomes available, <code>init_assembly()</code> will apply governance automatically and the manual runner will no longer be needed.</p>
-</div>
-<p>Troubleshooting (from the README):</p>
-<table>
-<thead>
-<tr>
-<th>Problem</th>
-<th>Fix</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>ModuleNotFoundError: agent_assembly</code></td>
-<td>Run <code>uv sync</code> first</td>
-</tr>
-<tr>
-<td><code>ModuleNotFoundError: llama_index</code></td>
-<td>Run <code>uv sync</code> — <code>llama-index-core</code> is a required dependency</td>
-</tr>
-<tr>
-<td><code>ToolExecutionBlockedError</code> in tests</td>
-<td>Expected — the deny policy rule for <code>execute_sql</code> is intentional</td>
-</tr>
-</tbody>
-</table>
-<h2 id="expected-behavior">Expected behavior<a class="headerlink" href="#expected-behavior" title="Permanent link">&para;</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>==============================================================
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  Agent Assembly — LlamaIndex Tool Policy Demo
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>==============================================================
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>Initializing Agent Assembly (gateway: http://localhost:8080, sdk-only mode)...
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>  Agent:    llamaindex-demo-agent
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>  Gateway:  http://localhost:8080
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>  Mode:     sdk-only (offline demo)
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>Policy rules (local simulation of gateway policy):
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>  DENY   — execute_sql, run_shell_command  (arbitrary execution)
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>  ALLOW  — everything else
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>Wrapping LlamaIndex tools with GovernedToolRunner...
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>  Tools wrapped: query_index, summarize_docs, execute_sql
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>Running governed tool calls:
-</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>--------------------------------------------
-</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>  → query_index({&#39;query&#39;: &#39;what is Agent Assembly?&#39;})
-</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>     ✅ ALLOWED  — 📚 Index results for &#39;what is Agent Assembly?&#39;: ...
-</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>
-</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>  → summarize_docs({&#39;topic&#39;: &#39;policy enforcement&#39;})
-</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>     ✅ ALLOWED  — 📝 Summary for &#39;policy enforcement&#39;: Agent Assembly provides governance...
-</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>
-</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>  → execute_sql({&#39;sql&#39;: &#39;DROP TABLE users; --&#39;})
-</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a>     ❌ BLOCKED  — Tool &#39;execute_sql&#39; is blocked by policy rule &#39;deny_arbitrary_execution&#39;.
+<p>The two safe tools run and return their results; <code>execute_sql</code> is blocked before its body runs, surfacing the <code>[BLOCKED by governance policy]</code> message from the <code>ToolOutput</code> the adapter returns.</p>
+<h3 id="switching-to-production-mode">Switching to production mode<a class="headerlink" href="#switching-to-production-mode" title="Permanent link">&para;</a></h3>
+<p>In <code>sdk-only</code> mode the example reverts the auto-detected no-op patch and wires its own <code>LocalPolicyEngine</code> as the live interceptor. Against a real deployment you instead start an Agent Assembly gateway (or use your SaaS workspace URL), supply credentials via <code>.env</code>, and let <code>init_assembly()</code> auto-detect and register the LlamaIndex adapter against the live gateway interceptor — the tool-call code does not change; only the policy source does.</p>
+<h2 id="run-the-smoke-tests">Run the smoke tests<a class="headerlink" href="#run-the-smoke-tests" title="Permanent link">&para;</a></h2>
+<p>The example ships offline smoke tests that drive the <strong>real</strong> adapter — <code>LlamaIndexAdapter.register_hooks</code> patches <code>FunctionTool.call</code>, then an allowed tool runs and a denied tool's body never executes (the test asserts the tool function was never invoked and that the <code>[BLOCKED by governance policy]</code> marker is present). Each test reverts the patch so the global <code>FunctionTool</code> class is left clean.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/<span class="w"> </span>-v
 </span></code></pre></div>
 <h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/llamaindex-tool-policy">Example directory</a></li>
 <li><a href="https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/llamaindex-tool-policy/README.md">Example README</a></li>
-<li><a href="https://docs.llamaindex.ai/">LlamaIndex docs</a></li>
+<li><a href="https://docs.llamaindex.ai/">LlamaIndex documentation</a></li>
 </ul>
 
 
@@ -2483,7 +2575,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 14, 2026 20:30:38 CST"><span class="timeago" datetime="2026-06-14T20:30:38+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 14, 2026 20:30:38 CST">2026-06-14</span> by Chisanan232</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 22, 2026 20:01:42 CST"><span class="timeago" datetime="2026-06-22T20:01:42+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 22, 2026 20:01:42 CST">2026-06-22</span> by Chisanan232</span>
 
     
     
@@ -2525,7 +2617,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../google-adk/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Google ADK">
+          <a href="../haystack/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Haystack">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2535,20 +2627,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Google ADK
+                Haystack
               </div>
             </div>
           </a>
         
         
           
-          <a href="../custom-tool-policy/" class="md-footer__link md-footer__link--next" aria-label="Next: Custom tool policy (no framework)">
+          <a href="../smolagents/" class="md-footer__link md-footer__link--next" aria-label="Next: Smolagents">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Custom tool policy (no framework)
+                Smolagents
               </div>
             </div>
             <div class="md-footer__button md-icon">

@@ -73,6 +73,10 @@
          <lastmod>2026-06-22</lastmod>
     </url>
     <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/agno/</loc>
+         <lastmod>2026-06-22</lastmod>
+    </url>
+    <url>
          <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/crewai-research-crew/</loc>
          <lastmod>2026-06-22</lastmod>
     </url>
@@ -86,6 +90,10 @@
     </url>
     <url>
          <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/google-adk/</loc>
+         <lastmod>2026-06-22</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/haystack/</loc>
          <lastmod>2026-06-22</lastmod>
     </url>
     <url>
@@ -105,6 +113,10 @@
          <lastmod>2026-06-22</lastmod>
     </url>
     <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/microsoft-agent-framework/</loc>
+         <lastmod>2026-06-22</lastmod>
+    </url>
+    <url>
          <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/openai-agents-sdk/</loc>
          <lastmod>2026-06-22</lastmod>
     </url>
@@ -114,6 +126,10 @@
     </url>
     <url>
          <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/pydantic-ai/</loc>
+         <lastmod>2026-06-22</lastmod>
+    </url>
+    <url>
+         <loc>https://ai-agent-assembly.github.io/python-sdk/latest/examples/smolagents/</loc>
          <lastmod>2026-06-22</lastmod>
     </url>
     <url>
