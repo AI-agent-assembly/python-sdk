@@ -1823,6 +1823,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#agno-formerly-phidata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agno (formerly Phidata)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2205,6 +2216,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#agno-formerly-phidata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agno (formerly Phidata)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2376,6 +2398,13 @@ to work but are not continuously tested.</p>
 <td><code>&gt;=1.0.0,&lt;2.0.0</code></td>
 <td><code>1.26.x</code></td>
 </tr>
+<tr>
+<td>Agno</td>
+<td><code>agno</code></td>
+<td><code>agent_assembly.adapters.agno</code></td>
+<td><code>&gt;=2.0.0</code> (patches <code>FunctionCall.execute</code> / <code>aexecute</code>)</td>
+<td><code>2.6.x</code></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition note">
@@ -2402,6 +2431,18 @@ and stated that governance hooks only attach on the <code>0.1.x</code>–<code>0
 predated the <code>&gt;=0.3.0</code> <code>AbstractToolset.call_tool</code> support and is no longer accurate;
 the example and that pin now track the tested <code>&gt;=0.3.0</code> line.</p>
 </blockquote>
+<h3 id="agno-formerly-phidata">Agno (formerly Phidata)<a class="headerlink" href="#agno-formerly-phidata" title="Permanent link">&para;</a></h3>
+<p>Agno (pip <code>agno</code>; the package was previously published as <code>phidata</code>) routes <strong>every</strong>
+function-tool body through a single chokepoint: <code>agno.tools.function.FunctionCall.execute</code>
+(sync) and <code>FunctionCall.aexecute</code> (async). An <code>Agent</code> builds a <code>FunctionCall</code> from the
+model's tool-call request and invokes that method, which runs the user's tool entrypoint
+and wraps the return in a <code>FunctionExecutionResult</code>.</p>
+<p>The Agno adapter patches that one method, so the pre-execution governance check runs
+<em>before</em> the tool body. A <code>deny</code> short-circuits the body entirely — the tool never runs —
+and returns a <code>FunctionExecutionResult(status="failure", ...)</code> carrying the block message,
+which Agno surfaces to the model as a tool error. An <code>allow</code> runs the body and records the
+result. The <strong>tested line is <code>agno&gt;=2.0.0</code></strong> (currently <code>2.6.x</code>), installed by the SDK's
+dev/test dependency group and exercised by the <code>importorskip</code>-guarded integration test.</p>
 <h2 id="declaring-frameworks-in-your-own-project">Declaring frameworks in your own project<a class="headerlink" href="#declaring-frameworks-in-your-own-project" title="Permanent link">&para;</a></h2>
 <p>The frameworks above are <strong>not</strong> runtime dependencies of <code>agent-assembly</code> — installing
 the SDK does not pull in LangChain, CrewAI, and so on. You install whichever framework
@@ -2443,7 +2484,7 @@ corresponding row here.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 22, 2026 14:16:14 CST"><span class="timeago" datetime="2026-06-22T14:16:14+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 22, 2026 14:16:14 CST">2026-06-22</span> by Bryant</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 22, 2026 14:17:23 CST"><span class="timeago" datetime="2026-06-22T14:17:23+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 22, 2026 14:17:23 CST">2026-06-22</span> by Bryant</span>
 
     
     
