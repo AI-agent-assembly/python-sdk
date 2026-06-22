@@ -14,6 +14,9 @@ from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langgraph.adapter import LangGraphAdapter
 from agent_assembly.adapters.llamaindex.adapter import LlamaIndexAdapter
 from agent_assembly.adapters.mcp.adapter import MCPAdapter
+from agent_assembly.adapters.microsoft_agent_framework.adapter import (
+    MicrosoftAgentFrameworkAdapter,
+)
 from agent_assembly.adapters.openai_agents.adapter import OpenAIAgentsAdapter
 from agent_assembly.adapters.pydantic_ai.adapter import PydanticAIAdapter
 from agent_assembly.adapters.smolagents.adapter import SmolagentsAdapter
@@ -32,6 +35,7 @@ _ADAPTER_PRIORITY: dict[str, int] = {
     "smolagents": 6,
     "agno": 6,
     "llama_index.core": 6,
+    "microsoft_agent_framework": 6,
     "mcp": 99,
 }
 
@@ -78,6 +82,7 @@ class AdapterRegistry:
             SmolagentsAdapter(),
             AgnoAdapter(),
             LlamaIndexAdapter(),
+            MicrosoftAgentFrameworkAdapter(),
             MCPAdapter(),
         ]
         for adapter in builtin_adapters:

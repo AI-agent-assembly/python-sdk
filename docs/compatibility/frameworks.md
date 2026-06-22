@@ -54,6 +54,7 @@ to work but are not continuously tested.
 | OpenAI Agents | `agents` | `agent_assembly.adapters.openai_agents` | `>=0.1.0` | `0.17.x` |
 | Smolagents | `smolagents` | `agent_assembly.adapters.smolagents` | `>=1.0.0,<2.0.0` | `1.26.x` |
 | Agno | `agno` | `agent_assembly.adapters.agno` | `>=2.0.0` (patches `FunctionCall.execute` / `aexecute`) | `2.6.x` |
+| Microsoft Agent Framework | `agent_framework` | `agent_assembly.adapters.microsoft_agent_framework` | `>=1.0.0,<2.0` | `1.9.x` — see [note below](#microsoft-agent-framework-version-range) |
 
 !!! note "Adapter present vs. example present"
     Every framework above has an adapter that is implemented and registered —
@@ -108,6 +109,23 @@ and returns a `FunctionExecutionResult(status="failure", ...)` carrying the bloc
 which Agno surfaces to the model as a tool error. An `allow` runs the body and records the
 result. The **tested line is `agno>=2.0.0`** (currently `2.6.x`), installed by the SDK's
 dev/test dependency group and exercised by the `importorskip`-guarded integration test.
+
+### Microsoft Agent Framework version range
+
+Microsoft's unified **Agent Framework** ships on PyPI as `agent-framework` but imports
+as the top-level module **`agent_framework`** — so the adapter's `is_available()` probes
+`agent_framework`, not its framework name. The single interception point is
+`agent_framework.FunctionTool.invoke`, the async coroutine through which **every**
+function tool executes (both `@agent_framework.tool`-decorated callables and direct
+`FunctionTool(...)` instances). Patching that one method governs all tool execution
+without requiring the user to register any framework middleware.
+
+The **tested line is `agent-framework>=1.9.0`** — the first stable 1.x line. The adapter
+pins `>=1.0.0,<2.0`; the 2.x surface is unverified. The package is **pre-release-heavy**:
+several of its sub-distributions (`agent-framework-azure-ai-search`, etc.) are published
+as pre-releases, so an installer that does not allow pre-releases (notably `uv`) needs an
+explicit pre-release opt-in (e.g. `uv pip install --prerelease=allow agent-framework`).
+`pip install agent-framework` resolves them without a flag.
 
 ## Declaring frameworks in your own project
 
