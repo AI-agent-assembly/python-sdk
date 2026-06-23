@@ -33,13 +33,19 @@
         : document.querySelector("[data-aaasm-outdated]");
       if (!host) return;
 
-      // Derive the current version directory and the versions.json URL from the
-      // page location: mike serves each version under /<base>/<version>/, with
-      // versions.json one level up at /<base>/versions.json.
-      var path = window.location.pathname.replace(/\/+$/, "");
-      var segments = path.split("/");
-      var current = segments.pop() || "";
-      var versionsUrl = segments.join("/") + "/versions.json";
+      // mike serves each version under /<base>/<version>/, with versions.json
+      // one level up at /<base>/versions.json. mkdocs renders `base_url` so it
+      // points at the deploy root (the current version directory) from *any*
+      // page depth, so the deploy-root versions.json is reliably one level
+      // above it. Resolving the bare relative `base_url` against `location`
+      // yields an absolute URL; popping only the page's last path segment (the
+      // previous approach) 404s on deep pages.
+      var versionRoot = new URL("{{ base_url }}/", window.location);
+      var versionsUrl = new URL("../versions.json", versionRoot).toString();
+
+      // The current version id is the last path segment of the deploy root.
+      var current =
+        versionRoot.pathname.replace(/\/+$/, "").split("/").pop() || "";
 
       fetch(versionsUrl, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : []; })
