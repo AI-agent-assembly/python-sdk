@@ -86,6 +86,12 @@ pip install 'agent-assembly[runtime]' # SDK + bundled aasm runtime binary (platf
 `aasm` sidecar binary, so you don't need a separate runtime install. Plain `agent-assembly`
 is the pure-Python client and expects an `aasm` runtime to be reachable some other way.
 
+> **Supply-chain verification.** The only official PyPI package is `agent-assembly`
+> (anything else is a typosquat). Every release ships PEP 740 attestations on its
+> [PyPI files page](https://pypi.org/project/agent-assembly/#files) and a CycloneDX
+> SBOM attached to its [GitHub Release](https://github.com/ai-agent-assembly/python-sdk/releases).
+> See [`SECURITY.md`](./SECURITY.md) for how to verify what you installed.
+
 With [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
