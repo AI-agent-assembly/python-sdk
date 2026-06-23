@@ -1,0 +1,96 @@
+{#-
+  Override of Material's partials/integrations/analytics/google.html (AAASM-3558).
+
+  Material's generated partial defines `__md_analytics()` (the gtag.js loader +
+  `config` + search/feedback wiring) but loads GA with *basic* Consent Mode — it
+  only runs once the analytics consent cookie is granted. With our opt-in consent
+  GA never loaded for ordinary visitors (window.gtag stayed undefined, zero
+  /g/collect hits).
+
+  This override keeps Material's `__md_analytics()` body intact (so the feedback
+  widget is revealed + wired and its single GA `feedback` event still flows
+  through Material's own handler — no custom handler, no double-count) but turns
+  it into *advanced* Consent Mode v2, matching the other four doc sites:
+
+    1. Before `gtag('config', …)`, declare Consent Mode defaults as DENIED for
+       analytics_storage / ad_storage / ad_user_data / ad_personalization, so
+       gtag.js sends cookieless, modelled pings until the visitor consents.
+    2. Read Material's stored consent (`__md_get('__consent')`, namespaced to the
+       deploy root) and, if the analytics cookie is enabled, immediately update
+       analytics_storage to 'granted' — upgrading from cookieless to full hits.
+       The consent banner reloads the page on submit, so reading stored consent
+       at load time covers accept/reject without a live form hook.
+
+  `partials/integrations/analytics.html` (also overridden) now calls
+  `__md_analytics()` unconditionally, so this runs on every page load. The
+  Measurement ID + feedback markup still come from `extra.analytics` in
+  mkdocs.yml. Mirrors mkdocs-material 9.7.6; only the Consent Mode lines are added.
+-#}
+{% if config.extra.analytics %}
+  {% set property = config.extra.analytics.property | d("", true) %}
+{% endif %}
+<script id="__analytics">
+  function __md_analytics() {
+    // Use the standard GA install pattern: assign the pusher to `window.gtag`
+    // (not a local) so the tag is detectable by Google's "Test your website"
+    // (typeof window.gtag === "function"), matching the other four doc sites.
+    // mkdocs-material's generated code uses a *local* pusher and never sets
+    // window.gtag, which is why python's tag was previously undetectable.
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || function () { dataLayer.push(arguments); };
+
+    // Advanced Consent Mode v2 — default everything to denied BEFORE config so
+    // gtag sends cookieless pings until the visitor grants analytics consent.
+    gtag("consent", "default", {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied"
+    });
+
+    // Restore a granted state from Material's stored consent cookie, if present.
+    try {
+      var __aa_consent = __md_get("__consent");
+      if (__aa_consent && __aa_consent.analytics) {
+        gtag("consent", "update", { analytics_storage: "granted" });
+      }
+    } catch (e) { /* no stored consent yet — stay denied (cookieless) */ }
+
+    gtag("js", new Date());
+    gtag("config", "{{ property }}");
+
+    document.addEventListener("DOMContentLoaded", function () {
+      if (document.forms.search) {
+        document.forms.search.query.addEventListener("blur", function () {
+          if (this.value) gtag("event", "search", { search_term: this.value });
+        });
+      }
+      document$.subscribe(function () {
+        var feedback = document.forms.feedback;
+        if (feedback === undefined) return;
+        for (var button of feedback.querySelectorAll("[type=submit]")) {
+          button.addEventListener("click", function (e) {
+            e.preventDefault();
+            var page = document.location.pathname;
+            var data = this.getAttribute("data-md-value");
+            gtag("event", "feedback", { page: page, data: data });
+            feedback.firstElementChild.disabled = true;
+            var note = feedback.querySelector(
+              ".md-feedback__note [data-md-value='" + data + "']"
+            );
+            if (note) note.hidden = false;
+          });
+        }
+        feedback.hidden = false;
+      });
+      location$.subscribe(function (url) {
+        gtag("config", "{{ property }}", { page_path: url.pathname });
+      });
+    });
+
+    var script = document.createElement("script");
+    script.async = true;
+    script.src = "https://www.googletagmanager.com/gtag/js?id={{ property }}";
+    document.getElementById("__analytics").insertAdjacentElement("afterEnd", script);
+  }
+</script>
