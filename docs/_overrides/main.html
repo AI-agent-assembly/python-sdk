@@ -103,3 +103,44 @@
     })();
   </script>
 {% endblock %}
+
+{#-
+  Feedback widget decoupling (AAASM-3557, fixes the AAASM-3555 regression).
+
+  Material only reveals `form.md-feedback` (form.hidden = false) and wires the
+  👍/👎 click handlers from inside its generated `__md_analytics()`, which runs
+  only after analytics consent is granted. With opt-in consent (off by default)
+  ordinary visitors never see the widget.
+
+  This script reveals the widget for everyone and wires our own handlers so the
+  thank-you note / "open an issue" link works without consent. It deliberately
+  does NOT call gtag: when consent IS granted, Material's own handler sends the
+  GA `feedback` event. Keeping the event in Material's handler preserves the
+  GDPR posture (event stays consent-gated) and avoids double-counting.
+-#}
+{% block scripts %}
+  {{ super() }}
+  <script>
+    document$.subscribe(function () {
+      var form = document.forms.feedback;
+      if (!form) return;
+      form.hidden = false;                 // always reveal the widget
+      if (form.dataset.aaWired) return;    // wire our handlers once per form
+      form.dataset.aaWired = "1";
+      form.querySelectorAll("[type=submit]").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          var d = btn.getAttribute("data-md-value");
+          var note = form.querySelector(
+            ".md-feedback__note [data-md-value='" + d + "']"
+          );
+          if (note) note.hidden = false;   // show the thank-you / issue link
+          form.firstElementChild.disabled = true;
+          // Intentionally no gtag call here — Material's analytics handler
+          // (active only with consent) sends the GA `feedback` event. This
+          // keeps the event consent-gated and avoids double-counting.
+        });
+      });
+    });
+  </script>
+{% endblock %}
