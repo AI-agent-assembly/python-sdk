@@ -70,10 +70,78 @@
   
   
 
-<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-L8JTJDG8G7"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-L8JTJDG8G7",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-L8JTJDG8G7",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
-  
-    <script>if("undefined"!=typeof __md_analytics){var consent=__md_get("__consent");consent&&consent.analytics&&__md_analytics()}</script>
-  
+<script id="__analytics">
+  function __md_analytics() {
+    // Use the standard GA install pattern: assign the pusher to `window.gtag`
+    // (not a local) so the tag is detectable by Google's "Test your website"
+    // (typeof window.gtag === "function"), matching the other four doc sites.
+    // mkdocs-material's generated code uses a *local* pusher and never sets
+    // window.gtag, which is why python's tag was previously undetectable.
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || function () { dataLayer.push(arguments); };
+
+    // Advanced Consent Mode v2 — default everything to denied BEFORE config so
+    // gtag sends cookieless pings until the visitor grants analytics consent.
+    gtag("consent", "default", {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied"
+    });
+
+    // Restore a granted state from Material's stored consent cookie, if present.
+    try {
+      var __aa_consent = __md_get("__consent");
+      if (__aa_consent && __aa_consent.analytics) {
+        gtag("consent", "update", { analytics_storage: "granted" });
+      }
+    } catch (e) { /* no stored consent yet — stay denied (cookieless) */ }
+
+    gtag("js", new Date());
+    gtag("config", "G-L8JTJDG8G7");
+
+    document.addEventListener("DOMContentLoaded", function () {
+      if (document.forms.search) {
+        document.forms.search.query.addEventListener("blur", function () {
+          if (this.value) gtag("event", "search", { search_term: this.value });
+        });
+      }
+      document$.subscribe(function () {
+        var feedback = document.forms.feedback;
+        if (feedback === undefined) return;
+        // Gate the feedback widget on analytics consent: reveal + wire its
+        // handlers only after the visitor Accepts analytics cookies. While
+        // undecided or on Reject the form stays hidden. GA itself keeps loading
+        // and sending cookieless pings regardless (handled above, ungated).
+        var __aa_fb_consent = __md_get("__consent");
+        if (!(__aa_fb_consent && __aa_fb_consent.analytics)) return;
+        for (var button of feedback.querySelectorAll("[type=submit]")) {
+          button.addEventListener("click", function (e) {
+            e.preventDefault();
+            var page = document.location.pathname;
+            var data = this.getAttribute("data-md-value");
+            gtag("event", "feedback", { page: page, data: data });
+            feedback.firstElementChild.disabled = true;
+            var note = feedback.querySelector(
+              ".md-feedback__note [data-md-value='" + data + "']"
+            );
+            if (note) note.hidden = false;
+          });
+        }
+        feedback.hidden = false;
+      });
+      location$.subscribe(function (url) {
+        gtag("config", "G-L8JTJDG8G7", { page_path: url.pathname });
+      });
+    });
+
+    var script = document.createElement("script");
+    script.async = true;
+    script.src = "https://www.googletagmanager.com/gtag/js?id=G-L8JTJDG8G7";
+    document.getElementById("__analytics").insertAdjacentElement("afterEnd", script);
+  }
+</script>
+  <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
 
     
     
@@ -123,13 +191,19 @@
         : document.querySelector("[data-aaasm-outdated]");
       if (!host) return;
 
-      // Derive the current version directory and the versions.json URL from the
-      // page location: mike serves each version under /<base>/<version>/, with
-      // versions.json one level up at /<base>/versions.json.
-      var path = window.location.pathname.replace(/\/+$/, "");
-      var segments = path.split("/");
-      var current = segments.pop() || "";
-      var versionsUrl = segments.join("/") + "/versions.json";
+      // mike serves each version under /<base>/<version>/, with versions.json
+      // one level up at /<base>/versions.json. mkdocs renders `base_url` so it
+      // points at the deploy root (the current version directory) from *any*
+      // page depth, so the deploy-root versions.json is reliably one level
+      // above it. Resolving the bare relative `base_url` against `location`
+      // yields an absolute URL; popping only the page's last path segment (the
+      // previous approach) 404s on deep pages.
+      var versionRoot = new URL("../../", window.location);
+      var versionsUrl = new URL("../versions.json", versionRoot).toString();
+
+      // The current version id is the last path segment of the deploy root.
+      var current =
+        versionRoot.pathname.replace(/\/+$/, "").split("/").pop() || "";
 
       fetch(versionsUrl, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : []; })
@@ -194,7 +268,7 @@
   </script>
 
             </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../..",location),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
           </aside>
         
       </div>
