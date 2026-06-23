@@ -153,8 +153,13 @@ fi
 
 # Set the default (root-redirect target) to the most authoritative channel that
 # exists, as decided by the resolver: stable, else pre-release, else latest.
+# Use a custom redirect template that carries the GA snippet (advanced Consent
+# Mode v2, cookieless-until-consent) so Google's "Test your website" detects the
+# tag on the bare-root URL too (AAASM-3558).
 echo "🎯  Setting default channel (root redirect) to '${DEFAULT_CHANNEL}'"
-mike set-default --push "${DEFAULT_CHANNEL}"
+mike set-default --push \
+    --template "${PROJECT_ROOT}/scripts/ci/templates/mike-redirect-with-analytics.html" \
+    "${DEFAULT_CHANNEL}"
 
 echo "🍻 Release documentation deployed for ${RELEASE_TAG}: stable=${STABLE_VERSION:-(none)}," \
      "pre-release=${PRERELEASE_VERSION:-(hidden)}, default=${DEFAULT_CHANNEL}."
