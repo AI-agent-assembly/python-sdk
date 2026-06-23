@@ -1,0 +1,14 @@
+{#-
+  Override of Material's partials/javascripts/outdated.html (AAASM-3558, carried
+  over from the closed PR #169 / AAASM-3557).
+
+  Material's generated script calls `new URL("{{ base_url }}")` with no base
+  argument. On many pages `base_url` is a bare relative value such as `.` or
+  `..`, which is not an absolute URL, so `new URL("..")` throws
+  `TypeError: Failed to construct 'URL': Invalid URL` on every page load.
+
+  The only change here is passing `location` as the base so the relative
+  `base_url` resolves against the current page. Behaviour is otherwise identical
+  to Material's generated script.
+-#}
+<script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("{{ base_url }}",location),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
