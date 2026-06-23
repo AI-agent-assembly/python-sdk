@@ -187,7 +187,7 @@ extra:
     cookies:
       analytics:
         name: Google Analytics
-        checked: false
+        checked: true
   # Versioning documentation
   version:
     provider: mike
