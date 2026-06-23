@@ -464,6 +464,16 @@ jobs:
       - name: Publish via PyPI Trusted Publisher
         uses: pypa/gh-action-pypi-publish@release/v1
         # No `with: password:` — Trusted Publisher uses OIDC, no token stored.
+        with:
+          # PEP 740: mint a Sigstore-backed digital attestation for every
+          # wheel/sdist, reusing the Trusted Publisher OIDC identity already
+          # granted on this job (id-token: write) — no new secret. A wheel
+          # pushed outside this OIDC-gated workflow carries no attestation, so
+          # PyPI (and consumers) can detect an artifact not produced by the
+          # sanctioned pipeline. `true` is the action default on recent
+          # versions, but pin it explicitly so it cannot silently regress.
+          # AAASM-3611.
+          attestations: true
 
   # Cut python-sdk's own GitHub Release at the just-published version so the
   # repo's release line tracks PyPI (and the README `github/v/release` badge
