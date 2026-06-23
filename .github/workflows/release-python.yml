@@ -142,6 +142,38 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Resolved binary_source_tag=${binary_source_tag} pypi_version=${pypi_version} dry_run=${dry_run} release_tag=${release_tag}"
 
+  # AAASM-3615: produce a CycloneDX SBOM of the SDK's resolved dependency set
+  # so consumers get a machine-readable manifest to cross-check against
+  # advisory feeds (and detect a poisoned transitive dep after the fact).
+  # Runs on BOTH dry-run and real dispatches — it is a build artifact, always
+  # worth producing. The create-github-release job attaches it to the Release
+  # on the real-publish path only.
+  sbom:
+    name: Generate CycloneDX SBOM
+    needs: resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Sync resolved environment
+        # Resolve the locked dependency set into .venv so the SBOM reflects the
+        # exact versions a consumer gets, not just the declared ranges.
+        run: uv sync --frozen
+      - name: Generate CycloneDX SBOM
+        # cyclonedx-py walks the resolved virtualenv and emits a CycloneDX
+        # JSON BOM of every installed distribution.
+        run: uvx --from cyclonedx-bom cyclonedx-py environment .venv --output-format JSON --outfile sbom.cdx.json
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: sbom.cdx.json
+          if-no-files-found: error
+
   build-sdist:
     name: Build sdist
     needs: resolve
@@ -464,6 +496,16 @@ jobs:
       - name: Publish via PyPI Trusted Publisher
         uses: pypa/gh-action-pypi-publish@release/v1
         # No `with: password:` — Trusted Publisher uses OIDC, no token stored.
+        with:
+          # PEP 740: mint a Sigstore-backed digital attestation for every
+          # wheel/sdist, reusing the Trusted Publisher OIDC identity already
+          # granted on this job (id-token: write) — no new secret. A wheel
+          # pushed outside this OIDC-gated workflow carries no attestation, so
+          # PyPI (and consumers) can detect an artifact not produced by the
+          # sanctioned pipeline. `true` is the action default on recent
+          # versions, but pin it explicitly so it cannot silently regress.
+          # AAASM-3611.
+          attestations: true
 
   # Cut python-sdk's own GitHub Release at the just-published version so the
   # repo's release line tracks PyPI (and the README `github/v/release` badge
@@ -475,6 +517,7 @@ jobs:
     needs:
       - resolve
       - publish
+      - sbom
     runs-on: ubuntu-latest
     # Real publish only, and only when resolve produced a SemVer tag (empty
     # for .post/.dev republishes, which do not get their own Release).
@@ -483,6 +526,12 @@ jobs:
       contents: write  # create the git tag + GitHub Release
     steps:
       - uses: actions/checkout@v7
+      - name: Download CycloneDX SBOM
+        # AAASM-3615: pull the SBOM built by the `sbom` job so it can be
+        # attached to the Release below.
+        uses: actions/download-artifact@v8
+        with:
+          name: sbom
       - name: Create tag and GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -517,6 +566,17 @@ jobs:
             --title "$RELEASE_TAG" \
             --notes "python-sdk agent-assembly==${PYPI_VERSION} — coordinated with agent-assembly ${RELEASE_TAG}."
           echo "Created GitHub Release $RELEASE_TAG (agent-assembly==${PYPI_VERSION})"
+      - name: Attach CycloneDX SBOM to the Release
+        # AAASM-3615: attach the SBOM as a Release asset so consumers can audit
+        # the dependency set of exactly this published version. `--clobber`
+        # keeps the step idempotent on a workflow_dispatch re-run.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" sbom.cdx.json --repo "$GITHUB_REPOSITORY" --clobber
+          echo "Attached sbom.cdx.json to GitHub Release $RELEASE_TAG"
 
   # Publish the *real* release tag as a tiny artifact so the documentation
   # workflow (which is triggered by `workflow_run` after this workflow

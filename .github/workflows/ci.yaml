@@ -73,22 +73,57 @@ jobs:
       codecov_token: ${{ secrets.CODECOV_TOKEN }}
       sonar_token: ${{ secrets.SONAR_TOKEN }}
 
+  # AAASM-3612: advisory gate. Fail CI when a (possibly transitive) dependency
+  # in the locked set carries a known advisory, so a poisoned dep cannot ride
+  # into a release through uv.lock. pip-audit resolves the synced environment
+  # against the PyPI Advisory + OSV databases; a non-empty result exits
+  # non-zero and fails the job.
+  dependency-audit:
+    name: Dependency advisory audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Sync locked environment
+        run: uv sync --frozen
+      - name: Run pip-audit advisory gate
+        # Documented allowlist for advisories with NO available fix, mirroring
+        # go-sdk's KNOWN_UNFIXED. Add an entry ONLY when there is no fixed
+        # release, with a dated rationale, in the form:
+        #   --ignore-vuln GHSA-xxxx-xxxx-xxxx  # <date> <reason; awaiting fix>
+        # The list starts empty: every known-vuln dependency fails the gate.
+        run: |
+          set -euo pipefail
+          uvx pip-audit \
+            --strict \
+            --desc
+          # To allowlist an unfixable advisory, append flags above, e.g.:
+          #   --ignore-vuln GHSA-xxxx-xxxx-xxxx  # 2026-06-23 no fixed release yet
+
   # Single aggregate required check. Collapses the reusable-workflow fan-out into one
   # stable status so branch protection needs only this check, and it still reports a
   # result (success on skip) instead of staying pending when path filters skip the
   # underlying test jobs.
   ci-success:
     name: CI Success
-    needs: [build-and-test_all]
+    needs: [build-and-test_all, dependency-audit]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Verify upstream jobs did not fail or get cancelled
         run: |
-          result="${{ needs.build-and-test_all.result }}"
-          echo "build-and-test_all result: ${result}"
-          if [ "${result}" = "failure" ] || [ "${result}" = "cancelled" ]; then
-            echo "::error::CI failed: build-and-test_all=${result}"
-            exit 1
-          fi
+          test_result="${{ needs.build-and-test_all.result }}"
+          audit_result="${{ needs.dependency-audit.result }}"
+          echo "build-and-test_all result: ${test_result}"
+          echo "dependency-audit result: ${audit_result}"
+          for result in "${test_result}" "${audit_result}"; do
+            if [ "${result}" = "failure" ] || [ "${result}" = "cancelled" ]; then
+              echo "::error::CI failed: build-and-test_all=${test_result} dependency-audit=${audit_result}"
+              exit 1
+            fi
+          done
           echo "CI Success: all required upstream jobs passed or were skipped."
