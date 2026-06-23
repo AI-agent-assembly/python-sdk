@@ -68,6 +68,12 @@
       document$.subscribe(function () {
         var feedback = document.forms.feedback;
         if (feedback === undefined) return;
+        // Gate the feedback widget on analytics consent: reveal + wire its
+        // handlers only after the visitor Accepts analytics cookies. While
+        // undecided or on Reject the form stays hidden. GA itself keeps loading
+        // and sending cookieless pings regardless (handled above, ungated).
+        var __aa_fb_consent = __md_get("__consent");
+        if (!(__aa_fb_consent && __aa_fb_consent.analytics)) return;
         for (var button of feedback.querySelectorAll("[type=submit]")) {
           button.addEventListener("click", function (e) {
             e.preventDefault();
