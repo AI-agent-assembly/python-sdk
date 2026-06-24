@@ -25,6 +25,9 @@ class FakeRuntimeClient:
         self.register_calls: list[tuple[str, str, str, str | None, str | None, str | None]] = []
         self.query_calls: list[tuple[Any, ...]] = []
         self.register_should_raise: Exception | None = None
+        # Set by install_fake_core's connect to the (socket_path, agent_id,
+        # sdk_version) it was called with (AAASM-3683).
+        self.connect_args: tuple[str, str | None, str | None] | None = None
 
     def register(
         self,
@@ -85,11 +88,17 @@ def install_fake_core(
     runtime_client: Any,
 ) -> Any:
     """Install a fake ``agent_assembly._core`` whose ``RuntimeClient.connect``
-    returns ``runtime_client``. Returns the same client for assertions."""
+    returns ``runtime_client``. Returns the same client for assertions.
+
+    ``connect`` accepts the AAASM-3683 ``agent_id`` / ``sdk_version`` arguments
+    and records them on ``runtime_client.connect_args`` so callers can assert the
+    installed package version is forwarded into the handshake.
+    """
 
     class _ConnectingRuntimeClient:
         @staticmethod
-        def connect(_socket_path: str) -> Any:
+        def connect(_socket_path: str, agent_id: str | None = None, sdk_version: str | None = None) -> Any:
+            runtime_client.connect_args = (_socket_path, agent_id, sdk_version)
             return runtime_client
 
     fake_core = types.ModuleType("agent_assembly._core")

@@ -266,6 +266,58 @@ def test_init_assembly_lineage_values_round_trip_verbatim(
         context.shutdown()
 
 
+def test_connect_forwards_agent_id_and_installed_package_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """connect_runtime_client forwards the agent id and the installed PyPI
+    package version into the native ``connect`` so the language-package version
+    (not the crate version) is signed into the handshake (AAASM-3683)."""
+    from agent_assembly.core import runtime_interceptor
+
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    # Pin the resolved package version deterministically.
+    monkeypatch.setattr(runtime_interceptor, "_sdk_version", lambda: "7.8.9")
+
+    result = runtime_interceptor.connect_runtime_client("agent-vers")
+
+    assert result is runtime_client
+    assert runtime_client.connect_args is not None
+    _socket, agent_id, sdk_version = runtime_client.connect_args
+    assert agent_id == "agent-vers"
+    assert sdk_version == "7.8.9"
+
+
+def test_connect_passes_none_version_when_unresolvable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the package version cannot be resolved, ``None`` is forwarded so the
+    native shim falls back to the crate version (no regression, AAASM-3683)."""
+    from agent_assembly.core import runtime_interceptor
+
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    monkeypatch.setattr(runtime_interceptor, "_sdk_version", lambda: None)
+
+    runtime_interceptor.connect_runtime_client("agent-novers")
+
+    assert runtime_client.connect_args is not None
+    _socket, _agent_id, sdk_version = runtime_client.connect_args
+    assert sdk_version is None
+
+
+def test_sdk_version_reads_installed_distribution_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_sdk_version prefers importlib.metadata.version('agent-assembly')."""
+    import importlib.metadata
+
+    from agent_assembly.core import runtime_interceptor
+
+    monkeypatch.setattr(importlib.metadata, "version", lambda _name: "3.2.1")
+    assert runtime_interceptor._sdk_version() == "3.2.1"
+
+
 def test_init_assembly_deny_blocks_tool_via_interceptor(monkeypatch: pytest.MonkeyPatch) -> None:
     """A native ``deny`` makes the adapter interceptor's check_tool_start block."""
     runtime_client = FakeRuntimeClient(decision="deny", reason="policy violation")
