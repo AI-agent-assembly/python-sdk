@@ -20,7 +20,7 @@ Version pins (from `pyproject.toml`):
 | Dependency | Version |
 |---|---|
 | `haystack-ai` | `>=2.0.0,<3.0` |
-| `agent-assembly` | `>=0.0.1b2` |
+| `agent-assembly` | `>=0.0.1b5` (the release that ships the Haystack adapter) |
 | Python | `>=3.12` |
 
 ## How it works

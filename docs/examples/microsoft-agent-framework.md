@@ -19,7 +19,7 @@ Version pins (from `pyproject.toml`):
 | Dependency | Version |
 |---|---|
 | `agent-framework` (the `live` extra) | `>=1.9,<2` |
-| `agent-assembly` | `>=0.0.1b2` |
+| `agent-assembly` | `>=0.0.1b5` (the release that ships the Microsoft Agent Framework adapter) |
 | Python | `>=3.12` |
 
 The adapter's `get_supported_versions()` reports `>=1.0.0,<2.0` — governance attaches across the 1.x line.
