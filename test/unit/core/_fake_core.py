@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import sys
 import types
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -105,3 +106,26 @@ def install_fake_core(
     fake_core.RuntimeClient = _ConnectingRuntimeClient  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
     return runtime_client
+
+
+def install_fake_core_with_connect(
+    monkeypatch: pytest.MonkeyPatch,
+    connect: Callable[..., Any],
+) -> None:
+    """Install a fake ``agent_assembly._core`` whose ``RuntimeClient.connect`` is
+    the supplied callable.
+
+    Lets a test drive the connect path against a native build that, for example,
+    predates the AAASM-3683 ``sdk_version`` parameter (``connect`` raising
+    ``TypeError`` for the extra argument) or fails outright.
+    """
+
+    runtime_client_cls = type(
+        "_CustomConnectRuntimeClient",
+        (),
+        {"connect": staticmethod(connect)},
+    )
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = runtime_client_cls  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)

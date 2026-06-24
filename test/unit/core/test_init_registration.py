@@ -18,7 +18,12 @@ from agent_assembly.core.runtime_interceptor import build_governance_interceptor
 from agent_assembly.core.spawn import SpawnContext, spawn_context_scope
 from agent_assembly.exceptions import ConfigurationError
 
-from ._fake_core import FakeRuntimeClient, LegacyRuntimeClient, install_fake_core
+from ._fake_core import (
+    FakeRuntimeClient,
+    LegacyRuntimeClient,
+    install_fake_core,
+    install_fake_core_with_connect,
+)
 
 _GW_URL = "http://gateway.test"
 _API_KEY = "test-key"
@@ -316,6 +321,113 @@ def test_sdk_version_reads_installed_distribution_metadata(
 
     monkeypatch.setattr(importlib.metadata, "version", lambda _name: "3.2.1")
     assert runtime_interceptor._sdk_version() == "3.2.1"
+
+
+def test_sdk_version_falls_back_to_module_version_when_metadata_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the distribution is not installed (e.g. an editable checkout that was
+    never ``pip install``-ed), ``_sdk_version`` falls back to the in-tree
+    ``agent_assembly.__version__`` rather than returning ``None`` (AAASM-3683)."""
+    import importlib.metadata
+
+    import agent_assembly
+    from agent_assembly.core import runtime_interceptor
+
+    def _raise_not_found(_name: str) -> str:
+        raise importlib.metadata.PackageNotFoundError(_name)
+
+    monkeypatch.setattr(importlib.metadata, "version", _raise_not_found)
+    monkeypatch.setattr(agent_assembly, "__version__", "9.9.9-editable", raising=False)
+
+    assert runtime_interceptor._sdk_version() == "9.9.9-editable"
+
+
+def test_sdk_version_returns_none_when_no_version_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If neither the distribution metadata nor ``agent_assembly.__version__`` can
+    be resolved, ``_sdk_version`` returns ``None`` so the native shim falls back
+    to the crate version instead of raising (AAASM-3683)."""
+    import importlib.metadata
+
+    import agent_assembly
+    from agent_assembly.core import runtime_interceptor
+
+    def _raise_not_found(_name: str) -> str:
+        raise importlib.metadata.PackageNotFoundError(_name)
+
+    monkeypatch.setattr(importlib.metadata, "version", _raise_not_found)
+    # Remove the in-tree fallback so ``from agent_assembly import __version__`` fails.
+    monkeypatch.delattr(agent_assembly, "__version__", raising=False)
+
+    assert runtime_interceptor._sdk_version() is None
+
+
+def test_connect_falls_back_to_legacy_signature_on_typeerror(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Against an older native build whose ``connect`` predates the
+    ``agent_id`` / ``sdk_version`` parameters, the three-arg call raises
+    ``TypeError`` and the SDK retries with the legacy single-arg signature so a
+    connection is still established (AAASM-3683)."""
+    from agent_assembly.core import runtime_interceptor
+
+    legacy_client = object()
+    calls: list[tuple[Any, ...]] = []
+
+    def _legacy_connect(*args: Any) -> Any:
+        calls.append(args)
+        # Old native build only accepts the socket path.
+        if len(args) != 1:
+            raise TypeError("connect() takes 1 positional argument")
+        return legacy_client
+
+    install_fake_core_with_connect(monkeypatch, _legacy_connect)
+    monkeypatch.setattr(runtime_interceptor, "_sdk_version", lambda: "1.2.3")
+
+    result = runtime_interceptor.connect_runtime_client("legacy-agent")
+
+    # The three-arg attempt is made first, then the one-arg legacy retry.
+    assert len(calls) == 2
+    assert len(calls[0]) == 3
+    assert len(calls[1]) == 1
+    assert result is legacy_client
+
+
+def test_connect_returns_none_when_legacy_retry_also_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If the legacy single-arg ``connect`` retry also raises (e.g. the socket is
+    unreachable), ``connect_runtime_client`` returns ``None`` rather than
+    propagating, so there is simply no native fast path (AAASM-3683)."""
+    from agent_assembly.core import runtime_interceptor
+
+    def _always_failing_connect(*args: Any) -> Any:
+        if len(args) != 1:
+            raise TypeError("connect() takes 1 positional argument")
+        raise OSError("socket unreachable")
+
+    install_fake_core_with_connect(monkeypatch, _always_failing_connect)
+    monkeypatch.setattr(runtime_interceptor, "_sdk_version", lambda: "1.2.3")
+
+    assert runtime_interceptor.connect_runtime_client("legacy-agent") is None
+
+
+def test_connect_returns_none_on_generic_connect_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-``TypeError`` failure from the native ``connect`` (e.g. the runtime
+    socket is unreachable) yields ``None`` rather than raising (AAASM-3683)."""
+    from agent_assembly.core import runtime_interceptor
+
+    def _failing_connect(*_args: Any) -> Any:
+        raise OSError("runtime socket unreachable")
+
+    install_fake_core_with_connect(monkeypatch, _failing_connect)
+    monkeypatch.setattr(runtime_interceptor, "_sdk_version", lambda: "1.2.3")
+
+    assert runtime_interceptor.connect_runtime_client("agent-x") is None
 
 
 def test_init_assembly_deny_blocks_tool_via_interceptor(monkeypatch: pytest.MonkeyPatch) -> None:
