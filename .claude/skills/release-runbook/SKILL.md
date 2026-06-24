@@ -115,6 +115,48 @@ This is the path you almost never trigger by hand; it is fired automatically.
 **Operator action on this path is essentially none** — your job is to make the
 upstream core release happen and then *validate* the result.
 
+## Sync docs version refs + example pins (before publish)
+
+The workflow's `sync-version` rewrites `pyproject.toml` / `__init__.py` **in CI
+only** (see above), so the *published* wheel is always correct regardless of what
+`master` says. But the checked-in repo and the docs site still advertise the old
+version — left alone they rot, lying to readers and badges. Before the publish
+fires (or in a follow-up PR on the same cycle), bring the repo in sync:
+
+1. **Bump the checked-in version file** to match the run's `pypi_version` (the
+   `repository_dispatch` payload's tag converted via `tag-to-pep440.sh`, or the
+   `workflow_dispatch` input). Edit `version` in `pyproject.toml` **and**
+   `__version__` in `agent_assembly/__init__.py`, then regenerate the lock:
+   `uv lock`. This is for honesty + the README badge — the wheel version itself
+   comes from CI's `sync-version`, not from these files.
+2. **Sweep the docs site for pinned versions** —
+   `git grep -nE 'agent-assembly\s*[<>=]' docs/` — and bump any *current-version*
+   dependency pin to the new version. (Exact-version `==` callouts in
+   `docs/compatibility/` and `docs/index.md` count.)
+3. **New-feature adapter examples are forward-reference pins — the easily-missed
+   trap.** An example for an adapter added *after* the last published tag cannot
+   pin the last published version: that version does not contain the adapter. It
+   must pin `agent-assembly>=<new version>`. Verify per adapter against the last
+   published tag:
+
+   ```bash
+   git cat-file -e <last-published-tag>:agent_assembly/adapters/<name>/__init__.py
+   ```
+
+   If that **errors** (the adapter is absent from the published tag), the
+   example's pin **must** be the new version, not the last one. If it succeeds,
+   the adapter shipped already and its existing lower pin is valid — leave it.
+   The b5 wave found four wrong: `agno` was pinned `>=…b4` and
+   `haystack` / `microsoft-agent-framework` / `smolagents` were pinned `>=…b2`,
+   yet all four adapters only ship in b5, so every one had to move to `>=…b5`.
+4. **Leave the history alone.** Do **not** rewrite `CHANGELOG` /
+   `docs/compatibility/release-notes.md` past entries, and do **not** touch the
+   auto-managed Docusaurus docs snapshot (`publish-release-tag` labels it — see
+   above). You are syncing *current* pins, not editing the historical record.
+
+(The `agent-assembly` core `release-docs-sync` skill is the canonical, full
+version-sweep procedure across every channel; this section is the python slice.)
+
 ## Path B — SDK-only release / hotfix (`workflow_dispatch`)
 
 Use this when the Python surface needs a republish but the bundled `aasm` binary
@@ -192,6 +234,9 @@ authoritative checker.)
 
 ## Cross-references
 
+- `agent-assembly` core's `release-docs-sync` skill — the canonical full
+  version-sweep + forward-ref-pin procedure across all channels; the
+  "Sync docs version refs + example pins" section above is the python slice of it.
 - [`sdk-only-release`](../sdk-only-release/SKILL.md) — executable `workflow_dispatch`
   driver for Path B (inputs, dry-run gate, PEP 440 example, coordination SOP).
 - `docs/release/RUNBOOK.md` (if present) — operator prose for the same paths.
