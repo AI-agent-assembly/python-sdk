@@ -2125,6 +2125,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#001-beta5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.0.1-beta.5
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#001-beta4" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2373,6 +2384,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#001-beta5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.0.1-beta.5
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#001-beta4" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2422,6 +2444,31 @@
 <p class="admonition-title">0.x development</p>
 <p>The SDK is in active 0.x development; per-release notes are minimal. Track full changes via <a href="https://github.com/ai-agent-assembly/python-sdk/commits/master">the commits to <code>master</code></a> and the <a href="https://github.com/ai-agent-assembly/python-sdk/releases">GitHub releases</a> feed.</p>
 </div>
+<h2 id="001-beta5">0.0.1-beta.5<a class="headerlink" href="#001-beta5" title="Permanent link">&para;</a></h2>
+<p>Beta iteration of the Python SDK on the <code>0.0.1</code> line. Headline of this release is
+<strong>five new framework adapters</strong>, expanding governed-framework coverage:</p>
+<ul>
+<li><strong>LlamaIndex</strong> — native adapter walkthrough (AAASM-3536)</li>
+<li><strong>Agno</strong> — hooks <code>FunctionCall.execute</code>/<code>aexecute</code> (AAASM-3537)</li>
+<li><strong>Microsoft Agent Framework</strong> — builtin adapter (AAASM-3538)</li>
+<li><strong>Smolagents</strong> — wraps <code>Tool.__call__</code> (AAASM-3539)</li>
+<li><strong>Haystack</strong> — framework adapter (AAASM-3540)</li>
+</ul>
+<p>Other notable changes:</p>
+<ul>
+<li>Forward <code>agent_id</code> and the installed SDK package version through <code>connect</code>
+  (AAASM-3683).</li>
+<li><code>GatewayClient</code> now elides <code>api_key</code> from <code>__repr__</code> and emitter logs — token
+  hygiene (AAASM-3642 / AAASM-3570).</li>
+<li>Supply-chain hardening: PEP 740 attestations on PyPI Trusted Publisher upload,
+  per-release CycloneDX SBOM, and a <code>pip-audit</code> advisory gate in CI (AAASM-3568).</li>
+<li>Release safety: <code>release-python.yml</code> is now operator-dispatch-only; the core
+  <code>repository_dispatch</code> auto-publish trigger was removed to stop duplicate-publish
+  collisions on every core release (AAASM-3503).</li>
+<li>Fixed the OpenAI Agents adapter to govern the current framework API (AAASM-3528).</li>
+<li>Docs: python-sdk is now the authoritative framework-compatibility source; mkdocs
+  search restored; GA4 + consent mode wired in.</li>
+</ul>
 <h2 id="001-beta4">0.0.1-beta.4<a class="headerlink" href="#001-beta4" title="Permanent link">&para;</a></h2>
 <p>Beta iteration of the Python SDK on the <code>0.0.1</code> line. The bundled <code>aasm</code> runtime
 binary and compiled <code>aa-ffi-python</code> extension track the <code>agent-assembly</code>
@@ -2444,7 +2491,7 @@ binary and compiled <code>aa-ffi-python</code> extension track the <code>agent-a
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 20, 2026 12:53:12 CST"><span class="timeago" datetime="2026-06-20T12:53:12+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 20, 2026 12:53:12 CST">2026-06-20</span> by Chisanan232</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 24, 2026 23:11:03 CST"><span class="timeago" datetime="2026-06-24T23:11:03+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 24, 2026 23:11:03 CST">2026-06-24</span> by Bryant</span>
 
     
     
