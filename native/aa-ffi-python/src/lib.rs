@@ -77,18 +77,35 @@ impl RuntimeClient {
     /// Spawns the shared client's background IPC thread and returns a handle.
     /// Event reporting is fire-and-forget; a failed connection surfaces on a
     /// later `send_event` rather than here.
+    ///
+    /// `agent_id` is the agent identity the background thread signs the runtime
+    /// session handshake with (AAASM-3587); pass `None` only when no identity is
+    /// available yet.
+    ///
+    /// `sdk_version` is the user-facing PyPI package version (`agent_assembly.__version__`)
+    /// the Python layer forwards so it — not the shared `aa-sdk-client` crate
+    /// version — is what gets signed into the handshake (AAASM-3683). `None`
+    /// lets the shared client fall back to the crate version (no regression vs
+    /// AAASM-3666).
     #[staticmethod]
-    fn connect(socket_path: String) -> PyResult<Self> {
+    #[pyo3(signature = (socket_path, agent_id=None, sdk_version=None))]
+    fn connect(socket_path: String, agent_id: Option<String>, sdk_version: Option<String>) -> PyResult<Self> {
         let config = AssemblyConfig {
-            agent_id: String::new(),
+            agent_id: agent_id.unwrap_or_default(),
             socket_path: Some(socket_path.clone()),
             // Registration is a separate explicit `register` call; connecting
             // the runtime UDS does not need a gateway endpoint or lineage.
             gateway_endpoint: None,
             team_id: None,
             parent_agent_id: None,
+            sdk_version,
         };
-        let handle = spawn_ipc_thread(config.resolve_socket_path()).map_err(|error| {
+        let handle = spawn_ipc_thread(
+            config.resolve_socket_path(),
+            config.agent_id.clone(),
+            config.resolved_sdk_version(),
+        )
+        .map_err(|error| {
             PyRuntimeError::new_err(format!("failed to start runtime IPC thread: {error}"))
         })?;
         Ok(Self {
@@ -139,6 +156,9 @@ impl RuntimeClient {
             gateway_endpoint,
             team_id,
             parent_agent_id,
+            // The version is signed at IPC-handshake time (`connect`), not on the
+            // gateway register, so it is not needed for this config.
+            sdk_version: None,
         };
         // `register` is async (tonic). Release the GIL and drive the future on a
         // private current-thread runtime so the blocking gRPC round-trip never
