@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import os
+from importlib import metadata
 from typing import Any
 
 from agent_assembly.exceptions import OpTerminatedError
@@ -288,10 +289,42 @@ def connect_runtime_client(agent_id: str) -> Any | None:
         return None
 
     socket_path = _resolve_runtime_socket_path(agent_id)
+    sdk_version = _sdk_version()
     try:
-        return RuntimeClient.connect(socket_path)
+        # Forward the agent identity (signed into the runtime handshake,
+        # AAASM-3587) and the installed PyPI package version (signed into the
+        # handshake so downgrade detection reflects the real SDK release,
+        # AAASM-3683).
+        return RuntimeClient.connect(socket_path, agent_id, sdk_version)
+    except TypeError:
+        # Native build predates the agent_id / sdk_version parameters; fall back
+        # to the legacy positional signature so connecting still works against an
+        # older core (the version simply is not forwarded).
+        try:
+            return RuntimeClient.connect(socket_path)
+        except Exception:
+            return None
     except Exception:
         return None
+
+
+def _sdk_version() -> str | None:
+    """Return the installed ``agent-assembly`` distribution version, or ``None``.
+
+    Prefers ``importlib.metadata.version`` (the authoritative installed-package
+    version) and falls back to the in-tree ``agent_assembly.__version__`` when the
+    distribution metadata is unavailable (e.g. an editable checkout that was never
+    installed). ``None`` lets the native shim fall back to the crate version.
+    """
+    try:
+        return metadata.version("agent-assembly")
+    except metadata.PackageNotFoundError:
+        try:
+            from agent_assembly import __version__
+
+            return __version__
+        except Exception:
+            return None
 
 
 def register_agent(
