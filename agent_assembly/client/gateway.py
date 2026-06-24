@@ -97,6 +97,16 @@ class GatewayClient:
         """Context manager exit."""
         self.close()
 
+    def __repr__(self) -> str:
+        """Return a repr that never reveals the API key.
+
+        The default ``repr`` does not expose ``api_key``, but an explicit one
+        guarantees no debug log, traceback frame, or ``repr()`` call leaks the
+        credential — only whether a key is set, not its value (AAASM-3642).
+        """
+        api_key_state = "<redacted>" if self.api_key else "None"
+        return f"GatewayClient(gateway_url={self.gateway_url!r}, agent_id={self.agent_id!r}, api_key={api_key_state})"
+
     def report_edge(
         self,
         source_agent_id: str,
