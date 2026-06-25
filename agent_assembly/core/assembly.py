@@ -21,6 +21,7 @@ from agent_assembly.core.runtime_interceptor import (
     register_agent,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX
+from agent_assembly.core.transport_security import warn_if_insecure_http_url
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
 RuntimeMode = Literal["auto", "ebpf", "proxy", "sdk-only"]
@@ -173,6 +174,10 @@ def init_assembly(
     """
     gateway_url = resolve_gateway_url(gateway_url)
     api_key = resolve_api_key(api_key)
+    # Warn early when the resolved gateway would carry the Bearer API key over
+    # plaintext http:// to a non-loopback host (AAASM-3725). The control-plane
+    # URL is the host the credential is actually sent to when set.
+    warn_if_insecure_http_url(control_plane_url or gateway_url, has_api_key=bool(api_key))
     gateway_url, control_plane_url = _validate_inputs(
         gateway_url=gateway_url,
         mode=mode,

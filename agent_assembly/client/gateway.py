@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from agent_assembly.client.dispatch import DispatchToolResult
+from agent_assembly.core.transport_security import require_secure_http_url
 from agent_assembly.exceptions import GatewayError
 
 
@@ -27,6 +28,7 @@ class GatewayClient:
         spawned_by_tool: str | None = None,
         depth: int | None = None,
         enforcement_mode: str | None = None,
+        allow_insecure: bool = False,
     ) -> None:
         """
         Initialize the GatewayClient.
@@ -51,6 +53,12 @@ class GatewayClient:
                 ``None`` (the default) lets the gateway apply its server-side
                 default of live enforcement. Stored for reference; registration
                 itself now goes through the native gRPC path (ADR 0004).
+            allow_insecure: Permit sending the ``Authorization: Bearer`` API key
+                over plaintext ``http://`` to a **non-loopback** host. Off by
+                default — a remote ``http://`` base URL with an API key set is
+                refused with :class:`ValueError`, because the Bearer credential
+                would travel unencrypted (AAASM-3725). Loopback ``http://`` is
+                always allowed (local dev gateway).
         """
         self.gateway_url = gateway_url.rstrip("/")
         self.control_plane_url = control_plane_url.rstrip("/") if control_plane_url else None
@@ -63,6 +71,7 @@ class GatewayClient:
         self.spawned_by_tool = spawned_by_tool
         self.depth = depth
         self.enforcement_mode = enforcement_mode
+        self.allow_insecure = allow_insecure
         self._client: httpx.Client | None = None
 
     @property
@@ -73,11 +82,17 @@ class GatewayClient:
         it falls back to ``gateway_url`` (single-host OSS dev).
         """
         if self._client is None:
+            base_url = self.control_plane_url or self.gateway_url
+            require_secure_http_url(
+                base_url,
+                has_api_key=bool(self.api_key),
+                allow_insecure=self.allow_insecure,
+            )
             headers = {}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
             self._client = httpx.Client(
-                base_url=self.control_plane_url or self.gateway_url,
+                base_url=base_url,
                 headers=headers,
                 timeout=self.timeout,
             )

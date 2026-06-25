@@ -39,6 +39,7 @@ from typing import Protocol
 
 import grpc
 
+from agent_assembly.core.transport_security import require_secure_grpc_target
 from agent_assembly.exceptions import OpTerminatedError
 from agent_assembly.proto import common_pb2, policy_pb2, policy_pb2_grpc
 
@@ -102,13 +103,24 @@ class OpControlSubscriber:
         team_id: str,
         agent_id: str,
         channel_factory: grpc.Channel | None = None,
+        allow_insecure: bool = False,
     ) -> OpControlSubscriber:
         """Open the gRPC channel + subscription stream and start the reader.
 
         ``gateway_url`` is the ``host:port`` of the gateway's gRPC endpoint
         (no scheme; gRPC uses its own). When ``channel_factory`` is supplied
-        (tests), it's used instead of opening a fresh insecure channel.
+        (tests, or a TLS channel built by the caller), it's used verbatim and
+        the loopback / ``allow_insecure`` check below is bypassed — the caller
+        has taken responsibility for the transport.
+
+        Otherwise a plaintext ``grpc.insecure_channel`` is opened, but only when
+        the target is loopback (local dev gateway) or ``allow_insecure`` is set.
+        The op-control stream carries the agent identity triple and operator
+        pause / terminate signals, so an unencrypted channel to a non-loopback
+        host is refused with :class:`ValueError` (AAASM-3685).
         """
+        if channel_factory is None:
+            require_secure_grpc_target(gateway_url, allow_insecure=allow_insecure)
         channel = channel_factory or grpc.insecure_channel(gateway_url)
         stub = policy_pb2_grpc.PolicyServiceStub(channel)  # type: ignore[no-untyped-call]
         proto_agent_id = common_pb2.AgentId(org_id=org_id, team_id=team_id, agent_id=agent_id)
