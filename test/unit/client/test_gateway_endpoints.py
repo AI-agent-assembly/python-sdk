@@ -96,45 +96,32 @@ class TestHttpTransportSecurity:
     """AAASM-3725: refuse Bearer API key over plaintext http to a remote host."""
 
     def test_bearer_over_http_non_loopback_rejected(self) -> None:
-        client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k")
-        try:
+        with GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k") as client:
             with pytest.raises(ValueError, match="Bearer"):
                 _ = client.client
-        finally:
-            client.close()
 
     def test_bearer_over_http_loopback_allowed(self) -> None:
-        client = GatewayClient(gateway_url="http://localhost:7391", agent_id="a", api_key="k")
-        try:
+        with GatewayClient(
+            gateway_url="http://localhost:7391", agent_id="a", api_key="k"
+        ) as client:
             assert client.client.headers["Authorization"] == "Bearer k"
-        finally:
-            client.close()
 
     def test_bearer_over_https_non_loopback_allowed(self) -> None:
-        client = GatewayClient(gateway_url="https://gw.test", agent_id="a", api_key="k")
-        try:
+        with GatewayClient(gateway_url="https://gw.test", agent_id="a", api_key="k") as client:
             assert client.client.headers["Authorization"] == "Bearer k"
-        finally:
-            client.close()
 
     def test_http_non_loopback_without_key_allowed(self) -> None:
-        client = GatewayClient(gateway_url="http://gw.test", agent_id="a")
-        try:
+        with GatewayClient(gateway_url="http://gw.test", agent_id="a") as client:
             assert "Authorization" not in client.client.headers
-        finally:
-            client.close()
 
     def test_control_plane_url_is_the_validated_target(self) -> None:
         # The Bearer header rides the control-plane base URL when set; a remote
         # plaintext control-plane URL must be refused even if gateway_url is safe.
-        client = GatewayClient(
+        with GatewayClient(
             gateway_url="https://gw.test",
             agent_id="a",
             api_key="k",
             control_plane_url="http://cp.remote",
-        )
-        try:
+        ) as client:
             with pytest.raises(ValueError, match="Bearer"):
                 _ = client.client
-        finally:
-            client.close()
