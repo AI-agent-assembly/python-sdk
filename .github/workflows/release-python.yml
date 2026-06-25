@@ -166,7 +166,7 @@ jobs:
       - name: Generate CycloneDX SBOM
         # cyclonedx-py walks the resolved virtualenv and emits a CycloneDX
         # JSON BOM of every installed distribution.
-        run: uvx --from cyclonedx-bom cyclonedx-py environment .venv --output-format JSON --outfile sbom.cdx.json
+        run: uvx --from cyclonedx-bom==7.3.0 cyclonedx-py environment .venv --output-format JSON --output-file sbom.cdx.json
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v7
         with:
