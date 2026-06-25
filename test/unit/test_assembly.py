@@ -655,3 +655,46 @@ def test_init_assembly_enforcement_mode_defaults_to_none_to_preserve_wire_shape(
         assert context.client.enforcement_mode is None
     finally:
         context.shutdown()
+
+
+def test_init_assembly_warns_on_plaintext_http_with_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-3725: a resolved non-loopback http:// gateway + API key warns."""
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    with pytest.warns(UserWarning, match="unencrypted"):
+        context = init_assembly(
+            gateway_url="http://gw.remote:9999",
+            api_key="explicit-key",
+            agent_id="agent-warn",
+        )
+    context.shutdown()
+
+
+def test_init_assembly_no_warning_for_loopback_http_with_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-3725: loopback http:// + API key must not warn (local dev)."""
+    import warnings
+
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(
+        core_assembly,
+        "_start_network_layer",
+        lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        context = init_assembly(
+            gateway_url="http://localhost:7391",
+            api_key="explicit-key",
+            agent_id="agent-loopback",
+        )
+    context.shutdown()

@@ -236,14 +236,16 @@ class TestConnectTransportSecurity:
     def test_non_loopback_insecure_channel_rejected(self) -> None:
         # No channel_factory → connect would open grpc.insecure_channel; the
         # transport guard must refuse before that for a remote target.
-        with patch("agent_assembly.op_control.grpc.insecure_channel") as mock_chan:
-            with pytest.raises(ValueError, match="insecure"):
-                OpControlSubscriber.connect(
-                    "gateway.prod.example:443",
-                    org_id="o",
-                    team_id="t",
-                    agent_id="a",
-                )
+        with (
+            patch("agent_assembly.op_control.grpc.insecure_channel") as mock_chan,
+            pytest.raises(ValueError, match="insecure"),
+        ):
+            OpControlSubscriber.connect(
+                "gateway.prod.example:443",
+                org_id="o",
+                team_id="t",
+                agent_id="a",
+            )
         mock_chan.assert_not_called()
 
     def test_non_loopback_allowed_with_opt_in(self) -> None:
