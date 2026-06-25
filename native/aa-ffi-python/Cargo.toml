@@ -18,9 +18,9 @@ crate-type = ["cdylib"]
 # `AssemblyConfig` and threads it through `spawn_ipc_thread` into the signed IPC
 # handshake — the version this shim now forwards from the PyPI package version.
 # Re-pin to the squash-merge commit once PR #1226 lands on master.
-aa-core = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "b0576a72422bad7c6f380e666aa6ad70d1939822", package = "aa-core", features = ["serde"] }
-aa-proto = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "b0576a72422bad7c6f380e666aa6ad70d1939822", package = "aa-proto" }
-aa-sdk-client = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "b0576a72422bad7c6f380e666aa6ad70d1939822", package = "aa-sdk-client" }
+aa-core = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "743646f0080b33df675db3d6a0e37efedbc49f79", package = "aa-core", features = ["serde"] }
+aa-proto = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "743646f0080b33df675db3d6a0e37efedbc49f79", package = "aa-proto" }
+aa-sdk-client = { git = "https://github.com/ai-agent-assembly/agent-assembly.git", rev = "743646f0080b33df675db3d6a0e37efedbc49f79", package = "aa-sdk-client" }
 prost = "0.14"
 pyo3 = { version = "0.29", features = ["extension-module"] }
 serde = { version = "1.0", features = ["derive"] }
