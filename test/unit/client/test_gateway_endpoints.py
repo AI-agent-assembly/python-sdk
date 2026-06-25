@@ -40,7 +40,11 @@ def _patch_post(client: GatewayClient, mock_post: MagicMock) -> Any:
 
 
 def test_http_client_sets_bearer_auth_header_when_api_key_present() -> None:
-    client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="sekret")
+    # allow_insecure opts past the AAASM-3725 plaintext-http refusal so this
+    # test can assert header behavior on a non-loopback http:// base URL.
+    client = GatewayClient(
+        gateway_url="http://gw.test", agent_id="a", api_key="sekret", allow_insecure=True
+    )
     try:
         assert client.client.headers["Authorization"] == "Bearer sekret"
     finally:
