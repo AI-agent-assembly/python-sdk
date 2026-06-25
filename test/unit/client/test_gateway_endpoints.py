@@ -90,3 +90,51 @@ def test_report_edge_raises_gateway_error_on_http_error() -> None:
     mock_post = MagicMock(return_value=_raising(httpx.ConnectError("down")))
     with _patch_post(client, mock_post), pytest.raises(GatewayError, match="Failed to report edge"):
         client.report_edge("src", "dst", "messages")
+
+
+class TestHttpTransportSecurity:
+    """AAASM-3725: refuse Bearer API key over plaintext http to a remote host."""
+
+    def test_bearer_over_http_non_loopback_rejected(self) -> None:
+        client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k")
+        try:
+            with pytest.raises(ValueError, match="Bearer"):
+                _ = client.client
+        finally:
+            client.close()
+
+    def test_bearer_over_http_loopback_allowed(self) -> None:
+        client = GatewayClient(gateway_url="http://localhost:7391", agent_id="a", api_key="k")
+        try:
+            assert client.client.headers["Authorization"] == "Bearer k"
+        finally:
+            client.close()
+
+    def test_bearer_over_https_non_loopback_allowed(self) -> None:
+        client = GatewayClient(gateway_url="https://gw.test", agent_id="a", api_key="k")
+        try:
+            assert client.client.headers["Authorization"] == "Bearer k"
+        finally:
+            client.close()
+
+    def test_http_non_loopback_without_key_allowed(self) -> None:
+        client = GatewayClient(gateway_url="http://gw.test", agent_id="a")
+        try:
+            assert "Authorization" not in client.client.headers
+        finally:
+            client.close()
+
+    def test_control_plane_url_is_the_validated_target(self) -> None:
+        # The Bearer header rides the control-plane base URL when set; a remote
+        # plaintext control-plane URL must be refused even if gateway_url is safe.
+        client = GatewayClient(
+            gateway_url="https://gw.test",
+            agent_id="a",
+            api_key="k",
+            control_plane_url="http://cp.remote",
+        )
+        try:
+            with pytest.raises(ValueError, match="Bearer"):
+                _ = client.client
+        finally:
+            client.close()
