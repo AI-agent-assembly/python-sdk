@@ -19,6 +19,7 @@ AAASM-3123).
 
 from __future__ import annotations
 
+import warnings
 from urllib.parse import urlsplit
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "is_loopback_target",
     "require_secure_grpc_target",
     "require_secure_http_url",
+    "warn_if_insecure_http_url",
 ]
 
 # Hosts treated as loopback for the secure-by-default transport decision.
@@ -111,4 +113,23 @@ def require_secure_http_url(gateway_url: str, *, has_api_key: bool, allow_insecu
         f"Refusing to send an Authorization: Bearer credential over plaintext "
         f"http:// to non-loopback gateway {gateway_url!r}. Use https://, or pass "
         f"allow_insecure=True to explicitly opt in (loopback dev only)."
+    )
+
+
+def warn_if_insecure_http_url(gateway_url: str, *, has_api_key: bool) -> None:
+    """Emit a warning when a non-loopback ``http://`` gateway carries a key.
+
+    Resolution-time advisory counterpart to :func:`require_secure_http_url`:
+    the resolver knows the URL and whether a key is set before any request is
+    issued, so it warns early. The hard refusal still happens later in
+    ``GatewayClient`` (AAASM-3725). ``https://`` and loopback targets are silent.
+    """
+    scheme = urlsplit(gateway_url.strip()).scheme.lower()
+    if scheme != "http" or not has_api_key or is_loopback_target(gateway_url):
+        return
+    warnings.warn(
+        f"Gateway {gateway_url!r} uses plaintext http:// while an API key is set; "
+        f"the Authorization: Bearer credential would travel unencrypted. Use "
+        f"https:// for non-loopback gateways.",
+        stacklevel=3,
     )
