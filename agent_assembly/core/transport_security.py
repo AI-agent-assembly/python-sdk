@@ -110,9 +110,10 @@ def require_secure_http_url(gateway_url: str, *, has_api_key: bool, allow_insecu
     if is_loopback_target(gateway_url) or allow_insecure:
         return
     raise ValueError(
-        f"Refusing to send an Authorization: Bearer credential over plaintext "
-        f"http:// to non-loopback gateway {gateway_url!r}. Use https://, or pass "
-        f"allow_insecure=True to explicitly opt in (loopback dev only)."
+        f"Refusing to send an Authorization: Bearer credential over a plaintext "
+        f"(non-TLS) connection to non-loopback gateway {gateway_url!r}. Use an "
+        f"https:// endpoint, or pass allow_insecure=True to explicitly opt in "
+        f"(loopback dev only)."
     )
 
 
