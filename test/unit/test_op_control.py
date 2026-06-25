@@ -12,6 +12,7 @@ import threading
 import time
 from collections.abc import Iterator
 from queue import Queue
+from unittest.mock import patch
 
 import pytest
 
@@ -227,3 +228,61 @@ def test_close_marks_stream_dead_and_wakes_waiters(subscriber: _Subscriber) -> N
     assert done.wait(timeout=2.0)
     t.join(timeout=1.0)
     assert not sub.stream_alive()
+
+
+class TestConnectTransportSecurity:
+    """AAASM-3685: ``connect`` refuses plaintext gRPC to a non-loopback host."""
+
+    def test_non_loopback_insecure_channel_rejected(self) -> None:
+        # No channel_factory → connect would open grpc.insecure_channel; the
+        # transport guard must refuse before that for a remote target.
+        with patch("agent_assembly.op_control.grpc.insecure_channel") as mock_chan:
+            with pytest.raises(ValueError, match="insecure"):
+                OpControlSubscriber.connect(
+                    "gateway.prod.example:443",
+                    org_id="o",
+                    team_id="t",
+                    agent_id="a",
+                )
+        mock_chan.assert_not_called()
+
+    def test_non_loopback_allowed_with_opt_in(self) -> None:
+        stream = _QueueStream()
+        stub = _FakeStub(stream)
+        with (
+            patch("agent_assembly.op_control.grpc.insecure_channel") as mock_chan,
+            patch(
+                "agent_assembly.op_control.policy_pb2_grpc.PolicyServiceStub",
+                lambda _ch: stub,
+            ),
+        ):
+            sub = OpControlSubscriber.connect(
+                "gateway.prod.example:443",
+                org_id="o",
+                team_id="t",
+                agent_id="a",
+                allow_insecure=True,
+            )
+            mock_chan.assert_called_once_with("gateway.prod.example:443")
+        stream.end()
+        sub.close()
+
+    def test_loopback_allowed_without_opt_in(self) -> None:
+        stream = _QueueStream()
+        stub = _FakeStub(stream)
+        with (
+            patch("agent_assembly.op_control.grpc.insecure_channel") as mock_chan,
+            patch(
+                "agent_assembly.op_control.policy_pb2_grpc.PolicyServiceStub",
+                lambda _ch: stub,
+            ),
+        ):
+            sub = OpControlSubscriber.connect(
+                "localhost:7391",
+                org_id="o",
+                team_id="t",
+                agent_id="a",
+            )
+            mock_chan.assert_called_once_with("localhost:7391")
+        stream.end()
+        sub.close()
