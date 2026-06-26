@@ -2125,6 +2125,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#001-rc1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.0.1-rc.1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#001-beta5" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2384,6 +2395,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#001-rc1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.0.1-rc.1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#001-beta5" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2444,6 +2466,20 @@
 <p class="admonition-title">0.x development</p>
 <p>The SDK is in active 0.x development; per-release notes are minimal. Track full changes via <a href="https://github.com/ai-agent-assembly/python-sdk/commits/master">the commits to <code>master</code></a> and the <a href="https://github.com/ai-agent-assembly/python-sdk/releases">GitHub releases</a> feed.</p>
 </div>
+<h2 id="001-rc1">0.0.1-rc.1<a class="headerlink" href="#001-rc1" title="Permanent link">&para;</a></h2>
+<p>First <strong>release candidate</strong> on the <code>0.0.1</code> line — promotes the Python SDK from
+the <code>beta</code> channel to <code>rc</code>. This release tracks the published <code>agent-assembly</code>
+core <strong><code>v0.0.1-rc.1</code></strong>: the bundled <code>aasm</code> runtime binary and the compiled
+<code>aa-ffi-python</code> extension are pinned to that core tag (AAASM-3763).</p>
+<p>Changes since beta.5 are limited to the core-pin promotion plus security and
+release housekeeping — there is no new SDK surface:</p>
+<ul>
+<li>Require TLS for non-loopback gateway / op-control connections — refuse a Bearer
+  API key over plaintext <code>http</code> and refuse a plaintext gRPC channel to a
+  non-loopback host (AAASM-3685).</li>
+<li>Pin third-party reusable CI workflows to commit SHAs (AAASM-3686).</li>
+<li>Fix and pin the CycloneDX SBOM flag in <code>release-python.yml</code> (AAASM-3722).</li>
+</ul>
 <h2 id="001-beta5">0.0.1-beta.5<a class="headerlink" href="#001-beta5" title="Permanent link">&para;</a></h2>
 <p>Beta iteration of the Python SDK on the <code>0.0.1</code> line. Headline of this release is
 <strong>five new framework adapters</strong>, expanding governed-framework coverage:</p>
@@ -2491,7 +2527,7 @@ binary and compiled <code>aa-ffi-python</code> extension track the <code>agent-a
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 24, 2026 23:11:03 CST"><span class="timeago" datetime="2026-06-24T23:11:03+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 24, 2026 23:11:03 CST">2026-06-24</span> by Bryant</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 26, 2026 09:02:53 CST"><span class="timeago" datetime="2026-06-26T09:02:53+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 26, 2026 09:02:53 CST">2026-06-26</span> by Bryant</span>
 
     
     
