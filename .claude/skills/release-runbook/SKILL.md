@@ -234,6 +234,14 @@ authoritative checker.)
   + `publish-release-tag`.
 - Cutting an `agent-assembly` core tag for an SDK-only change — that triggers the
   full coordinated pipeline and double-publishes.
+- **`sonar.projectVersion`** — the SonarCloud Scan job in
+  `rw_run_all_test_and_record.yaml` derives it from `pyproject.toml`'s `version`
+  at scan time and passes it via the scanner `args`, so the SonarCloud quality
+  gate always tracks the current release. Do **not** hand-bump the
+  `sonar.projectVersion` literal in `sonar-project.properties` per release — that
+  literal is only the local-scan fallback and must stay off `0.0.0`, which
+  otherwise leaves the gate stuck at "Not computed" (AAASM-3815). (Contrast the
+  `agent-assembly` monorepo, where the literal is bumped statically.)
 
 ## What this runbook does not cover
 
