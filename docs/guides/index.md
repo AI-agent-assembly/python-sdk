@@ -7,6 +7,7 @@ do the [Quick Start](../quick-start.md) first.
 | --- | --- |
 | [Handling allow/deny decisions](handling-decisions.md) | Catch a policy denial, the exception hierarchy, MCP-specific blocks, and observe (dry-run) mode. |
 | [Authoring a framework adapter](authoring-adapters.md) | Build, test, and publish a `FrameworkAdapter` for a new framework — interface reference, hook patterns, the contract validator, and entry-point publishing. |
+| [Governed container base image](container-base-image.md) | Run a containerized Python agent governed by default with the `ghcr.io/ai-agent-assembly/python` base image — tags, the `SDK_VERSION` build-arg, and pinning best practices. |
 | [Type checking](type-checking.md) | Use the SDK's shipped types (PEP 561) with mypy / Pyright in your own project. |
 
 For runnable, end-to-end framework integrations — LangChain, LangGraph, CrewAI, OpenAI Agents,
