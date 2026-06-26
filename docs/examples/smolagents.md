@@ -19,7 +19,7 @@ Version pins (from `pyproject.toml`):
 | Dependency | Version |
 |---|---|
 | `smolagents` | `>=1.0.0,<2.0.0` |
-| `agent-assembly` | `>=0.0.1b5` (the release that ships the Smolagents adapter) |
+| `agent-assembly` | `>=0.0.1rc1` (the release that ships the Smolagents adapter) |
 | Python | `>=3.12` |
 
 ## How it works
