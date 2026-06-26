@@ -173,9 +173,27 @@ jobs:
             exit 1
           fi
 
+      # Derive the analysis version from the package's own pyproject.toml so the
+      # SonarCloud quality gate always tracks the current release. A literal
+      # sonar.projectVersion=0.0.0 leaves the gate stuck at "Not computed"
+      # (AAASM-3815); passing the live version below overrides the static
+      # fallback in sonar-project.properties.
+      - name: Resolve project version
+        id: sonar_version
+        run: |
+          version="$(grep -m1 -E '^version = ' pyproject.toml | sed -E 's/^version = "(.*)"/\1/')"
+          if [ -z "$version" ]; then
+            echo "Could not parse version from pyproject.toml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v8.2.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SONAR_TOKEN: ${{ secrets.sonar_token }}
           SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >
+            -Dsonar.projectVersion=${{ steps.sonar_version.outputs.version }}
