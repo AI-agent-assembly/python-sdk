@@ -149,10 +149,21 @@ fires (or in a follow-up PR on the same cycle), bring the repo in sync:
    The b5 wave found four wrong: `agno` was pinned `>=…b4` and
    `haystack` / `microsoft-agent-framework` / `smolagents` were pinned `>=…b2`,
    yet all four adapters only ship in b5, so every one had to move to `>=…b5`.
-4. **Leave the history alone.** Do **not** rewrite `CHANGELOG` /
+4. **Add the new release-notes section.** Prepend a new `## <version>` heading at
+   the **top** of the version list in `docs/compatibility/release-notes.md`
+   (immediately above the most recent existing entry), summarizing this release —
+   the channel promotion and the headline changes since the last published tag.
+   Use the hyphenated tag form of the version (e.g. `## 0.0.1-rc.1`) to match the
+   existing headers. Derive the highlights from the delta
+   (`git log --oneline <last-tag>..HEAD` / the merged PRs since the last tag); do
+   not invent changes. This is the one *additive* edit to the file — it is
+   distinct from, and must not be conflated with, the don't-rewrite-history rule
+   below.
+5. **Leave the history alone.** Do **not** rewrite `CHANGELOG` /
    `docs/compatibility/release-notes.md` past entries, and do **not** touch the
    auto-managed Docusaurus docs snapshot (`publish-release-tag` labels it — see
-   above). You are syncing *current* pins, not editing the historical record.
+   above). You are syncing *current* pins and adding the one new section above —
+   not editing the historical record.
 
 (The `agent-assembly` core `release-docs-sync` skill is the canonical, full
 version-sweep procedure across every channel; this section is the python slice.)
