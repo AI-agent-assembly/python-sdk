@@ -1,0 +1,24 @@
+{#-
+  Override of Material's partials/source.html (AAASM-3785).
+
+  For any element marked `data-md-component="source"`, Material's bundled JS
+  fetches GitHub "source facts" — stars, forks and the latest release tag —
+  via the public GitHub API. This repository publishes no GitHub Releases, so
+  the latest-release lookup
+  (GET https://api.github.com/repos/<owner>/<repo>/releases/latest) returns
+  404 on every page load and surfaces as an uncaught console error.
+
+  Dropping the `data-md-component="source"` marker keeps the repository link,
+  icon and name but stops Material from issuing any unauthenticated GitHub API
+  call, which removes the 404 (and the anonymous rate-limit exposure). The rest
+  of the markup is identical to Material's generated partial.
+-#}
+<a href="{{ config.repo_url }}" title="{{ lang.t('source') }}" class="md-source">
+  <div class="md-source__icon md-icon">
+    {% set icon = config.theme.icon.repo or "fontawesome/brands/git-alt" %}
+    {% include ".icons/" ~ icon ~ ".svg" %}
+  </div>
+  <div class="md-source__repository">
+    {{ config.repo_name }}
+  </div>
+</a>
