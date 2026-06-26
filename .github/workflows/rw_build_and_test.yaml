@@ -82,7 +82,7 @@ jobs:
         (github.event_name == 'push' && github.ref_name == 'master')
       }}
     needs: run_unit-test
-    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
+    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@4a6480470b90c0b6139e05489868585fa50aad6f  # master @ 2026-05-26
     with:
       test_type: unit-test
       source_folder: agent_assembly
@@ -94,7 +94,7 @@ jobs:
         (github.event_name == 'push' && github.ref_name == 'master')
       }}
     needs: run_integration-test
-    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
+    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@4a6480470b90c0b6139e05489868585fa50aad6f  # master @ 2026-05-26
     with:
       test_type: integration-test
       source_folder: agent_assembly
@@ -106,7 +106,7 @@ jobs:
         (github.event_name == 'push' && github.ref_name == 'master')
       }}
     needs: run_e2e-test
-    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
+    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@4a6480470b90c0b6139e05489868585fa50aad6f  # master @ 2026-05-26
     with:
       test_type: e2e-test
       source_folder: agent_assembly
@@ -135,7 +135,7 @@ jobs:
       }}
 #    needs: [run_unit-test, run_integration-test, run_contract-test]
     needs: [run_unit-test, run_integration-test]
-    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
+    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@4a6480470b90c0b6139e05489868585fa50aad6f  # master @ 2026-05-26
     with:
       test_type: all-test
       source_folder: agent_assembly
@@ -151,7 +151,7 @@ jobs:
       }}
 #    needs: [run_unit-test, run_integration-test, run_contract-test, run_e2e-test]
     needs: [run_unit-test, run_integration-test, run_e2e-test]
-    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@master
+    uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_organize_test_cov_reports.yaml@4a6480470b90c0b6139e05489868585fa50aad6f  # master @ 2026-05-26
     with:
       test_type: all-test
       source_folder: agent_assembly
