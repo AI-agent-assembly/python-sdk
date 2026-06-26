@@ -5,6 +5,22 @@ Release notes for the Agent Assembly Python SDK. Versions follow [SemVer](https:
 !!! info "0.x development"
     The SDK is in active 0.x development; per-release notes are minimal. Track full changes via [the commits to `master`](https://github.com/ai-agent-assembly/python-sdk/commits/master) and the [GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases) feed.
 
+## 0.0.1-rc.1
+
+First **release candidate** on the `0.0.1` line — promotes the Python SDK from
+the `beta` channel to `rc`. This release tracks the published `agent-assembly`
+core **`v0.0.1-rc.1`**: the bundled `aasm` runtime binary and the compiled
+`aa-ffi-python` extension are pinned to that core tag (AAASM-3763).
+
+Changes since beta.5 are limited to the core-pin promotion plus security and
+release housekeeping — there is no new SDK surface:
+
+- Require TLS for non-loopback gateway / op-control connections — refuse a Bearer
+  API key over plaintext `http` and refuse a plaintext gRPC channel to a
+  non-loopback host (AAASM-3685).
+- Pin third-party reusable CI workflows to commit SHAs (AAASM-3686).
+- Fix and pin the CycloneDX SBOM flag in `release-python.yml` (AAASM-3722).
+
 ## 0.0.1-beta.5
 
 Beta iteration of the Python SDK on the `0.0.1` line. Headline of this release is
