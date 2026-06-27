@@ -128,7 +128,14 @@ fires (or in a follow-up PR on the same cycle), bring the repo in sync:
    `workflow_dispatch` input). Edit `version` in `pyproject.toml` **and**
    `__version__` in `agent_assembly/__init__.py`, then regenerate the lock:
    `uv lock`. This is for honesty + the README badge — the wheel version itself
-   comes from CI's `sync-version`, not from these files.
+   comes from CI's `sync-version`, not from these files. **In the same
+   version-bump prep commit, bump `sonar.projectVersion` in
+   `sonar-project.properties`** to the new version. The static value is the
+   source-of-truth / local-scan fallback; CI overrides it dynamically at scan
+   time (the SonarCloud Scan job derives it from `pyproject.toml`), so drift
+   never breaks CI — but the static value must still track the release. This is
+   the step rc.1 prep PRs missed and rc.2 had to fix by hand; it mirrors the
+   core's `release-tag-cut` automation (AAASM-3819).
 2. **Sweep the docs site for pinned versions** —
    `git grep -nE 'agent-assembly\s*[<>=]' docs/` — and bump any *current-version*
    dependency pin to the new version. (Exact-version `==` callouts in
@@ -234,14 +241,17 @@ authoritative checker.)
   + `publish-release-tag`.
 - Cutting an `agent-assembly` core tag for an SDK-only change — that triggers the
   full coordinated pipeline and double-publishes.
-- **`sonar.projectVersion`** — the SonarCloud Scan job in
-  `rw_run_all_test_and_record.yaml` derives it from `pyproject.toml`'s `version`
-  at scan time and passes it via the scanner `args`, so the SonarCloud quality
-  gate always tracks the current release. Do **not** hand-bump the
-  `sonar.projectVersion` literal in `sonar-project.properties` per release — that
-  literal is only the local-scan fallback and must stay off `0.0.0`, which
-  otherwise leaves the gate stuck at "Not computed" (AAASM-3815). (Contrast the
-  `agent-assembly` monorepo, where the literal is bumped statically.)
+- **The CI-side `sonar.projectVersion` override** — the SonarCloud Scan job in
+  `rw_run_all_test_and_record.yaml` derives the version from `pyproject.toml`'s
+  `version` at scan time and passes it via the scanner `args`, so the SonarCloud
+  quality gate always tracks the current release regardless of the literal in
+  `sonar-project.properties`. You therefore do not need a CI-driven bump — but
+  you **do** still bump the static `sonar.projectVersion` literal as part of the
+  version-bump prep commit (see "Sync docs version refs + example pins" step 1
+  above): it is the source-of-truth / local-scan fallback and must track the
+  release, never sitting at `0.0.0` (which leaves the gate "Not computed",
+  AAASM-3815). This mirrors the `agent-assembly` monorepo, where the literal is
+  bumped statically (AAASM-3819).
 
 ## What this runbook does not cover
 
