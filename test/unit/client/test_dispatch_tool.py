@@ -97,3 +97,21 @@ async def test_dispatch_tool_defaults_empty_result_fields_when_server_omits_them
 
     assert result.resolved_args == {}
     assert result.names_substituted == []
+
+
+def test_dispatch_tool_result_repr_does_not_leak_resolved_secret_values() -> None:
+    """repr/str must mask resolved_args values, exposing only keys (CWE-532)."""
+    secret = "sk-live-super-secret-token-9f8e7d"
+    result = DispatchToolResult(
+        resolved_args={"api_key": secret, "endpoint": "https://api.example.com"},
+        names_substituted=["api_key"],
+    )
+
+    for rendered in (repr(result), str(result)):
+        assert secret not in rendered
+        # Key names and a count are shown so the object stays debuggable.
+        assert "api_key" in rendered
+        assert "endpoint" in rendered
+        assert "2 value(s)" in rendered
+        # names_substituted is names-only by contract; safe to render verbatim.
+        assert "names_substituted=['api_key']" in rendered
