@@ -132,13 +132,16 @@ or drifted wheels.
   `workflow_dispatch`. Dispatch the docs pipeline separately if needed.
 - **Yanking lower versions** — this skill does not yank; do it in the PyPI web
   UI after the fact if required.
-- **`sonar.projectVersion`** — the SonarCloud Scan job in
-  `rw_run_all_test_and_record.yaml` derives it from `pyproject.toml`'s `version`
-  at scan time, so the quality gate tracks the current release automatically. Do
-  **not** hand-bump the `sonar.projectVersion` literal in
-  `sonar-project.properties` per release — it is only the local-scan fallback and
-  must stay off `0.0.0` (a literal `0.0.0` leaves the gate stuck at "Not
-  computed"; AAASM-3815).
+- **The CI-side `sonar.projectVersion` override** — the SonarCloud Scan job in
+  `rw_run_all_test_and_record.yaml` derives the version from `pyproject.toml`'s
+  `version` at scan time, so the quality gate tracks the current release
+  automatically regardless of the literal. The override means CI never needs the
+  literal — but you **still** bump `sonar.projectVersion` in
+  `sonar-project.properties` to the new version as part of the version-bump prep
+  commit: it is the source-of-truth / local-scan fallback and must track the
+  release, never sitting at `0.0.0` (which leaves the gate "Not computed";
+  AAASM-3815). Mirrors the core's `release-tag-cut` automation (AAASM-3819); this
+  is the step rc.1 prep PRs missed.
 
 ## Do Not Assume
 
