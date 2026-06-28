@@ -37,6 +37,38 @@ on:
     workflows: ["Release Python SDK"]
     types: [completed]
     branches: ["master"]
+  # Operator-driven, on-demand republish (AAASM-3853). Between coordinated
+  # releases the default-served channel (pre-release/stable + the root redirect)
+  # is only recomputed by the workflow_run release path, so doc fixes merged to
+  # master reach /latest/ immediately but never the default landing page. This
+  # manual entry point lets an operator re-run a deploy on demand WITHOUT a code
+  # push or a release cut, driving the EXACT same deploy scripts the automated
+  # paths use — it adds no new deploy logic, only a new way to invoke it.
+  workflow_dispatch:
+    inputs:
+      target:
+        description: >-
+          Which docs path to (re)publish.
+          "latest" re-deploys the /latest/ channel from master HEAD.
+          "release-channels" recomputes the pre-release/stable aliases + the
+          root default from the full set of published versions (requires
+          release_tag).
+        type: choice
+        required: true
+        default: latest
+        options:
+          - latest
+          - release-channels
+      release_tag:
+        description: >-
+          Release tag to drive the channel recompute, e.g. v0.0.2 or
+          v0.0.1-beta.2. REQUIRED when target=release-channels; ignored for
+          target=latest. NOTE: the release deploy re-freezes this tag's snapshot
+          from the CURRENT master tree, so pass the newest live release tag and
+          run only when master matches that release's docs content.
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -197,5 +229,89 @@ jobs:
           {
             echo "## 📚 Release documentation deployed"
             echo "Tag: \`${RELEASE_TAG}\`"
+            echo "🔗 ${BASE_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  manual_republish_documentation:
+    name: Manual republish documentation (operator)
+    # Purely additive entry point (AAASM-3853): the existing push / pull_request /
+    # workflow_run jobs are NOT gated on workflow_dispatch, so this job is the only
+    # one that runs on a manual dispatch and the automated release/deploy paths are
+    # left byte-for-byte unchanged. It reuses the existing deploy scripts verbatim.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate inputs
+        env:
+          TARGET: ${{ inputs.target }}
+          RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [ "${TARGET}" = "release-channels" ]; then
+            if [ -z "${RELEASE_TAG_INPUT}" ]; then
+              echo "::error::target=release-channels requires the 'release_tag' input (e.g. v0.0.2 or v0.0.1-beta.2)."
+              exit 1
+            fi
+            if ! printf '%s' "${RELEASE_TAG_INPUT}" \
+                | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-.+)?$'; then
+              echo "::error::release_tag='${RELEASE_TAG_INPUT}' is not a valid release tag (expected vX.Y.Z or vX.Y.Z-<pre>)."
+              exit 1
+            fi
+          fi
+          echo "Manual republish: target=${TARGET}, release_tag=${RELEASE_TAG_INPUT:-(n/a)}"
+
+      - name: Checkout (full history for mike + git-revision-date plugins)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: master
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install docs dependency group
+        run: uv sync --group docs
+
+      - name: Print tool versions
+        run: |
+          uv run mkdocs --version
+          uv run mike --version
+
+      - name: Republish documentation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ inputs.target }}
+          # Consumed by deploy-release-version-documentation.sh; harmless for the
+          # latest path, which never reads it.
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          source .venv/bin/activate
+          if [ "${TARGET}" = "release-channels" ]; then
+            echo "🔁  Recomputing pre-release/stable channels + root default for ${RELEASE_TAG}"
+            bash ./scripts/ci/deploy-release-version-documentation.sh
+          else
+            echo "🔁  Re-deploying the latest channel from master HEAD"
+            bash ./scripts/ci/deploy-latest-version-documentation.sh
+          fi
+
+      - name: Republish summary
+        env:
+          BASE_URL: "https://ai-agent-assembly.github.io/python-sdk/"
+          TARGET: ${{ inputs.target }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          {
+            echo "## 🔁 Manual docs republish"
+            echo "Target: \`${TARGET}\`"
+            if [ "${TARGET}" = "release-channels" ]; then
+              echo "Release tag: \`${RELEASE_TAG}\`"
+            fi
             echo "🔗 ${BASE_URL}"
           } >> "$GITHUB_STEP_SUMMARY"
