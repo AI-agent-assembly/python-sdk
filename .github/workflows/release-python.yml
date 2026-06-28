@@ -494,7 +494,7 @@ jobs:
           path: dist
           merge-multiple: true
       - name: Publish via PyPI Trusted Publisher
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         # No `with: password:` — Trusted Publisher uses OIDC, no token stored.
         with:
           # PEP 740: mint a Sigstore-backed digital attestation for every
