@@ -27,7 +27,11 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # PyPI Trusted Publisher OIDC
+  # AAASM-3896: id-token:write is NOT granted at the top level. Only the
+  # `publish` job needs the PyPI Trusted Publisher OIDC token, and it
+  # re-declares `id-token: write` in its own job-level permissions block. Keeping
+  # it off the top level means the build/SBOM/release jobs run without the
+  # capability to mint an OIDC token they never use (least privilege).
 
 concurrency:
   group: release-python-${{ github.ref }}
