@@ -19,6 +19,12 @@ copyright: Copyright &copy; 2026 Agent Assembly Team
 extra_css:
   - stylesheets/aaasm-brand.css
 
+# Defense-in-depth guard for the GitHub source-facts releases/latest 404
+# (AAASM-3880). Complements the server-side marker removal in
+# docs/_overrides/partials/source.html (AAASM-3785); see the file header.
+extra_javascript:
+  - javascripts/source-facts-guard.js
+
 theme:
   name: material
   custom_dir: ./docs/_overrides
