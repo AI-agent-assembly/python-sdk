@@ -70,10 +70,10 @@ on:
         required: false
         default: ""
 
+# Default to read-only at the top level so the PR build-only job inherits the
+# least privilege. The deploy jobs opt back into the write scopes they need.
 permissions:
-  contents: write
-  id-token: write
-  pages: write
+  contents: read
 
 # Allow one concurrent deployment so a fast-follow push doesn't race the
 # previous deploy on gh-pages.
@@ -119,6 +119,10 @@ jobs:
     name: Deploy latest documentation
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      pages: write
     steps:
       - name: Checkout (full history for mike + git-revision-date plugins)
         uses: actions/checkout@v7
@@ -167,6 +171,10 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'repository_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      pages: write
     steps:
       - name: Checkout (full history for mike + git-revision-date plugins)
         uses: actions/checkout@v7
@@ -240,6 +248,10 @@ jobs:
     # left byte-for-byte unchanged. It reuses the existing deploy scripts verbatim.
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      pages: write
     steps:
       - name: Validate inputs
         env:
