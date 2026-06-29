@@ -27,7 +27,11 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # PyPI Trusted Publisher OIDC
+  # AAASM-3896: id-token:write is NOT granted at the top level. Only the
+  # `publish` job needs the PyPI Trusted Publisher OIDC token, and it
+  # re-declares `id-token: write` in its own job-level permissions block. Keeping
+  # it off the top level means the build/SBOM/release jobs run without the
+  # capability to mint an OIDC token they never use (least privilege).
 
 concurrency:
   group: release-python-${{ github.ref }}
@@ -197,7 +201,7 @@ jobs:
         with:
           pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build source distribution
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           command: sdist
           args: --out dist
@@ -250,7 +254,7 @@ jobs:
         with:
           pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build wheel
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           target: x86_64-unknown-linux-gnu
           command: build
@@ -329,7 +333,7 @@ jobs:
         with:
           pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build wheel
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           target: aarch64-unknown-linux-gnu
           command: build
@@ -402,7 +406,7 @@ jobs:
         with:
           pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build wheel
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           target: aarch64-apple-darwin
           command: build
@@ -456,7 +460,7 @@ jobs:
         with:
           pypi_version: ${{ needs.resolve.outputs.pypi_version }}
       - name: Build wheel
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           target: x86_64-apple-darwin
           command: build
