@@ -10,8 +10,10 @@ closed); under ``observe`` / ``disabled`` those paths still proceed (fail open).
 
 from __future__ import annotations
 
+import os
 import sys
 import types
+from contextlib import contextmanager
 from typing import Any
 from uuid import uuid4
 
@@ -417,3 +419,56 @@ def test_op_id_composed_from_trace_and_span() -> None:
     assert runtime_interceptor._extract_op_id({"op_id": "explicit"}) == "explicit"
     assert runtime_interceptor._extract_op_id({"trace_id": "t"}) == "t:"
     assert runtime_interceptor._extract_op_id({}) is None
+
+
+# --- UDS socket-squat guard (AAASM-3920) ------------------------------------
+
+
+def test_socket_trust_allows_nonexistent_path(tmp_path: Any) -> None:
+    """A path the runtime has not yet bound is trusted (it will create it)."""
+    missing = str(tmp_path / "aa-runtime-absent.sock")
+    assert runtime_interceptor._runtime_socket_is_trusted(missing) is True
+
+
+@contextmanager
+def _bound_unix_socket() -> Any:
+    """Yield the path of a bound AF_UNIX socket in a short-lived /tmp dir.
+
+    AF_UNIX paths are length-capped (~104 bytes on macOS), so the deep pytest
+    tmp_path cannot host the socket; bind under a short mkdtemp in /tmp instead.
+    """
+    import shutil
+    import socket as _socket
+    import tempfile
+
+    directory = tempfile.mkdtemp(dir="/tmp")  # noqa: S108 - short path for AF_UNIX
+    path = os.path.join(directory, "s")
+    server = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+    server.bind(path)
+    try:
+        yield path
+    finally:
+        server.close()
+        shutil.rmtree(directory, ignore_errors=True)
+
+
+def test_socket_trust_allows_own_socket() -> None:
+    """A socket owned by the current user is trusted."""
+    with _bound_unix_socket() as path:
+        assert runtime_interceptor._runtime_socket_is_trusted(path) is True
+
+
+def test_socket_trust_rejects_foreign_owned_socket(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A socket owned by another local user (a squat) is refused — fail closed."""
+    with _bound_unix_socket() as path:
+        # Pretend the current process is a different uid than the socket owner.
+        owner_uid = os.stat(path).st_uid
+        monkeypatch.setattr(os, "getuid", lambda: owner_uid + 1)
+        assert runtime_interceptor._runtime_socket_is_trusted(path) is False
+
+
+def test_socket_trust_rejects_non_socket_squat(tmp_path: Any) -> None:
+    """A regular file squatting the socket path is refused — fail closed."""
+    path = tmp_path / "aa-runtime-regular.sock"
+    path.write_text("not a socket")
+    assert runtime_interceptor._runtime_socket_is_trusted(str(path)) is False
