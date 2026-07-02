@@ -25,6 +25,11 @@ on:
       - "pyproject.toml"
       - "uv.lock"
 
+# AAASM-3993: least-privilege default token — this workflow only checks out and
+# runs tests/builds; no job pushes, comments, or deploys.
+permissions:
+  contents: read
+
 jobs:
   build-and-test_all:
 #    name: Run all tests and organize all test reports
