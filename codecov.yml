@@ -9,3 +9,10 @@ coverage:
       default:
         target: 90%
         threshold: 5%
+
+# Mirror sonar.coverage.exclusions (sonar-project.properties): exclude the same
+# path from Codecov's coverage denominator so both tools measure the identical
+# scope. Without this, Codecov counts agent_assembly/types.py while SonarCloud
+# does not, producing a spurious cross-tool coverage delta (AAASM-3962).
+ignore:
+  - "agent_assembly/types.py"
