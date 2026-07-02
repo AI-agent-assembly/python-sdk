@@ -185,3 +185,53 @@ def test_known_verdicts_unchanged_under_enforce() -> None:
     assert handler._normalize_decision("allow") == ("allow", None)
     assert handler._normalize_decision({"status": "deny", "reason": "nope"}) == ("deny", "nope")
     assert handler._normalize_decision("pending") == ("pending", None)
+
+
+# --- AAASM-4014: delegate governance entry points to the wrapped interceptor ---
+
+
+def test_delegates_check_tool_start_to_interceptor() -> None:
+    """A co-installed adapter looking up ``check_tool_start`` on the handler must
+    reach the wrapped interceptor rather than getting ``None`` (AAASM-4014)."""
+    interceptor = SyncInterceptor()
+    handler = AssemblyCallbackHandler(interceptor)
+
+    method = getattr(handler, "check_tool_start", None)
+    assert callable(method)
+    assert method(decision={"status": "deny", "reason": "blocked"}) == {"status": "deny", "reason": "blocked"}
+
+
+def test_delegates_arbitrary_interceptor_attributes() -> None:
+    """Non-callback governance entry points (approval, timeout provider, event
+    reporting) are forwarded to the wrapped interceptor too."""
+
+    class _RichInterceptor:
+        pending_tool_approval_timeout_seconds = 42
+
+        def wait_for_tool_approval(self, **_kwargs: object) -> dict[str, str]:
+            return {"status": "allow"}
+
+    handler = AssemblyCallbackHandler(_RichInterceptor())
+
+    assert callable(getattr(handler, "wait_for_tool_approval", None))
+    assert handler.pending_tool_approval_timeout_seconds == 42
+
+
+def test_missing_attribute_raises_attribute_error() -> None:
+    """Delegation does not synthesize unknown attributes; a genuinely missing
+    name still raises ``AttributeError`` (no unbounded recursion)."""
+    handler = AssemblyCallbackHandler(SyncInterceptor())
+
+    with pytest.raises(AttributeError):
+        handler.definitely_not_defined  # noqa: B018
+
+
+def test_explicit_callback_methods_are_not_delegated() -> None:
+    """The LangChain callback contract defined on the handler takes precedence
+    over delegation so LangChain's own dispatch is unaffected."""
+    interceptor = SyncInterceptor()
+    handler = AssemblyCallbackHandler(interceptor)
+
+    handler.on_tool_end(output="done", run_id=uuid4())
+
+    assert interceptor.tool_end_calls == 1
