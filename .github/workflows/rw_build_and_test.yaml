@@ -24,6 +24,13 @@ permissions:
   contents: read
 
 jobs:
+  # AAASM-3994: these jobs call a third-party reusable workflow owned by a personal
+  # account (Chisanan232/GitHub-Action_Reusable_Workflows-Python). Trust is bounded
+  # by the 40-char commit-SHA pin on each `uses:` below — a moving tag/branch would
+  # let the owner alter behavior after review. Secrets are already scoped per call:
+  # only run_e2e-test receives e2e_test_api_token (Slack); unit/integration forward
+  # none. TODO(AAASM-3994): vendor this workflow into the ai-agent-assembly org (or
+  # pin a signed release) to drop the personal-account supply-chain dependency.
   run_unit-test:
 #    name: Run all unit test items
     uses: Chisanan232/GitHub-Action_Reusable_Workflows-Python/.github/workflows/rw_uv_run_test.yaml@4a6480470b90c0b6139e05489868585fa50aad6f  # master @ 2026-05-26
