@@ -32,6 +32,7 @@ from agent_assembly.adapters.crewai.patch import (
 )
 from agent_assembly.adapters.crewai.patch import (
     _interceptor_enforces,
+    _missing_interceptor_decision,
     _normalize_decision,
 )
 
@@ -186,7 +187,7 @@ def _invoke_tool_check(
             args=tool_args,
             agent_id=agent_id,
         )
-    return {"status": "allow"}
+    return _missing_interceptor_decision(callback_handler)
 
 
 def _wait_for_tool_approval(
