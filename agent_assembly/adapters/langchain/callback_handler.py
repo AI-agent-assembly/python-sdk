@@ -34,6 +34,31 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
     def __init__(self, interceptor: Any) -> None:
         self._interceptor = interceptor
 
+    def __getattr__(self, name: str) -> Any:
+        """Delegate any attribute this handler does not define to the interceptor.
+
+        When ``langchain`` is co-installed it registers first (registry priority
+        0) and this handler is threaded to every subsequently-registered adapter
+        as the governance interceptor (``core/assembly.py``). Those adapters look
+        up governance entry points directly on the handed object — most notably
+        ``getattr(handler, "check_tool_start", None)`` — which the LangChain
+        callback contract implemented here does not expose. Without delegation
+        that lookup returned ``None`` and the adapter fell back to allow, silently
+        skipping pre-execution governance even under ``enforce`` (AAASM-4014).
+
+        Forwarding missing attributes to the wrapped real interceptor (the
+        ``RuntimeQueryInterceptor`` / ``_FailClosedInterceptor``) routes
+        ``check_tool_start``, ``wait_for_tool_approval``, the approval-timeout
+        provider, and event reporting to genuine governance. The explicit
+        LangChain callback methods defined on this class are found by normal
+        attribute lookup and are never delegated, so LangChain's own dispatch is
+        unaffected. ``_interceptor`` is guarded to avoid unbounded recursion
+        before ``__init__`` assigns it.
+        """
+        if name == "_interceptor":
+            raise AttributeError(name)
+        return getattr(self._interceptor, name)
+
     @property
     def _enforce(self) -> bool:
         """Whether the wired interceptor is in fail-closed ``enforce`` posture.
