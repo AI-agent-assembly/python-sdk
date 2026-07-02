@@ -39,6 +39,14 @@ jobs:
     secrets:
       e2e_test_api_token: ${{ secrets.e2e_test_api_token }}
 
+  # AAASM-3994: the *_codecov_finish jobs below call a third-party reusable workflow
+  # owned by a personal account (Chisanan232/GitHub-Action_Reusable_Workflows-Python).
+  # Trust is bounded by the 40-char commit-SHA pin on each `uses:` — a moving ref
+  # would let the owner alter behavior after review. Secrets are already minimized:
+  # each call forwards ONLY codecov_token; sonar_token is used solely by the local
+  # sonarcloud_finish job (SonarSource action) and never forwarded to the third party.
+  # TODO(AAASM-3994): vendor this workflow into the ai-agent-assembly org (or pin a
+  # signed release) to drop the personal-account supply-chain dependency.
   unit-test_codecov_finish:
 #    name: Organize and generate the testing report and upload it to Codecov
     if: ${{
