@@ -10,9 +10,14 @@ coverage:
         target: 90%
         threshold: 5%
 
-# Mirror sonar.coverage.exclusions (sonar-project.properties): exclude the same
-# path from Codecov's coverage denominator so both tools measure the identical
-# scope. Without this, Codecov counts agent_assembly/types.py while SonarCloud
-# does not, producing a spurious cross-tool coverage delta (AAASM-3962).
+# Mirror SonarCloud's excluded set (sonar-project.properties) so Codecov measures
+# the identical scope; a differing file set is the residual cross-tool coverage
+# delta (AAASM-3999).
+#   - agent_assembly/types.py  mirrors sonar.coverage.exclusions (AAASM-3962).
+#   - agent_assembly/proto/**  mirrors sonar.exclusions: the protoc-generated
+#     *_pb2.py / *_pb2_grpc.py tree is not hand-maintained and Sonar drops it
+#     from analysis entirely; without this Codecov still counts its near-zero
+#     generated-code coverage, dragging the headline % ~1.5pt below Sonar.
 ignore:
   - "agent_assembly/types.py"
+  - "agent_assembly/proto/**"
