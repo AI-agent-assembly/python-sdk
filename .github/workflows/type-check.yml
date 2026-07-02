@@ -37,6 +37,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# AAASM-3993: least-privilege default token — this workflow only checks out and
+# runs tests/builds; no job pushes, comments, or deploys.
+permissions:
+  contents: read
+
 jobs:
   verify-pep561-compliance:
     name: Verify PEP 561 Compliance
