@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (full history for mike + git-revision-date plugins)
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
         with:
           fetch-depth: 0
 
@@ -125,7 +125,7 @@ jobs:
       pages: write
     steps:
       - name: Checkout (full history for mike + git-revision-date plugins)
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
         with:
           fetch-depth: 0
 
@@ -177,7 +177,7 @@ jobs:
       pages: write
     steps:
       - name: Checkout (full history for mike + git-revision-date plugins)
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
         with:
           fetch-depth: 0
           ref: master
@@ -187,7 +187,7 @@ jobs:
       # PEP-440 pyproject version, which loses the canonical tag form). Pull it
       # so the deploy script can label the frozen snapshot and pick the channel.
       - name: Download release-tag artifact from the release run
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: release-tag
           path: release-tag-artifact
@@ -273,7 +273,7 @@ jobs:
           echo "Manual republish: target=${TARGET}, release_tag=${RELEASE_TAG_INPUT:-(n/a)}"
 
       - name: Checkout (full history for mike + git-revision-date plugins)
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
         with:
           fetch-depth: 0
           ref: master

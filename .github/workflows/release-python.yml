@@ -65,7 +65,7 @@ jobs:
       # and its inverse (.github/scripts/pep440-to-tag.sh). Those scripts
       # are the single source of truth for the conversion, shared with the
       # AAASM-2863 / AAASM-2956 unit tests.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
       - id: r
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -157,8 +157,8 @@ jobs:
     needs: resolve
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install uv
@@ -172,7 +172,7 @@ jobs:
         # JSON BOM of every installed distribution.
         run: uvx --from cyclonedx-bom==7.3.0 cyclonedx-py environment .venv --output-format JSON --output-file sbom.cdx.json
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: sbom
           path: sbom.cdx.json
@@ -183,8 +183,8 @@ jobs:
     needs: resolve
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Pin aa-ffi git deps to released core (binary_source_tag)
@@ -206,7 +206,7 @@ jobs:
           command: sdist
           args: --out dist
       - name: Upload sdist artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: wheels-sdist
           path: dist/*.tar.gz
@@ -216,8 +216,8 @@ jobs:
     needs: resolve
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Stage aasm sidecar binary
@@ -287,7 +287,7 @@ jobs:
             unzip -o /tmp/protoc.zip -d /usr/local >/dev/null
             protoc --version
       - name: Upload wheel artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: wheels-linux-x86_64
           path: dist/*.whl
@@ -297,8 +297,8 @@ jobs:
     needs: resolve
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Stage aasm sidecar binary
@@ -358,7 +358,7 @@ jobs:
             unzip -o /tmp/protoc.zip -d /usr/local >/dev/null
             protoc --version
       - name: Upload wheel artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: wheels-linux-aarch64
           path: dist/*.whl
@@ -368,8 +368,8 @@ jobs:
     needs: resolve
     runs-on: macos-14  # Apple silicon runner
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Stage aasm sidecar binary
@@ -412,7 +412,7 @@ jobs:
           command: build
           args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
       - name: Upload wheel artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: wheels-macos-arm64
           path: dist/*.whl
@@ -422,8 +422,8 @@ jobs:
     needs: resolve
     runs-on: macos-15-intel  # Intel runner (macos-13 sunset 2025-09-19)
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Stage aasm sidecar binary
@@ -466,7 +466,7 @@ jobs:
           command: build
           args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
       - name: Upload wheel artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: wheels-macos-x86_64
           path: dist/*.whl
@@ -492,7 +492,7 @@ jobs:
       id-token: write  # OIDC token for Trusted Publisher
     steps:
       - name: Download all build artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           pattern: wheels-*
           path: dist
@@ -529,11 +529,11 @@ jobs:
     permissions:
       contents: write  # create the git tag + GitHub Release
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
       - name: Download CycloneDX SBOM
         # AAASM-3615: pull the SBOM built by the `sbom` job so it can be
         # attached to the Release below.
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: sbom
       - name: Create tag and GitHub Release
@@ -613,7 +613,7 @@ jobs:
           printf '%s\n' "${RELEASE_TAG}" > release-tag.txt
           echo "Recorded release tag: ${RELEASE_TAG}"
       - name: Upload release-tag artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: release-tag
           path: release-tag.txt
