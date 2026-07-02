@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 from importlib import metadata
 from typing import Any
 
@@ -65,6 +66,23 @@ def _resolve_runtime_socket_path(agent_id: str) -> str:
     set ``AA_RUNTIME_SOCKET`` to override. Replacing the literal with
     ``tempfile.gettempdir()`` would break interop on platforms where it does not
     resolve to ``/tmp`` (notably macOS dev hosts).
+
+    Security (AAASM-3920): ``/tmp`` is world-traversable, so the default path is
+    predictable and any local user can pre-create it to impersonate the runtime.
+    The path itself is kept as the cross-platform IPC default to preserve interop
+    with the Rust runtime's bind path, but two mitigations apply:
+
+    * For hardened multi-user hosts, set ``AA_RUNTIME_SOCKET`` to a socket inside
+      a per-user ``0700`` runtime directory (e.g. under ``$XDG_RUNTIME_DIR``) so
+      the path is not world-traversable. The override is honoured unchanged.
+    * Before connecting to the *default* path, :func:`connect_runtime_client`
+      verifies the socket is owned by the current user (see
+      :func:`_runtime_socket_is_trusted`) and refuses a foreign-owned squat,
+      failing closed under ``enforce``.
+
+    Robust peer-credential validation (``SO_PEERCRED`` of the connected peer) is
+    the Rust ``aa-sdk-client``'s responsibility; this module only does a
+    best-effort pre-connect ownership check.
     """
     env_path = os.environ.get(ENV_RUNTIME_SOCKET)
     if env_path:
@@ -273,15 +291,50 @@ class _FailClosedInterceptor:
         return {"status": "deny", "reason": self._reason}
 
 
+def _runtime_socket_is_trusted(socket_path: str) -> bool:
+    """Whether the default runtime socket is safe to connect to (AAASM-3920).
+
+    The world-traversable ``/tmp`` default path is predictable, so any local
+    user could pre-create ``/tmp/aa-runtime-<agent_id>.sock`` to impersonate the
+    runtime. As a best-effort pre-connect guard this requires the path to either
+    not yet exist (the runtime will bind it) or be a *socket* owned by the
+    current user. A foreign-owned file, a non-socket squatting the path, or an
+    unstatable path is rejected so :func:`connect_runtime_client` returns
+    ``None`` and ``enforce`` mode fails closed instead of talking to an
+    attacker-controlled socket.
+
+    This is advisory only. Authoritative peer-credential validation
+    (``SO_PEERCRED``) is the Rust ``aa-sdk-client``'s job. On platforms without
+    ``os.getuid`` (e.g. Windows) the ownership check is skipped — there is no
+    UDS ownership model to assert — and the path is treated as trusted.
+    """
+    getuid = getattr(os, "getuid", None)
+    if getuid is None:
+        return True
+    try:
+        info = os.stat(socket_path)
+    except FileNotFoundError:
+        # Not created yet: the runtime will bind it. Nothing to distrust.
+        return True
+    except OSError:
+        return False
+    if not stat.S_ISSOCK(info.st_mode):
+        # A regular file / directory squatting the socket path.
+        return False
+    # bool() pins the type: getuid is fetched via getattr (typed Any).
+    return bool(info.st_uid == getuid())
+
+
 def connect_runtime_client(agent_id: str) -> Any | None:
     """Connect a native ``RuntimeClient`` to the runtime UDS, or ``None``.
 
-    Returns ``None`` when the native extension is not built or the runtime
-    socket is unreachable — both cases mean there is no native fast path to
-    register against or query. The single returned client is reused for both
-    :func:`register_agent` and the :class:`RuntimeQueryInterceptor`'s
-    ``query_policy`` calls, so the credential token stored by ``register`` is
-    attached to subsequent checks.
+    Returns ``None`` when the native extension is not built, the runtime socket
+    is unreachable, or the *default* socket path is squatted by a foreign-owned
+    file (AAASM-3920) — all cases mean there is no trusted native fast path to
+    register against or query, so a caller under ``enforce`` fails closed. The
+    single returned client is reused for both :func:`register_agent` and the
+    :class:`RuntimeQueryInterceptor`'s ``query_policy`` calls, so the credential
+    token stored by ``register`` is attached to subsequent checks.
     """
     try:
         from agent_assembly._core import RuntimeClient
@@ -289,6 +342,11 @@ def connect_runtime_client(agent_id: str) -> Any | None:
         return None
 
     socket_path = _resolve_runtime_socket_path(agent_id)
+    # Guard only the predictable default path. An explicit AA_RUNTIME_SOCKET
+    # override is the operator's trusted topology (e.g. a system-owned socket in
+    # a 0700 dir), so it is honoured without the ownership check.
+    if not os.environ.get(ENV_RUNTIME_SOCKET) and not _runtime_socket_is_trusted(socket_path):
+        return None
     sdk_version = _sdk_version()
     try:
         # Forward the agent identity (signed into the runtime handshake,

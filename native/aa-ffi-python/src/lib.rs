@@ -11,9 +11,12 @@
 //! perform a synchronous approval round-trip; event reporting is
 //! fire-and-forget over the shared client. The binding does expose a
 //! synchronous, **advisory** `query_policy` over the same client: it asks the
-//! runtime for a decision but fails *open* (returns `allow`) whenever the
-//! runtime is unreachable or slow, because the runtime / proxy / eBPF layers
-//! remain authoritative.
+//! runtime for a decision. The SDK layer is advisory — the runtime / proxy /
+//! eBPF layers remain authoritative — but when the runtime is unreachable or
+//! slow this binding does **not** fabricate an `allow`. It instead returns an
+//! error-sentinel decision (`query_failed` / `channel_closed`) so the Python
+//! layer's enforcement-mode guard can fail *closed* (deny) under `enforce`
+//! rather than being silently downgraded to allow-on-failure (AAASM-3920).
 
 use aa_core::AuditEntry;
 use aa_proto::assembly::audit::v1::AuditEvent;
@@ -22,9 +25,7 @@ use aa_proto::assembly::common::v1::ActionType;
 use aa_proto::assembly::common::v1::AgentId;
 use aa_proto::assembly::common::v1::Decision;
 use aa_proto::assembly::policy::v1::action_context::Action as ProtoAction;
-use aa_proto::assembly::policy::v1::{
-    ActionContext, CheckActionRequest, CheckActionResponse, ToolCallContext,
-};
+use aa_proto::assembly::policy::v1::{ActionContext, CheckActionRequest, ToolCallContext};
 use aa_sdk_client::ipc::spawn_ipc_thread;
 use aa_sdk_client::{AssemblyClient, AssemblyConfig, SdkClientError};
 use prost::Message;
@@ -89,7 +90,11 @@ impl RuntimeClient {
     /// AAASM-3666).
     #[staticmethod]
     #[pyo3(signature = (socket_path, agent_id=None, sdk_version=None))]
-    fn connect(socket_path: String, agent_id: Option<String>, sdk_version: Option<String>) -> PyResult<Self> {
+    fn connect(
+        socket_path: String,
+        agent_id: Option<String>,
+        sdk_version: Option<String>,
+    ) -> PyResult<Self> {
         let config = AssemblyConfig {
             agent_id: agent_id.unwrap_or_default(),
             socket_path: Some(socket_path.clone()),
@@ -196,17 +201,22 @@ impl RuntimeClient {
     /// fields, ships it over the shared client, and blocks for the runtime's
     /// `CheckActionResponse` (the shared client caps this at a 5 s timeout).
     /// Returns a dict `{"decision": <str>, "reason": <str>}` where the decision
-    /// is one of `"allow"`, `"deny"`, `"pending"`, `"redact"`, or
-    /// `"unspecified"`.
+    /// is one of `"allow"`, `"deny"`, `"pending"`, `"redact"`, `"unspecified"`,
+    /// or — when the runtime could not produce a verdict — an error sentinel
+    /// (`"query_failed"` / `"channel_closed"`).
     ///
-    /// **Fail-open:** the SDK layer is advisory, never authoritative. When the
+    /// **Fail-closed signalling (AAASM-3920):** the SDK layer is advisory, never
+    /// authoritative, but it must not fabricate an `allow` on failure. When the
     /// runtime is unreachable or does not answer in time — the shared client
     /// returns [`SdkClientError::QueryFailed`] on timeout / mid-query
     /// disconnect, or [`SdkClientError::ChannelClosed`] when the IPC connection
-    /// never came up (e.g. the runtime socket is absent) — this returns a
-    /// non-deny `{"decision": "allow", "reason": <why>}` so a slow or absent
-    /// runtime can never block the caller; the runtime / proxy / eBPF layers
-    /// still enforce.
+    /// never came up (e.g. the runtime socket is absent) — this returns the
+    /// matching error-sentinel decision (`"query_failed"` / `"channel_closed"`),
+    /// **not** `"allow"`. The Python `runtime_interceptor` guard then denies
+    /// under `enforce` (fail closed) and proceeds under `observe` / `disabled`
+    /// (fail open). Folding these onto `allow` here would make that guard dead
+    /// code and let a stalled / killed runtime silently downgrade enforcement.
+    /// The runtime / proxy / eBPF layers still enforce authoritatively.
     #[pyo3(signature = (agent_id, action_type, tool_name=None, tool_args_json=None))]
     fn query_policy(
         &self,
@@ -240,16 +250,25 @@ impl RuntimeClient {
 
         let response = match outcome {
             Ok(response) => response,
-            // Fail-open: an unreachable or slow runtime must never read as a
-            // deny. QueryFailed = timeout / mid-query disconnect; ChannelClosed
-            // = the IPC connection never came up. Synthesize an allow with the
-            // reason so callers can still log it.
-            Err(SdkClientError::QueryFailed | SdkClientError::ChannelClosed) => {
-                CheckActionResponse {
-                    decision: Decision::Allow as i32,
-                    reason: "runtime unreachable; fail-open allow".to_string(),
-                    ..Default::default()
-                }
+            // Fail-closed signalling (AAASM-3920): a query the runtime could not
+            // answer must surface as an error-sentinel decision, NOT a
+            // fabricated allow, so the Python guard denies under enforce.
+            // QueryFailed = timeout / mid-query disconnect; ChannelClosed = the
+            // IPC connection never came up. Emit the sentinel string the
+            // `runtime_interceptor._ERROR_DECISIONS` guard matches and return
+            // directly (these are not proto `Decision` variants).
+            Err(error @ (SdkClientError::QueryFailed | SdkClientError::ChannelClosed)) => {
+                let decision = match error {
+                    SdkClientError::ChannelClosed => "channel_closed",
+                    _ => "query_failed",
+                };
+                let result = PyDict::new(py);
+                result.set_item("decision", decision)?;
+                result.set_item(
+                    "reason",
+                    "runtime unreachable; failing closed under enforce",
+                )?;
+                return Ok(result.into_any().unbind());
             }
             Err(error) => return Err(map_sdk_error(error)),
         };
