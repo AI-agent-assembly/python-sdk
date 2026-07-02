@@ -472,3 +472,42 @@ def test_socket_trust_rejects_non_socket_squat(tmp_path: Any) -> None:
     path = tmp_path / "aa-runtime-regular.sock"
     path.write_text("not a socket")
     assert runtime_interceptor._runtime_socket_is_trusted(str(path)) is False
+
+
+def test_socket_trust_skips_check_without_getuid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Platforms without ``os.getuid`` (e.g. Windows) have no UDS ownership model,
+    so the ownership check is skipped and the path is treated as trusted."""
+    monkeypatch.delattr(os, "getuid", raising=False)
+    assert runtime_interceptor._runtime_socket_is_trusted("/tmp/aa-runtime-any.sock") is True
+
+
+def test_socket_trust_rejects_unstatable_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A path that cannot be stat-ed (e.g. permission denied) is refused — fail
+    closed rather than assume the socket is safe."""
+    monkeypatch.setattr(os, "getuid", lambda: 1000)
+
+    def _raise(*_args: Any, **_kwargs: Any) -> Any:
+        raise PermissionError("stat denied")
+
+    monkeypatch.setattr(os, "stat", _raise)
+    assert runtime_interceptor._runtime_socket_is_trusted("/tmp/aa-runtime-any.sock") is False
+
+
+def test_connect_returns_none_for_untrusted_default_socket(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``connect_runtime_client`` fails closed (returns ``None``) when the default
+    socket path is squatted, without ever handing the path to the native client."""
+    monkeypatch.delenv(runtime_interceptor.ENV_RUNTIME_SOCKET, raising=False)
+    monkeypatch.setattr(runtime_interceptor, "_runtime_socket_is_trusted", lambda _path: False)
+
+    class _NeverConnectsRuntimeClient:
+        @staticmethod
+        def connect(*_args: Any, **_kwargs: Any) -> Any:
+            raise AssertionError("connect must not be called for an untrusted socket")
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = _NeverConnectsRuntimeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
+
+    assert runtime_interceptor.connect_runtime_client("agent-001") is None
