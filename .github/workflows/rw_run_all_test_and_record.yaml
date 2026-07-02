@@ -24,6 +24,11 @@ on:
         description: "The API token for uploading testing coverage report to Coveralls."
         required: false
 
+# AAASM-3993: least-privilege default token. As a reusable workflow this also caps
+# the GITHUB_TOKEN granted to the third-party workflows it calls; none need write.
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
 #    name: Run all tests and organize all test reports
