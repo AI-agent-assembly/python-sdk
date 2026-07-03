@@ -49,6 +49,13 @@ ENFORCE_MODE = "enforce"
 # / Shutdown). Under ``enforce`` these must deny, not allow (AAASM-3106).
 _ERROR_DECISIONS = frozenset({"query_failed", "channel_closed", "shutdown", "error"})
 
+# Native decisions that authoritatively permit the tool to proceed. ``deny`` and
+# ``pending`` are handled explicitly; only these are treated as an allow. Anything
+# else — an unknown string, an empty value, or a missing ``decision`` key — is not
+# an authoritative allow and must fail closed under ``enforce`` (AAASM-4014); the
+# runtime remains the authority on redaction, so ``redact`` proceeds here.
+_ALLOW_DECISIONS = frozenset({"allow", "redact", "unspecified"})
+
 
 def _resolve_runtime_socket_path(agent_id: str) -> str:
     """Resolve the runtime UDS path: ``AA_RUNTIME_SOCKET`` > default convention.
@@ -233,7 +240,10 @@ class RuntimeQueryInterceptor:
             # proceed (fail open).
             return self._on_query_failure("runtime query failed")
 
-        decision = str(result.get("decision", "allow")).strip().lower()
+        # No ``"allow"`` default: a missing / empty ``decision`` is not an
+        # authoritative allow and must route through the fail-closed path below
+        # under ``enforce`` (AAASM-4014).
+        decision = str(result.get("decision", "") or "").strip().lower()
         reason = str(result.get("reason", "") or "")
 
         if decision == "deny":
@@ -243,7 +253,12 @@ class RuntimeQueryInterceptor:
         if decision in _ERROR_DECISIONS:
             # Native reported it could not reach an authoritative verdict.
             return self._on_query_failure(reason or f"runtime returned {decision}")
-        return {"status": "allow"}
+        if decision in _ALLOW_DECISIONS:
+            return {"status": "allow"}
+        # Unknown / empty / missing decision: not an authoritative allow, so fail
+        # closed under ``enforce`` (deny) and proceed under observe (fail open),
+        # mirroring the error-sentinel handling above (AAASM-4014).
+        return self._on_query_failure(reason or f"runtime returned unrecognized decision {decision!r}")
 
     def _on_query_failure(self, reason: str) -> dict[str, str]:
         """Map an unauthoritative query to deny (enforce) or allow (observe)."""

@@ -16,6 +16,9 @@ from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
 from agent_assembly.adapters.crewai.patch import (
+    _missing_interceptor_decision,
+)
+from agent_assembly.adapters.crewai.patch import (
     _normalize_decision as _normalize_governance_decision,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
@@ -514,7 +517,7 @@ async def _invoke_async_tool_check(
 ) -> object:
     method = getattr(callback_handler, "check_tool_start", None)
     if not callable(method):
-        return {"status": "allow"}
+        return _missing_interceptor_decision(callback_handler)
 
     result = method(
         serialized={"name": tool_name},

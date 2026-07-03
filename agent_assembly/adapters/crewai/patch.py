@@ -227,6 +227,24 @@ def _unknown_decision(enforce: bool) -> tuple[Literal["allow", "deny", "pending"
     return "allow", None
 
 
+_MISSING_INTERCEPTOR_REASON = "Governance interceptor exposes no check_tool_start; denied under enforce."
+
+
+def _missing_interceptor_decision(callback_handler: Any) -> dict[str, str]:
+    """Fallback verdict when the wired interceptor has no ``check_tool_start``.
+
+    A co-installed adapter can be handed a callback handler that does not expose
+    ``check_tool_start`` (e.g. LangChain's ``AssemblyCallbackHandler`` before the
+    AAASM-4014 delegation fix). Defaulting to ``allow`` there silently skipped
+    pre-execution governance. This fails closed under ``enforce`` (deny) and only
+    proceeds under observe / disabled (fail open), reusing the same enforce
+    detection as an unknown verdict.
+    """
+    if _interceptor_enforces(callback_handler):
+        return {"status": "deny", "reason": _MISSING_INTERCEPTOR_REASON}
+    return {"status": "allow"}
+
+
 _KNOWN_STATUSES: frozenset[str] = frozenset({"allow", "deny", "pending"})
 
 
@@ -277,7 +295,7 @@ def _invoke_sync_tool_check(
             agent_id=agent_id,
         )
 
-    return {"status": "allow"}
+    return _missing_interceptor_decision(callback_handler)
 
 
 def _wait_for_sync_tool_approval(

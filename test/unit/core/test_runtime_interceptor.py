@@ -511,3 +511,109 @@ def test_connect_returns_none_for_untrusted_default_socket(
     monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
 
     assert runtime_interceptor.connect_runtime_client("agent-001") is None
+
+
+# --- AAASM-4014: LangChain co-install bypass + fail-closed unknown decision ---
+
+
+@pytest.mark.parametrize("decision", ["garbage", "maybe", "allowish", ""])
+def test_unknown_decision_denies_under_enforce(decision: str) -> None:
+    """An unknown / empty native decision is not an authoritative allow, so it
+    must fail closed under ``enforce`` (AAASM-4014) rather than default to allow."""
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient(decision), "agent-001", enforce=True)
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result["status"] == "deny"
+
+
+def test_missing_decision_key_denies_under_enforce() -> None:
+    """A ``query_policy`` result with no ``decision`` key denies under enforce."""
+
+    class _EmptyRuntime:
+        def query_policy(self, *_args: Any, **_kwargs: Any) -> dict[str, str]:
+            return {}
+
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _EmptyRuntime(), "agent-001", enforce=True)
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result["status"] == "deny"
+
+
+@pytest.mark.parametrize("decision", ["allow", "redact", "unspecified"])
+def test_known_good_decisions_allow_under_enforce(decision: str) -> None:
+    """Authoritative allow verdicts still proceed under enforce; the runtime
+    remains the authority on redaction, so ``redact`` proceeds here."""
+    interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient(decision), "agent-001", enforce=True)
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result == {"status": "allow"}
+
+
+def test_unknown_decision_allows_under_observe() -> None:
+    """Under observe the unknown-decision path still proceeds (fail open)."""
+    interceptor = RuntimeQueryInterceptor(
+        _FakeGatewayClient(), _FakeRuntimeClient("garbage"), "agent-001", enforce=False
+    )
+
+    result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
+
+    assert result == {"status": "allow"}
+
+
+def test_langchain_coinstall_denies_through_crewai_adapter() -> None:
+    """Reproduce-then-fix AAASM-4014.
+
+    When ``langchain`` is co-installed it registers first and its
+    ``AssemblyCallbackHandler`` (wrapping the real interceptor) is threaded to
+    every subsequently-registered adapter as the governance interceptor
+    (``core/assembly.py``). A non-LangChain adapter (crewai) looks up
+    ``check_tool_start`` on that handler. Before the fix the handler exposed no
+    such method, so the lookup returned ``None`` and the adapter fell back to
+    allow — silently bypassing a runtime DENY under enforce. Delegation must now
+    route the check to real governance so the tool is blocked.
+    """
+    from agent_assembly.adapters.crewai import patch as crewai_patch
+
+    interceptor = RuntimeQueryInterceptor(
+        _FakeGatewayClient(), _FakeRuntimeClient("deny", reason="blocked"), "agent-001", enforce=True
+    )
+    callback_handler = AssemblyCallbackHandler(interceptor)
+
+    # Enforce posture is still detected through the wrapping handler.
+    assert crewai_patch._interceptor_enforces(callback_handler) is True
+
+    decision = crewai_patch._invoke_sync_tool_check(
+        callback_handler, tool_name="web_search", tool_args={"q": "x"}, agent_id="agent-001"
+    )
+    status, reason = crewai_patch._normalize_decision(decision, enforce=True)
+
+    assert status == "deny"
+    assert reason == "blocked"
+
+
+def test_missing_interceptor_fallback_denies_under_enforce() -> None:
+    """Defense-in-depth: an interceptor genuinely lacking ``check_tool_start``
+    denies under enforce instead of the historical silent allow (AAASM-4014)."""
+    from agent_assembly.adapters.crewai import patch as crewai_patch
+
+    class _EnforcingNoCheck:
+        _enforce = True
+
+    result = crewai_patch._invoke_sync_tool_check(_EnforcingNoCheck(), tool_name="x", tool_args={}, agent_id=None)
+
+    assert result == {"status": "deny", "reason": crewai_patch._MISSING_INTERCEPTOR_REASON}
+
+
+def test_missing_interceptor_fallback_allows_under_observe() -> None:
+    """The missing-interceptor fallback still proceeds when not enforcing."""
+    from agent_assembly.adapters.crewai import patch as crewai_patch
+
+    class _NoCheck:
+        pass
+
+    result = crewai_patch._invoke_sync_tool_check(_NoCheck(), tool_name="x", tool_args={}, agent_id=None)
+
+    assert result == {"status": "allow"}
