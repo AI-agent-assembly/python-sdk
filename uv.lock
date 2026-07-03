@@ -131,7 +131,7 @@ docs = [
 ]
 langchain-test = [
     { name = "agno", specifier = ">=2.0.0" },
-    { name = "langchain-core", specifier = ">=0.3.0,<1.4.0" },
+    { name = "langchain-core", specifier = ">=0.3.0,<1.5.0" },
     { name = "llama-index-core", specifier = ">=0.10.0" },
     { name = "openai-agents", specifier = ">=0.1.0" },
     { name = "pydantic-ai", specifier = ">=0.3.0" },
