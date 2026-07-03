@@ -109,13 +109,37 @@ jobs:
           # To allowlist an unfixable advisory, append flags above, e.g.:
           #   --ignore-vuln GHSA-xxxx-xxxx-xxxx  # 2026-06-23 no fixed release yet
 
+  # AAASM-4034: dedicated leg that installs `langchain-core` (the non-default
+  # `langchain-test` group) so the AAASM-4014 `__getattr__` is exercised against
+  # the REAL `langchain_core.callbacks.BaseCallbackHandler`. The main test matrix
+  # deliberately stays langchain-free — installing it there would swap the base
+  # class under the whole suite — so the `importorskip`-guarded contract test only
+  # runs here. Kept as a focused single-file run so it cannot slow the main gate.
+  langchain-contract-test:
+    name: LangChain-installed __getattr__ contract test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      - name: Sync locked environment with the langchain-test group
+        run: uv sync --frozen --group langchain-test
+      - name: Run the langchain-installed callback contract test
+        run: >-
+          uv run python -m pytest
+          test/unit/adapters/langchain/test_getattr_contract_with_langchain.py
+          -v
+
   # Single aggregate required check. Collapses the reusable-workflow fan-out into one
   # stable status so branch protection needs only this check, and it still reports a
   # result (success on skip) instead of staying pending when path filters skip the
   # underlying test jobs.
   ci-success:
     name: CI Success
-    needs: [build-and-test_all, dependency-audit]
+    needs: [build-and-test_all, dependency-audit, langchain-contract-test]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -123,11 +147,13 @@ jobs:
         run: |
           test_result="${{ needs.build-and-test_all.result }}"
           audit_result="${{ needs.dependency-audit.result }}"
+          langchain_result="${{ needs.langchain-contract-test.result }}"
           echo "build-and-test_all result: ${test_result}"
           echo "dependency-audit result: ${audit_result}"
-          for result in "${test_result}" "${audit_result}"; do
+          echo "langchain-contract-test result: ${langchain_result}"
+          for result in "${test_result}" "${audit_result}" "${langchain_result}"; do
             if [ "${result}" = "failure" ] || [ "${result}" = "cancelled" ]; then
-              echo "::error::CI failed: build-and-test_all=${test_result} dependency-audit=${audit_result}"
+              echo "::error::CI failed: build-and-test_all=${test_result} dependency-audit=${audit_result} langchain-contract-test=${langchain_result}"
               exit 1
             fi
           done
