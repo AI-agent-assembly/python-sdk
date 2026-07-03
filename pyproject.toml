@@ -107,6 +107,20 @@ pre-commit-ci = [
     "pylint>=3.1.0,<5",
     { include-group = "lint" },
 ]
+# AAASM-4034: dev/test-only (NOT a runtime dependency) and DELIBERATELY excluded
+# from `default-groups`. The default suite must stay langchain-free so the
+# existing callback-delegation tests keep exercising the empty
+# `_FallbackBaseCallbackHandler` fallback. Installing `langchain-core` swaps the
+# real `langchain_core.callbacks.BaseCallbackHandler` in as the base of
+# `AssemblyCallbackHandler`, which lets the `importorskip`-guarded contract test
+# prove the AAASM-4014 `__getattr__` never shadows or synthesizes a real
+# LangChain callback-contract member. Run it with:
+#   uv sync --group langchain-test
+#   .venv/bin/python -m pytest test/unit/adapters/langchain/test_getattr_contract_with_langchain.py
+langchain-test = [
+    { include-group = "test" },
+    "langchain-core>=0.3.0,<0.4.0",
+]
 docs = [
     "mkdocs>=1.6.0,<2",
     "mkdocs-material>=9.5.0,<10",
