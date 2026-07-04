@@ -170,8 +170,9 @@ def test_build_interceptor_without_native_core_returns_bare_client(
 def test_build_interceptor_returns_bare_client_when_connect_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Native extension present but no reachable runtime: connect() raises, so
-    the bare client is returned (fail-open) rather than a denying interceptor."""
+    """Under ``observe`` a native extension present but no reachable runtime:
+    connect() raises, so the bare client is returned (fail-open) rather than a
+    denying interceptor. (The ``None`` default now fails closed here — AAASM-4130.)"""
 
     class _UnreachableRuntimeClient:
         @staticmethod
@@ -183,7 +184,7 @@ def test_build_interceptor_returns_bare_client_when_connect_fails(
     monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
 
     client = _FakeGatewayClient()
-    result = build_governance_interceptor(client, "agent-001")
+    result = build_governance_interceptor(client, "agent-001", "observe")
 
     assert result is client
 

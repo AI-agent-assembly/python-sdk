@@ -14,14 +14,17 @@ layer only ever *blocks* on an explicit ``deny`` and otherwise proceeds.
 
 Failure posture is governed by ``enforcement_mode`` (AAASM-3106):
 
-* Under ``enforce``, the SDK is a security control and **fails closed**. When the
-  native extension is missing the bare client is returned (no native authority
-  exists to consult — see :func:`build_governance_interceptor`), but once the
-  native extension is present every other failure denies: an unreachable runtime
-  socket yields a deny-all interceptor, a raising ``query_policy`` maps to
-  ``deny``, and a native ``decision`` that is itself an error sentinel
-  (``query_failed`` / ``channel_closed``) maps to ``deny`` rather than allow.
-* Under ``observe`` / ``disabled`` (or when no mode is supplied), the SDK is a
+* Under an **enforce** posture — explicit ``enforce`` *or* the ``None`` default,
+  which is advertised as the gateway's live ``enforce`` (AAASM-4130) — the SDK is
+  a security control and **fails closed**. When the native extension is missing the
+  bare client is returned (no native authority exists to consult — see
+  :func:`build_governance_interceptor`) but a loud one-time warning is emitted so the
+  skipped in-process deny is not silent; once the native extension is present every
+  other failure denies: an unreachable runtime socket yields a deny-all interceptor,
+  a raising ``query_policy`` maps to ``deny``, and a native ``decision`` that is
+  itself an error sentinel (``query_failed`` / ``channel_closed``) maps to ``deny``
+  rather than allow.
+* Under the explicit dry-run postures **observe** / **disabled**, the SDK is a
   dry-run / hermetic-test layer and **fails open**: an unreachable runtime
   returns the bare client unchanged, a raising or error ``query_policy``
   proceeds, exactly as before.
@@ -35,6 +38,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import warnings
 from importlib import metadata
 from typing import Any
 
@@ -55,6 +59,40 @@ _ERROR_DECISIONS = frozenset({"query_failed", "channel_closed", "shutdown", "err
 # an authoritative allow and must fail closed under ``enforce`` (AAASM-4014); the
 # runtime remains the authority on redaction, so ``redact`` proceeds here.
 _ALLOW_DECISIONS = frozenset({"allow", "redact", "unspecified"})
+
+
+def _local_posture_is_enforce(enforcement_mode: str | None) -> bool:
+    """Whether the SDK's *local* failure posture must fail closed (AAASM-4130).
+
+    ``enforcement_mode is None`` is the advertised default: it registers the agent
+    under the gateway's server-side default, which is live ``enforce``. So for the
+    SDK's own error posture ``None`` must behave exactly like ``enforce`` — an
+    unreachable runtime or an unauthoritative query denies rather than silently
+    proceeding. Only the explicit dry-run postures (``observe`` / ``disabled``) fail
+    open locally.
+    """
+    return enforcement_mode is None or enforcement_mode == ENFORCE_MODE
+
+
+def _warn_sdk_enforcement_unavailable() -> None:
+    """Warn (loudly, once) that no *local* pre-execution deny can run (AAASM-4130).
+
+    Under an enforce posture (the ``None`` default or explicit ``enforce``) a policy
+    ``deny`` is advertised to block the tool before it runs, but that in-process fast
+    path needs the native ``agent_assembly._core`` extension. On a pure-Python install
+    it is absent, so no local deny is possible. Rather than silently fail open (Python
+    diverging from go's fail-closed and node's ``ConfigurationError``), emit a warning
+    so the gap is visible; the gateway / proxy / eBPF layers remain authoritative, so
+    the SDK stays advisory and does not hard-fail on a missing runtime.
+    """
+    warnings.warn(
+        "Agent Assembly enforcement is active but the native runtime extension "
+        "(agent_assembly._core) is not installed, so the SDK cannot apply a local "
+        "pre-execution deny; tool calls proceed in-process and rely on the gateway / "
+        "proxy / eBPF layers for enforcement. Install the native extension to enable "
+        "the in-process deny fast path.",
+        stacklevel=2,
+    )
 
 
 def _resolve_runtime_socket_path(agent_id: str) -> str:
@@ -162,8 +200,9 @@ class RuntimeQueryInterceptor:
     only *adds* ``check_tool_start``.
 
     The failure posture of the added check is governed by ``enforce``: when
-    ``True`` (``enforcement_mode == "enforce"``) any path that cannot obtain an
-    authoritative allow — a raising ``query_policy`` or an error-sentinel
+    ``True`` (an enforce posture — explicit ``enforce`` or the ``None`` default,
+    resolved in :func:`build_governance_interceptor`) any path that cannot obtain
+    an authoritative allow — a raising ``query_policy`` or an error-sentinel
     ``decision`` — maps to ``deny`` (fail closed). When ``False`` those paths
     proceed (fail open), preserving the observe / disabled behavior.
     """
@@ -461,14 +500,19 @@ def build_governance_interceptor(
 
     When a native runtime is reachable, wrap ``client`` in a
     :class:`RuntimeQueryInterceptor` so a runtime ``deny`` actually blocks the
-    tool. The failure posture depends on ``enforcement_mode`` (AAASM-3106):
+    tool. The failure posture depends on ``enforcement_mode`` (AAASM-3106). The
+    ``None`` default is advertised as the gateway's live ``enforce``, so it takes
+    the same *local* fail-closed posture as an explicit ``enforce`` (AAASM-4130);
+    only ``observe`` / ``disabled`` fail open locally:
 
     * The native extension is **missing**: return ``client`` unchanged in every
-      mode. There is no native authority to consult, so there is nothing to fail
-      closed *to* — the SDK fast path is simply not engaged.
+      mode — there is no native authority to fail closed *to*. Under an enforce
+      posture this would silently skip the in-process deny, so a loud one-time
+      warning is emitted first (AAASM-4130) rather than failing open silently.
     * The native extension is **present** but the runtime socket is unreachable:
-      under ``enforce`` return a deny-all :class:`_FailClosedInterceptor`;
-      otherwise return ``client`` unchanged (fail open).
+      under an enforce posture (``None`` default or explicit ``enforce``) return a
+      deny-all :class:`_FailClosedInterceptor`; under ``observe`` / ``disabled``
+      return ``client`` unchanged (fail open).
 
     :param runtime_client: A pre-connected native runtime client (e.g. the one
         :func:`register_agent` registered the token on). When supplied it is
@@ -479,11 +523,13 @@ def build_governance_interceptor(
         extension (fail open in every mode) from an unreachable runtime socket
         (fail closed under enforce). When ``None`` it is detected here.
     """
-    enforce = enforcement_mode == ENFORCE_MODE
+    enforce = _local_posture_is_enforce(enforcement_mode)
 
     if runtime_client is None and native_available is None:
         # No caller-supplied client or hint: detect + connect ourselves.
         if not _native_core_available():
+            if enforce:
+                _warn_sdk_enforcement_unavailable()
             return client
         runtime_client = connect_runtime_client(agent_id)
         native_available = True
@@ -491,6 +537,8 @@ def build_governance_interceptor(
     if runtime_client is None:
         # Native missing → no authority to fail closed to, return bare client.
         if not native_available:
+            if enforce:
+                _warn_sdk_enforcement_unavailable()
             return client
         # Native present but runtime unreachable: deny everything under enforce
         # (fail closed); proceed under observe / disabled (fail open).
