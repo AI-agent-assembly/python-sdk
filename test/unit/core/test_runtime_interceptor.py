@@ -23,6 +23,7 @@ from agent_assembly.adapters.langchain import AssemblyCallbackHandler
 from agent_assembly.core import runtime_interceptor
 from agent_assembly.core.runtime_interceptor import (
     RuntimeQueryInterceptor,
+    _FailClosedInterceptor,
     build_governance_interceptor,
 )
 from agent_assembly.exceptions import OpTerminatedError, ToolExecutionBlockedError
@@ -213,6 +214,78 @@ def test_build_interceptor_wraps_client_when_runtime_connects(
         "status": "deny",
         "reason": "blocked",
     }
+
+
+def test_default_mode_unreachable_runtime_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4130: with no ``enforcement_mode`` (the advertised ``enforce`` default)
+    a native-present-but-unreachable runtime yields a deny-all interceptor, not the
+    silent fail-open bare client. The default posture must match its advertised
+    ``enforce`` behavior locally."""
+
+    class _UnreachableRuntimeClient:
+        @staticmethod
+        def connect(_socket_path: str) -> Any:
+            raise OSError("no such socket")
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = _UnreachableRuntimeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
+
+    client = _FakeGatewayClient()
+    result = build_governance_interceptor(client, "agent-001")  # no mode -> default
+
+    assert isinstance(result, _FailClosedInterceptor)
+    assert result.check_tool_start(serialized={"name": "t"}, input_str="i")["status"] == "deny"
+
+
+def test_default_mode_warns_when_native_core_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4130: pure-Python install (native extension absent) under the default
+    ``enforce`` posture cannot run a local deny, so it must warn loudly rather than
+    fail open silently. The bare client is still returned (init stays graceful)."""
+    monkeypatch.delitem(sys.modules, "agent_assembly._core", raising=False)
+
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _no_core_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "agent_assembly._core":
+            raise ImportError("native extension unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _no_core_import)
+
+    client = _FakeGatewayClient()
+    with pytest.warns(UserWarning, match="native runtime extension"):
+        result = build_governance_interceptor(client, "agent-001")  # no mode -> default
+
+    assert result is client
+    assert not hasattr(result, "check_tool_start")
+
+
+def test_observe_mode_does_not_warn_when_native_core_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The warning is scoped to the enforce posture: an explicit ``observe`` dry-run
+    with no native extension legitimately fails open and must stay silent."""
+    monkeypatch.delitem(sys.modules, "agent_assembly._core", raising=False)
+
+    import builtins
+    import warnings
+
+    real_import = builtins.__import__
+
+    def _no_core_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "agent_assembly._core":
+            raise ImportError("native extension unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _no_core_import)
+
+    client = _FakeGatewayClient()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = build_governance_interceptor(client, "agent-001", "observe")
+
+    assert result is client
 
 
 def test_enforce_query_raising_fails_closed() -> None:
