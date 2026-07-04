@@ -5,6 +5,19 @@ Release notes for the Agent Assembly Python SDK. Versions follow [SemVer](https:
 !!! info "0.x development"
     The SDK is in active 0.x development; per-release notes are minimal. Track full changes via [the commits to `master`](https://github.com/ai-agent-assembly/python-sdk/commits/master) and the [GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases) feed.
 
+## 0.0.1-rc.3
+
+Third **release candidate** on the `0.0.1` line. This release tracks the published
+`agent-assembly` core **`v0.0.1-rc.3`**: the bundled `aasm` runtime binary and the
+compiled `aa-ffi-python` extension are pinned to that core tag (AAASM-4056).
+
+Changes since rc.2 are limited to the core-pin promotion — there is no new SDK
+surface:
+
+- Bump the `aa-core` / `aa-proto` / `aa-sdk-client` pins in `aa-ffi-python` to the
+  core `v0.0.1-rc.3` tag. rc.3 is a security-hardening cut of the core (three
+  verified sweeps) and fixes the `aa-gateway` crates.io publish break (AAASM-4056).
+
 ## 0.0.1-rc.2
 
 Second **release candidate** on the `0.0.1` line. This release tracks the published

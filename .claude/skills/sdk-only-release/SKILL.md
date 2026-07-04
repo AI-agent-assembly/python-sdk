@@ -64,6 +64,31 @@ On 2026-06-15 02:21 UTC, `@agent-assembly/sdk@0.0.1-beta.2` was published to npm
 
 The fix is operator discipline (this SOP), not a workflow-code restriction — `workflow_dispatch` is kept open for legitimate Case B releases.
 
+## Version-bump prep PR — required file footprint
+
+Before the `workflow_dispatch` publish, land a **prep-only PR** that advances every
+checked-in version literal to the new release. The `pypi_version` dispatch input is
+what actually stamps the wheel, but master must not lag behind it — a stale literal
+drifts the SonarCloud gate, misleads the docs, and breaks the next Case-B release's
+base. **Bump ALL of the following in one prep PR** (reference: rc.2 PR #190 /
+AAASM-3833). Missing any of these is the most common release-prep defect.
+
+| File | What to change |
+|---|---|
+| `pyproject.toml` | `version = "<PEP440>"` (e.g. `0.0.1rc3`) |
+| `agent_assembly/__init__.py` | `__version__ = "<PEP440>"` — kept in lockstep with `pyproject` |
+| `uv.lock` | regenerate (`uv lock`) so the project's own pinned version matches; CI `uv sync` fails otherwise |
+| `sonar-project.properties` | `sonar.projectVersion=<PEP440>` (source-of-truth / local-scan fallback; never leave at `0.0.0` — AAASM-3815) |
+| `docs/compatibility/release-notes.md` | new `## <SemVer>` section mirroring the previous one (core tag it tracks, ticket ref) |
+| `docs/examples/*.md` | bump the `agent-assembly` install pin `>=<old>` → `>=<new>` in every adapter example that carries one (grep `>=0.0.1rc`) |
+| `docs/guides/container-base-image.md` | bump the governed base-image tag examples `v<old>` → `v<new>` (grep `v0.0.1-rc`) |
+
+**Do NOT hand-edit** `docs/compatibility/` versioned snapshots or the docs-site
+version index — the `Publish release tag for docs` job (gated on `repository_dispatch`,
+AAASM-2868) snapshots those at release time. The prep PR is the *current* docs +
+metadata only. Always `grep -rn` the outgoing version across `agent_assembly/**` and
+`docs/**` to catch every literal before opening the PR; do not copy a stale file list.
+
 ## How to use
 
 Invoke `release-python.yml` via `workflow_dispatch` against `master`, three
