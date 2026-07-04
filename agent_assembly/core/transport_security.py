@@ -6,7 +6,9 @@ sensitive material:
 * the op-control gRPC stream (``op_control.py``), which carries the agent
   identity triple and operator pause / terminate signals;
 * the control-plane HTTP API (``client/gateway.py``), which sends the API key
-  as an ``Authorization: Bearer`` header.
+  as an ``Authorization: Bearer`` header and also carries resolved credential
+  values (``dispatch_tool``) and topology metadata (``report_edge``) — so the
+  channel is sensitive even when no API key is set.
 
 Neither must travel unencrypted to a **non-loopback** host without an explicit
 opt-in. A loopback target is the local dev-mode gateway, where plaintext is the
@@ -97,40 +99,63 @@ def require_secure_grpc_target(gateway_url: str, *, allow_insecure: bool) -> Non
 def require_secure_http_url(gateway_url: str, *, has_api_key: bool, allow_insecure: bool) -> None:
     """Validate that an ``http://`` control-plane URL is permitted.
 
-    When an API key is set it is sent as a Bearer header, so a plaintext
-    ``http://`` URL to a non-loopback host would leak the credential. Refuse
-    unless the target is loopback or ``allow_insecure`` is set. ``https://``
-    URLs (and non-http schemes) always pass.
+    The control-plane channel carries sensitive material even when no API key
+    is set: ``dispatch_tool`` returns resolved credential values and
+    ``report_edge`` posts topology metadata. A Bearer credential (when a key
+    *is* set) is merely the most obvious secret. A plaintext ``http://`` URL to
+    a non-loopback host would therefore leak whichever of these flow, so the
+    guard refuses regardless of ``has_api_key``; ``has_api_key`` only sharpens
+    the error message. Refuse unless the target is loopback or
+    ``allow_insecure`` is set. ``https://`` URLs (and non-http schemes) always
+    pass.
     """
     scheme = urlsplit(gateway_url.strip()).scheme.lower()
     if scheme != "http":
         return
-    if not has_api_key:
-        return
     if is_loopback_target(gateway_url) or allow_insecure:
         return
+    if has_api_key:
+        raise ValueError(
+            f"Refusing to send an Authorization: Bearer credential over a plaintext "
+            f"(non-TLS) connection to non-loopback gateway {gateway_url!r}. Use an "
+            f"https:// endpoint, or pass allow_insecure=True to explicitly opt in "
+            f"(loopback dev only)."
+        )
     raise ValueError(
-        f"Refusing to send an Authorization: Bearer credential over a plaintext "
-        f"(non-TLS) connection to non-loopback gateway {gateway_url!r}. Use an "
-        f"https:// endpoint, or pass allow_insecure=True to explicitly opt in "
-        f"(loopback dev only)."
+        f"Refusing to open a plaintext (non-TLS) control-plane connection to "
+        f"non-loopback gateway {gateway_url!r}. The control-plane channel carries "
+        f"resolved credentials and topology metadata that would travel unencrypted "
+        f"even without an API key. Use an https:// endpoint, or pass "
+        f"allow_insecure=True to explicitly opt in (loopback dev only)."
     )
 
 
 def warn_if_insecure_http_url(gateway_url: str, *, has_api_key: bool) -> None:
-    """Emit a warning when a non-loopback ``http://`` gateway carries a key.
+    """Emit a warning when a non-loopback ``http://`` gateway is used.
 
     Resolution-time advisory counterpart to :func:`require_secure_http_url`:
     the resolver knows the URL and whether a key is set before any request is
-    issued, so it warns early. The hard refusal still happens later in
-    ``GatewayClient`` (AAASM-3725). ``https://`` and loopback targets are silent.
+    issued, so it warns early. Because the control-plane channel carries
+    resolved credentials and topology metadata even without an API key, the
+    warning fires for any non-loopback plaintext ``http://`` target regardless
+    of ``has_api_key`` — the key only sharpens the message. The hard refusal
+    still happens later in ``GatewayClient`` (AAASM-3725). ``https://`` and
+    loopback targets are silent.
     """
     scheme = urlsplit(gateway_url.strip()).scheme.lower()
-    if scheme != "http" or not has_api_key or is_loopback_target(gateway_url):
+    if scheme != "http" or is_loopback_target(gateway_url):
+        return
+    if has_api_key:
+        warnings.warn(
+            f"Gateway {gateway_url!r} uses plaintext http:// while an API key is set; "
+            f"the Authorization: Bearer credential would travel unencrypted. Use "
+            f"https:// for non-loopback gateways.",
+            stacklevel=3,
+        )
         return
     warnings.warn(
-        f"Gateway {gateway_url!r} uses plaintext http:// while an API key is set; "
-        f"the Authorization: Bearer credential would travel unencrypted. Use "
-        f"https:// for non-loopback gateways.",
+        f"Gateway {gateway_url!r} uses plaintext http:// to a non-loopback host; "
+        f"control-plane payloads (resolved credentials, topology metadata) would "
+        f"travel unencrypted. Use https:// for non-loopback gateways.",
         stacklevel=3,
     )

@@ -61,8 +61,12 @@ class TestRequireSecureHttpUrl:
     def test_https_always_allowed(self) -> None:
         ts.require_secure_http_url("https://gw.test", has_api_key=True, allow_insecure=False)
 
-    def test_http_no_key_allowed(self) -> None:
-        ts.require_secure_http_url("http://gw.test", has_api_key=False, allow_insecure=False)
+    def test_non_loopback_http_no_key_rejected(self) -> None:
+        # The control-plane channel carries resolved credentials/topology
+        # metadata even without an API key, so plaintext http:// to a
+        # non-loopback host is refused regardless of has_api_key (AAASM-4136).
+        with pytest.raises(ValueError, match="control-plane"):
+            ts.require_secure_http_url("http://gw.test", has_api_key=False, allow_insecure=False)
 
     def test_loopback_http_with_key_allowed(self) -> None:
         ts.require_secure_http_url("http://localhost:7391", has_api_key=True, allow_insecure=False)
@@ -80,12 +84,19 @@ class TestWarnIfInsecureHttpUrl:
         with pytest.warns(UserWarning, match="unencrypted"):
             ts.warn_if_insecure_http_url("http://gw.test", has_api_key=True)
 
+    def test_warns_on_non_loopback_http_without_key(self) -> None:
+        # The control-plane channel carries resolved credentials/topology
+        # metadata even with no API key, so the advisory still fires
+        # (AAASM-4136).
+        with pytest.warns(UserWarning, match="unencrypted"):
+            ts.warn_if_insecure_http_url("http://gw.test", has_api_key=False)
+
     @pytest.mark.parametrize(
         ("url", "has_key"),
         [
             ("https://gw.test", True),
-            ("http://gw.test", False),
             ("http://localhost:7391", True),
+            ("http://localhost:7391", False),
         ],
     )
     def test_silent_otherwise(self, url: str, has_key: bool) -> None:

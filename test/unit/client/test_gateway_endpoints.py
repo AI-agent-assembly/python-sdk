@@ -42,9 +42,7 @@ def _patch_post(client: GatewayClient, mock_post: MagicMock) -> Any:
 def test_http_client_sets_bearer_auth_header_when_api_key_present() -> None:
     # allow_insecure opts past the AAASM-3725 plaintext-http refusal so this
     # test can assert header behavior on a non-loopback http:// base URL.
-    client = GatewayClient(
-        gateway_url="http://gw.test", agent_id="a", api_key="sekret", allow_insecure=True
-    )
+    client = GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="sekret", allow_insecure=True)
     try:
         assert client.client.headers["Authorization"] == "Bearer sekret"
     finally:
@@ -52,7 +50,9 @@ def test_http_client_sets_bearer_auth_header_when_api_key_present() -> None:
 
 
 def test_http_client_omits_auth_header_when_no_api_key() -> None:
-    client = GatewayClient(gateway_url="http://gw.test", agent_id="a")
+    # allow_insecure opts past the AAASM-4136 plaintext-http refusal so this
+    # test can assert header omission on a non-loopback http:// base URL.
+    client = GatewayClient(gateway_url="http://gw.test", agent_id="a", allow_insecure=True)
     try:
         assert "Authorization" not in client.client.headers
     finally:
@@ -93,7 +93,12 @@ def test_report_edge_raises_gateway_error_on_http_error() -> None:
 
 
 class TestHttpTransportSecurity:
-    """AAASM-3725: refuse Bearer API key over plaintext http to a remote host."""
+    """AAASM-3725/4136: refuse plaintext http control-plane to a remote host.
+
+    A Bearer API key over plaintext is the sharpest case, but the control-plane
+    channel carries resolved credentials and topology metadata even with no
+    key, so a non-loopback http:// target is refused regardless (AAASM-4136).
+    """
 
     def test_bearer_over_http_non_loopback_rejected(self) -> None:
         with GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k") as client:
@@ -101,18 +106,19 @@ class TestHttpTransportSecurity:
                 _ = client.client
 
     def test_bearer_over_http_loopback_allowed(self) -> None:
-        with GatewayClient(
-            gateway_url="http://localhost:7391", agent_id="a", api_key="k"
-        ) as client:
+        with GatewayClient(gateway_url="http://localhost:7391", agent_id="a", api_key="k") as client:
             assert client.client.headers["Authorization"] == "Bearer k"
 
     def test_bearer_over_https_non_loopback_allowed(self) -> None:
         with GatewayClient(gateway_url="https://gw.test", agent_id="a", api_key="k") as client:
             assert client.client.headers["Authorization"] == "Bearer k"
 
-    def test_http_non_loopback_without_key_allowed(self) -> None:
-        with GatewayClient(gateway_url="http://gw.test", agent_id="a") as client:
-            assert "Authorization" not in client.client.headers
+    def test_http_non_loopback_without_key_rejected(self) -> None:
+        with (
+            GatewayClient(gateway_url="http://gw.test", agent_id="a") as client,
+            pytest.raises(ValueError, match="control-plane"),
+        ):
+            _ = client.client
 
     def test_control_plane_url_is_the_validated_target(self) -> None:
         # The Bearer header rides the control-plane base URL when set; a remote
