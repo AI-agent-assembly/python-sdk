@@ -38,7 +38,7 @@ RUNTIME_LOG_FILENAME = ".aasm-runtime.log"
 INSTALL_HINT = (
     "agent-assembly runtime not found.\n"
     "  Install with: pip install agent-assembly-python[runtime]\n"
-    "  Or manually:  brew install agent-assembly/tap/aasm\n"
+    "  Or manually:  brew install ai-agent-assembly/tap/aasm\n"
     "               curl -fsSL https://get.agent-assembly.io | sh"
 )
 
