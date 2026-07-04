@@ -31,7 +31,7 @@ WHEEL_BUNDLED_BIN = Path(__file__).resolve().parent / "bin" / BINARY_NAME
 INSTALL_HINT = (
     "agent-assembly runtime binary `aasm` was not found.\n"
     "  Install the platform wheel: pip install agent-assembly[runtime]\n"
-    "  Or install manually:        brew install agent-assembly/tap/aasm\n"
+    "  Or install manually:        brew install ai-agent-assembly/tap/aasm\n"
     "                              curl -fsSL https://get.agent-assembly.io | sh"
 )
 

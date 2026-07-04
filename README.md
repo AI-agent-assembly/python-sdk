@@ -274,7 +274,7 @@ directly:
 | [Documentation site](https://ai-agent-assembly.github.io/agent-assembly-docs/) | Canonical, cross-repo documentation hub for the whole project. |
 | [python-sdk](https://github.com/ai-agent-assembly/python-sdk) | **This repo** — the Python SDK. |
 | [node-sdk](https://github.com/ai-agent-assembly/node-sdk) · [go-sdk](https://github.com/ai-agent-assembly/go-sdk) | Sibling SDKs for TypeScript/Node and Go. |
-| [homebrew-agent-assembly](https://github.com/ai-agent-assembly/homebrew-agent-assembly) | Homebrew tap for installing the `aasm` runtime CLI. |
+| [homebrew-tap](https://github.com/ai-agent-assembly/homebrew-tap) | Homebrew tap for installing the `aasm` runtime CLI. |
 | [agent-assembly-examples](https://github.com/ai-agent-assembly/agent-assembly-examples) | Runnable examples — learn by running small, framework-specific Python (and Node/Go) samples covering policy enforcement, approvals, audit, trace, and runtime workflows. |
 
 The protocol specification and gateway behaviour the SDK targets live in the core runtime
