@@ -234,6 +234,22 @@ jobs:
           # Hard error on missing binary: the operator points binary_source_tag
           # at a published agent-assembly release whose aasm-* assets exist.
           gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-x86_64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
+          # SECURITY: verify the downloaded sidecar tarball against the core
+          # release's published SHA256SUMS before bundling it, mirroring the
+          # protoc integrity gate in the build step below. Without this, wheel
+          # integrity rests solely on GitHub-release TLS (AAASM-4136). `shasum
+          # -a 256` is present on both the Linux and macOS runners; SHA256SUMS
+          # lists each asset by basename.
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'SHA256SUMS' --dir agent_assembly/bin/
+          EXPECTED_SHA=$(grep ' aasm-x86_64-unknown-linux-gnu.tar.gz$' agent_assembly/bin/SHA256SUMS | awk '{print $1}' || true)
+          if [[ -z "$EXPECTED_SHA" ]]; then
+            echo "::error::aasm-x86_64-unknown-linux-gnu.tar.gz is not listed in the core release SHA256SUMS — refusing to bundle"; exit 1
+          fi
+          ACTUAL_SHA=$(shasum -a 256 agent_assembly/bin/aasm-x86_64-unknown-linux-gnu.tar.gz | awk '{print $1}')
+          if [[ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]]; then
+            echo "::error::aasm-x86_64-unknown-linux-gnu.tar.gz SHA256 mismatch (expected $EXPECTED_SHA got $ACTUAL_SHA) — refusing to bundle"; exit 1
+          fi
+          rm -f agent_assembly/bin/SHA256SUMS
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-x86_64-unknown-linux-gnu.tar.gz -C agent_assembly/bin/
@@ -313,6 +329,19 @@ jobs:
           # Hard error on missing binary: the operator points binary_source_tag
           # at a published agent-assembly release whose aasm-* assets exist.
           gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-aarch64-unknown-linux-gnu.tar.gz' --dir agent_assembly/bin/
+          # SECURITY: SHA256-verify the sidecar tarball against the core
+          # release's SHA256SUMS before bundling. See linux-x86_64 above for
+          # the integrity-gate rationale (AAASM-4136).
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'SHA256SUMS' --dir agent_assembly/bin/
+          EXPECTED_SHA=$(grep ' aasm-aarch64-unknown-linux-gnu.tar.gz$' agent_assembly/bin/SHA256SUMS | awk '{print $1}' || true)
+          if [[ -z "$EXPECTED_SHA" ]]; then
+            echo "::error::aasm-aarch64-unknown-linux-gnu.tar.gz is not listed in the core release SHA256SUMS — refusing to bundle"; exit 1
+          fi
+          ACTUAL_SHA=$(shasum -a 256 agent_assembly/bin/aasm-aarch64-unknown-linux-gnu.tar.gz | awk '{print $1}')
+          if [[ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]]; then
+            echo "::error::aasm-aarch64-unknown-linux-gnu.tar.gz SHA256 mismatch (expected $EXPECTED_SHA got $ACTUAL_SHA) — refusing to bundle"; exit 1
+          fi
+          rm -f agent_assembly/bin/SHA256SUMS
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-aarch64-unknown-linux-gnu.tar.gz -C agent_assembly/bin/
@@ -384,6 +413,19 @@ jobs:
           # Hard error on missing binary: the operator points binary_source_tag
           # at a published agent-assembly release whose aasm-* assets exist.
           gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-aarch64-apple-darwin.tar.gz' --dir agent_assembly/bin/
+          # SECURITY: SHA256-verify the sidecar tarball against the core
+          # release's SHA256SUMS before bundling. See linux-x86_64 above for
+          # the integrity-gate rationale (AAASM-4136).
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'SHA256SUMS' --dir agent_assembly/bin/
+          EXPECTED_SHA=$(grep ' aasm-aarch64-apple-darwin.tar.gz$' agent_assembly/bin/SHA256SUMS | awk '{print $1}' || true)
+          if [[ -z "$EXPECTED_SHA" ]]; then
+            echo "::error::aasm-aarch64-apple-darwin.tar.gz is not listed in the core release SHA256SUMS — refusing to bundle"; exit 1
+          fi
+          ACTUAL_SHA=$(shasum -a 256 agent_assembly/bin/aasm-aarch64-apple-darwin.tar.gz | awk '{print $1}')
+          if [[ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]]; then
+            echo "::error::aasm-aarch64-apple-darwin.tar.gz SHA256 mismatch (expected $EXPECTED_SHA got $ACTUAL_SHA) — refusing to bundle"; exit 1
+          fi
+          rm -f agent_assembly/bin/SHA256SUMS
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-aarch64-apple-darwin.tar.gz -C agent_assembly/bin/
@@ -438,6 +480,19 @@ jobs:
           # Hard error on missing binary: the operator points binary_source_tag
           # at a published agent-assembly release whose aasm-* assets exist.
           gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'aasm-x86_64-apple-darwin.tar.gz' --dir agent_assembly/bin/
+          # SECURITY: SHA256-verify the sidecar tarball against the core
+          # release's SHA256SUMS before bundling. See linux-x86_64 above for
+          # the integrity-gate rationale (AAASM-4136).
+          gh release download "$AASM_TAG" --repo "$AASM_REPO" --pattern 'SHA256SUMS' --dir agent_assembly/bin/
+          EXPECTED_SHA=$(grep ' aasm-x86_64-apple-darwin.tar.gz$' agent_assembly/bin/SHA256SUMS | awk '{print $1}' || true)
+          if [[ -z "$EXPECTED_SHA" ]]; then
+            echo "::error::aasm-x86_64-apple-darwin.tar.gz is not listed in the core release SHA256SUMS — refusing to bundle"; exit 1
+          fi
+          ACTUAL_SHA=$(shasum -a 256 agent_assembly/bin/aasm-x86_64-apple-darwin.tar.gz | awk '{print $1}')
+          if [[ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]]; then
+            echo "::error::aasm-x86_64-apple-darwin.tar.gz SHA256 mismatch (expected $EXPECTED_SHA got $ACTUAL_SHA) — refusing to bundle"; exit 1
+          fi
+          rm -f agent_assembly/bin/SHA256SUMS
           # Tarball contains a single `aasm` binary at the root;
           # extract in place, then drop the archive.
           tar -xzf agent_assembly/bin/aasm-x86_64-apple-darwin.tar.gz -C agent_assembly/bin/
