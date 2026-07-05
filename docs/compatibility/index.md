@@ -24,7 +24,7 @@ The Python SDK is one of several clients (alongside the Node and Go SDKs) for th
 Assembly **core runtime**. The org-wide compatibility matrix — which SDK versions are
 wire-compatible with which core-runtime release — lives on the documentation hub:
 
-- **[Documentation Hub →](https://ai-agent-assembly.github.io/agent-assembly-docs/)** — the
+- **[Documentation Hub →](https://docs.agent-assembly.com/)** — the
   cross-component compatibility matrix and the protocol specification.
 
 For the Python-specific detail — how the pure-Python client stays forward/backward tolerant

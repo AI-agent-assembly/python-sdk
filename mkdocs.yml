@@ -1,6 +1,6 @@
 # Project information
 site_name: Agent Assembly Python SDK
-site_url: https://ai-agent-assembly.github.io/python-sdk/
+site_url: https://docs.agent-assembly.com/python-sdk/
 site_author: Agent Assembly Team
 site_description: >-
   Python SDK for AI Agent Assembly — a governance-native runtime for AI agents.
@@ -208,10 +208,10 @@ extra:
 
 # Page tree
 nav:
-  - Docs Hub: https://ai-agent-assembly.github.io/agent-assembly-docs/
-  - Python SDK: https://ai-agent-assembly.github.io/python-sdk/
-  - Node SDK: https://ai-agent-assembly.github.io/node-sdk/
-  - Go SDK: https://ai-agent-assembly.github.io/go-sdk/
+  - Docs Hub: https://docs.agent-assembly.com/
+  - Python SDK: https://docs.agent-assembly.com/python-sdk/
+  - Node SDK: https://docs.agent-assembly.com/node-sdk/
+  - Go SDK: https://docs.agent-assembly.com/go-sdk/
   - Introduction: index.md
   - Quick Start: quick-start.md
   - Core Concepts:

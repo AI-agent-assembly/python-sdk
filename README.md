@@ -50,7 +50,7 @@ Python framework compatibility is documented **authoritatively in the SDK docs**
 adapters and the ranges they advertise via `get_supported_versions()` are the source of
 truth (Python-specific detail, version-sync policy, and the Pydantic AI hook-point note
 live there). The core docs provide a cross-SDK
-[index/hub](https://ai-agent-assembly.github.io/agent-assembly/stable/reference/framework-compatibility.html)
+[index/hub](https://docs.agent-assembly.com/core/stable/reference/framework-compatibility.html)
 that links out to each SDK's own page (Python here, plus Node and Go) — an index, not the
 canonical matrix (a `/stable/` link — it 404s until the first GA release, by design).
 
@@ -62,7 +62,7 @@ PyPI from the `0.0.x` line (the version badge above reflects the current release
 version (`agent-assembly==0.0.x`) if you need a stable contract.
 
 - **Releases** — [PyPI release history](https://pypi.org/project/agent-assembly/#history) · [GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases)
-- **Changelog** — tracked via [commits to `master`](https://github.com/ai-agent-assembly/python-sdk/commits/master) until the first tagged `1.0` release; see the [release notes](https://ai-agent-assembly.github.io/python-sdk/latest/release-notes/) page.
+- **Changelog** — tracked via [commits to `master`](https://github.com/ai-agent-assembly/python-sdk/commits/master) until the first tagged `1.0` release; see the [release notes](https://docs.agent-assembly.com/python-sdk/latest/release-notes/) page.
 - **Stability** — the `init_assembly()` entry point and the exception hierarchy are the most stable surface; framework adapters and the native fast path may evolve faster.
 
 ## Requirements
@@ -253,12 +253,12 @@ AAASM_RUN_MATURIN_TESTS=1 uv run pytest test/integration/test_native_core_maturi
 
 ## Documentation
 
-- **Project docs (rendered)** — https://ai-agent-assembly.github.io/python-sdk/ *(versioned via `mike`; pick `latest` or `stable` from the version selector)*
+- **Project docs (rendered)** — https://docs.agent-assembly.com/python-sdk/ *(versioned via `mike`; pick `latest` or `stable` from the version selector)*
 - **Quick Start** — [source](./docs/quick-start.md) — install and govern your first agent in five minutes (offline LangChain example).
 - **Core Concepts** — [source](./docs/concepts/index.md) — the adapter pattern, native FFI vs. pure-Python, the `init_assembly()` lifecycle, and modes/enforcement. Deep dive in [Architecture](./docs/concepts/architecture.md).
 - **Guides** — [Framework examples](./docs/guides/framework-examples.md), [Handling allow/deny decisions](./docs/guides/handling-decisions.md), [Type checking](./docs/guides/type-checking.md).
 - **Configuration** — [source](./docs/configuration.md) — gateway URL / API-key resolution, runtime modes, enforcement modes.
-- **API reference** — [rendered](https://ai-agent-assembly.github.io/python-sdk/latest/api-reference/) / [source](./docs/api-reference/index.md) — auto-generated from package docstrings via `mkdocstrings`. Per-module pages: [Client](./docs/api-reference/client.md), [Exceptions](./docs/api-reference/exceptions.md), [Models](./docs/api-reference/models.md).
+- **API reference** — [rendered](https://docs.agent-assembly.com/python-sdk/latest/api-reference/) / [source](./docs/api-reference/index.md) — auto-generated from package docstrings via `mkdocstrings`. Per-module pages: [Client](./docs/api-reference/client.md), [Exceptions](./docs/api-reference/exceptions.md), [Models](./docs/api-reference/models.md).
 - **Compatibility & Versioning** — [source](./docs/compatibility/index.md) — Python versions, core-runtime tracking, [release process](./docs/compatibility/release-process.md), and [ADRs](./docs/development/adr/).
 - **Troubleshooting** — [source](./docs/troubleshooting.md) — common integration errors and fixes.
 
@@ -271,7 +271,7 @@ directly:
 | Project | What it is |
 | --- | --- |
 | [agent-assembly](https://github.com/ai-agent-assembly/agent-assembly) | **Core runtime** — gateway, policy engine, eBPF, proxy, CLI. Also home of the protocol specification. |
-| [Documentation site](https://ai-agent-assembly.github.io/agent-assembly-docs/) | Canonical, cross-repo documentation hub for the whole project. |
+| [Documentation site](https://docs.agent-assembly.com/) | Canonical, cross-repo documentation hub for the whole project. |
 | [python-sdk](https://github.com/ai-agent-assembly/python-sdk) | **This repo** — the Python SDK. |
 | [node-sdk](https://github.com/ai-agent-assembly/node-sdk) · [go-sdk](https://github.com/ai-agent-assembly/go-sdk) | Sibling SDKs for TypeScript/Node and Go. |
 | [homebrew-tap](https://github.com/ai-agent-assembly/homebrew-tap) | Homebrew tap for installing the `aasm` runtime CLI. |
@@ -280,7 +280,7 @@ directly:
 The protocol specification and gateway behaviour the SDK targets live in the core runtime
 monorepo; see its [README](https://github.com/ai-agent-assembly/agent-assembly#readme) for the
 spec and architecture. For how this SDK stays in sync with the core runtime, see the
-[Compatibility & Versioning](https://ai-agent-assembly.github.io/python-sdk/latest/compatibility/)
+[Compatibility & Versioning](https://docs.agent-assembly.com/python-sdk/latest/compatibility/)
 docs.
 
 ## Contributing
@@ -290,7 +290,7 @@ Please read [**CONTRIBUTING.md**](./CONTRIBUTING.md) before opening a PR — it 
 ## Support
 
 - **Bugs & feature requests** — open a [GitHub issue](https://github.com/ai-agent-assembly/python-sdk/issues).
-- **Questions & usage help** — start with the [documentation site](https://ai-agent-assembly.github.io/python-sdk/) and the [Troubleshooting](https://ai-agent-assembly.github.io/python-sdk/latest/troubleshooting/) guide, then open an issue if you're still stuck.
+- **Questions & usage help** — start with the [documentation site](https://docs.agent-assembly.com/python-sdk/) and the [Troubleshooting](https://docs.agent-assembly.com/python-sdk/latest/troubleshooting/) guide, then open an issue if you're still stuck.
 - **Security** — please **do not** file public issues for vulnerabilities. Report them privately via [GitHub Security Advisories](https://github.com/ai-agent-assembly/python-sdk/security/advisories/new).
 
 ## License

@@ -232,7 +232,7 @@ jobs:
 
       - name: Deployment summary
         env:
-          BASE_URL: "https://ai-agent-assembly.github.io/python-sdk/"
+          BASE_URL: "https://docs.agent-assembly.com/python-sdk/"
         run: |
           {
             echo "## 📚 Release documentation deployed"
@@ -315,7 +315,7 @@ jobs:
 
       - name: Republish summary
         env:
-          BASE_URL: "https://ai-agent-assembly.github.io/python-sdk/"
+          BASE_URL: "https://docs.agent-assembly.com/python-sdk/"
           TARGET: ${{ inputs.target }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |

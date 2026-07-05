@@ -22,7 +22,7 @@ compatibility page (this one for Python, plus the Node and Go equivalents). It i
 index, not the canonical matrix — each SDK's page is authoritative for its own language,
 because the adapters live in the SDK:
 
-- **[Cross-SDK framework-compatibility index →](https://ai-agent-assembly.github.io/agent-assembly/stable/reference/framework-compatibility.html)**
+- **[Cross-SDK framework-compatibility index →](https://docs.agent-assembly.com/core/stable/reference/framework-compatibility.html)**
 
 !!! note "The `/stable/` link 404s until GA"
     That URL points at the `stable` documentation channel, which only activates at the

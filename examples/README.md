@@ -12,7 +12,7 @@ whether it runs as-is or needs a reachable gateway.
 
 The canonical validated end-to-end example is the **LangChain ReAct quick start** in the
 repository [README](../README.md#quick-start) — it runs fully offline against a mock LLM with no
-gateway or API keys. The [Framework examples](https://ai-agent-assembly.github.io/python-sdk/latest/usage/framework-examples/)
+gateway or API keys. The [Framework examples](https://docs.agent-assembly.com/python-sdk/latest/usage/framework-examples/)
 guide lists every supported framework and which ones have a vendored runnable example yet.
 
 ## Running an example
