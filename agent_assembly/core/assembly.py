@@ -167,9 +167,16 @@ def init_assembly(
     :param enforcement_mode: Per-agent governance posture applied to this
         agent's actions (see :data:`EnforcementMode`). Defaults to ``None``,
         which lets the gateway apply its server-side default (live ``enforce``).
-        Pass ``"observe"`` to register the agent in dry-run / sandbox mode:
-        every action
-        proceeds and the gateway records would-be violations as shadow audit
+        Because that default is ``enforce``, the SDK's *local* pre-execution
+        fast path also takes the fail-closed posture under ``None`` (AAASM-4130):
+        with the native runtime present an unreachable socket or an
+        unauthoritative ``query_policy`` **denies** rather than silently
+        proceeding, and on a pure-Python install (native extension absent) a loud
+        one-time warning is emitted because no in-process deny can run — the
+        gateway / proxy / eBPF layers remain authoritative, so init stays graceful
+        and never hard-fails on a missing runtime. Pass ``"observe"`` to register
+        the agent in dry-run / sandbox mode: every action proceeds (local checks
+        fail open) and the gateway records would-be violations as shadow audit
         events.
     """
     gateway_url = resolve_gateway_url(gateway_url)
