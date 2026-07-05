@@ -33,5 +33,5 @@ Call-stack nodes: 1
 - Constructing `AgentConfig`, `AuditEvent`, and a nested `CallStackNode` tree with the
   `CallStackNodeKind` literal — all statically checked.
 
-See the [Type checking guide](https://ai-agent-assembly.github.io/python-sdk/latest/usage/type-checking/)
+See the [Type checking guide](https://docs.agent-assembly.com/python-sdk/latest/usage/type-checking/)
 for the full public type surface and how to type-check your own integration.

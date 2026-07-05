@@ -97,7 +97,7 @@ jobs:
       - name: Deployment summary
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
-          BASE_URL: "https://ai-agent-assembly.github.io/python-sdk/"
+          BASE_URL: "https://docs.agent-assembly.com/python-sdk/"
         run: |
           {
             echo "## 📚 Release documentation backfilled"

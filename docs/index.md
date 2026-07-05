@@ -16,8 +16,8 @@ You keep writing agents the way you always have. The SDK is the seatbelt you cli
 
 > **New to Agent Assembly?** This SDK is one of three interception layers in the broader
 > platform. For the product overview, the gateway, and the policy model, see the core
-> [Agent Assembly documentation](https://ai-agent-assembly.github.io/agent-assembly/) and the
-> [documentation hub](https://ai-agent-assembly.github.io/agent-assembly-docs/).
+> [Agent Assembly documentation](https://docs.agent-assembly.com/core/) and the
+> [documentation hub](https://docs.agent-assembly.com/).
 
 ## What it wraps
 

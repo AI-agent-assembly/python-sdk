@@ -58,8 +58,8 @@ This means a local development loop often needs no arguments at all — start a 
 
 For the full gateway configuration surface (policy files, budgets, mTLS) and the complete
 `aasm` CLI reference, see the core
-[Gateway configuration](https://ai-agent-assembly.github.io/agent-assembly/configuration/) and
-[CLI reference](https://ai-agent-assembly.github.io/agent-assembly/cli/) docs.
+[Gateway configuration](https://docs.agent-assembly.com/core/configuration/) and
+[CLI reference](https://docs.agent-assembly.com/core/cli/) docs.
 
 ```bash
 export AAASM_GATEWAY_URL="https://gateway.example.com"

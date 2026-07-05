@@ -46,7 +46,7 @@ dry-run without publishing.
 
 Docs are versioned with [`mike`](https://github.com/jimporter/mike): every push to `master`
 deploys to **`latest`**, and a release promotes to **`stable`**. Readers switch versions with
-the selector at the top of the [documentation site](https://ai-agent-assembly.github.io/python-sdk/).
+the selector at the top of the [documentation site](https://docs.agent-assembly.com/python-sdk/).
 
 ## Release notes
 
