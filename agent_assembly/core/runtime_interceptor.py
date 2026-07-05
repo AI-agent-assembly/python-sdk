@@ -55,10 +55,11 @@ _ERROR_DECISIONS = frozenset({"query_failed", "channel_closed", "shutdown", "err
 
 # Native decisions that authoritatively permit the tool to proceed. ``deny`` and
 # ``pending`` are handled explicitly; only these are treated as an allow. Anything
-# else — an unknown string, an empty value, or a missing ``decision`` key — is not
-# an authoritative allow and must fail closed under ``enforce`` (AAASM-4014); the
-# runtime remains the authority on redaction, so ``redact`` proceeds here.
-_ALLOW_DECISIONS = frozenset({"allow", "redact", "unspecified"})
+# else — the proto3 zero value ``unspecified`` ("no decision rendered"), an unknown
+# string, an empty value, or a missing ``decision`` key — is not an authoritative
+# allow and must fail closed under ``enforce`` (AAASM-4014, AAASM-4166), matching the
+# Node SDK; the runtime remains the authority on redaction, so ``redact`` proceeds.
+_ALLOW_DECISIONS = frozenset({"allow", "redact"})
 
 
 def _local_posture_is_enforce(enforcement_mode: str | None) -> bool:
@@ -247,11 +248,13 @@ class RuntimeQueryInterceptor:
         * ``"deny"`` → ``{"status": "deny", "reason": ...}``.
         * ``"pending"`` → ``{"status": "pending", "reason": ...}`` so the
           adapter's existing approval path runs.
-        * ``"allow"`` / ``"redact"`` / ``"unspecified"`` → ``{"status": "allow"}``.
-          The runtime redacts authoritatively; this layer never redacts.
-        * A raising ``query_policy`` or an error-sentinel ``decision``
-          (``query_failed`` / ``channel_closed`` / ``shutdown``) → ``deny`` under
-          ``enforce`` (fail closed, AAASM-3106), else ``allow`` (fail open).
+        * ``"allow"`` / ``"redact"`` → ``{"status": "allow"}``. The runtime
+          redacts authoritatively; this layer never redacts.
+        * A raising ``query_policy``, the proto3 zero value ``"unspecified"``
+          ("no decision rendered"), an error-sentinel ``decision``
+          (``query_failed`` / ``channel_closed`` / ``shutdown``), or any
+          unrecognized decision → ``deny`` under ``enforce`` (fail closed,
+          AAASM-3106 / AAASM-4166, matching Node), else ``allow`` (fail open).
 
         Before any of the above, the live op-control kill switch (AAASM-3491) is
         consulted when an ``op_id`` is supplied and a subscriber is wired: a
