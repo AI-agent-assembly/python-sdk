@@ -39,7 +39,7 @@ INSTALL_HINT = (
     "agent-assembly runtime not found.\n"
     "  Install with: pip install agent-assembly[runtime]\n"
     "  Or manually:  brew install ai-agent-assembly/tap/aasm\n"
-    "               curl -fsSL https://get.agent-assembly.io | sh"
+    "               curl -fsSL https://agent-assembly.com/install.sh | sh"
 )
 
 
