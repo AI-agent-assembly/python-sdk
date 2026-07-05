@@ -100,6 +100,14 @@ test = [
     # installing it lets the `importorskip`-guarded governance tests drive a
     # real `FunctionTool` so a regression to a fail-open no-op patch is caught
     # rather than silently skipped.
+    # AAASM-4169: llama-index-core pulls `nltk` transitively, and nltk <=3.9.4
+    # carries a URL-encoded path-traversal in `nltk.data.load()` (Dependabot #27,
+    # HIGH). Accepted-risk, NOT runtime-exploitable: nltk is dev/test-only (never
+    # in `[project].dependencies` nor the published wheel), is never imported by
+    # `agent_assembly/`, and the vulnerable `nltk.data.load` path is never invoked
+    # by the SDK or its tests. No upstream fix exists (3.9.4 is the latest release;
+    # `first_patched_version: none`), so no lock upgrade removes it. Tracked in
+    # AAASM-4169; Dependabot #27 recommended for dismissal as dev/test-only.
     "llama-index-core>=0.10.0",
 ]
 pre-commit-ci = [
