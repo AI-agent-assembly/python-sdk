@@ -615,10 +615,11 @@ def test_missing_decision_key_denies_under_enforce() -> None:
     assert result["status"] == "deny"
 
 
-@pytest.mark.parametrize("decision", ["allow", "redact", "unspecified"])
+@pytest.mark.parametrize("decision", ["allow", "redact"])
 def test_known_good_decisions_allow_under_enforce(decision: str) -> None:
     """Authoritative allow verdicts still proceed under enforce; the runtime
-    remains the authority on redaction, so ``redact`` proceeds here."""
+    remains the authority on redaction, so ``redact`` proceeds here. ``unspecified``
+    is no longer among them — it fails closed (AAASM-4166)."""
     interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient(decision), "agent-001", enforce=True)
 
     result = interceptor.check_tool_start(serialized={"name": "t"}, input_str="i")
