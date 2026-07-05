@@ -279,6 +279,13 @@ class RuntimeQueryInterceptor:
             # proceed (fail open).
             return self._on_query_failure("runtime query failed")
 
+        # A non-dict result (e.g. ``None`` from a malformed/partial runtime
+        # response) is not an authoritative verdict; route it through the
+        # fail-closed path rather than raising ``AttributeError`` on ``.get``
+        # (AAASM-4167).
+        if not isinstance(result, dict):
+            return self._on_query_failure("runtime returned non-dict result")
+
         # No ``"allow"`` default: a missing / empty ``decision`` is not an
         # authoritative allow and must route through the fail-closed path below
         # under ``enforce`` (AAASM-4014).
