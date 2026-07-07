@@ -220,7 +220,7 @@ def init_assembly(
         if spawned_by_tool is None:
             spawned_by_tool = _spawn.spawned_by_tool
 
-    resolved_agent_id = agent_id or _DEFAULT_AGENT_ID
+    resolved_agent_id = _validate_agent_id(agent_id or _DEFAULT_AGENT_ID)
 
     global _ACTIVE_CONTEXT
     with _INIT_LOCK:
