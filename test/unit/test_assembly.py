@@ -698,3 +698,45 @@ def test_init_assembly_no_warning_for_loopback_http_with_api_key(
             agent_id="agent-loopback",
         )
     context.shutdown()
+
+
+# AAASM-4301: validate_agent_id enforces a strict character-set + length cap
+# on the agent_id argument before it ever reaches socket-path interpolation.
+
+
+@pytest.mark.parametrize(
+    "agent_id",
+    [
+        "agent-assembly-default",  # the module default
+        "default",
+        "agent-1",
+        "my_agent_2026",
+        "a.b.c",
+        "A",  # single char, upper
+        "a",  # single char, lower
+        "0",  # single char, digit
+        "a" * 128,  # max length
+    ],
+)
+def test_validate_agent_id_accepts_well_formed_values(agent_id: str) -> None:
+    """Well-formed agent_ids match the regex and are returned unchanged."""
+    assert core_assembly._validate_agent_id(agent_id) == agent_id
+
+
+@pytest.mark.parametrize(
+    "agent_id",
+    [
+        "",  # empty string
+        "a" * 129,  # one char over the length cap
+        "../etc/passwd",  # path-traversal attempt
+        "has space",  # whitespace
+        "has/slash",  # path separator
+        "has$special",  # shell metacharacter
+        "unicode-α",  # non-ASCII alpha
+        "trailing\n",  # newline
+    ],
+)
+def test_validate_agent_id_rejects_malformed_values(agent_id: str) -> None:
+    """Malformed agent_ids raise ValueError with the regex pattern in the message."""
+    with pytest.raises(ValueError, match=r"invalid agent_id"):
+        core_assembly._validate_agent_id(agent_id)
