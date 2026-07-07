@@ -50,6 +50,20 @@ _INIT_LOCK = Lock()
 _ACTIVE_CONTEXT: AssemblyContext | None = None
 
 
+def _validate_agent_id(agent_id: str) -> str:
+    """Validate agent_id format before it reaches socket-path interpolation (AAASM-4301).
+
+    Only allows [A-Za-z0-9_.-] up to 128 chars. Reject anything else with a clear ValueError
+    so callers get a fast, actionable error instead of a downstream FileNotFoundError from
+    a malformed socket path.
+    """
+    if not _AGENT_ID_RE.fullmatch(agent_id):
+        raise ValueError(
+            f"invalid agent_id: {agent_id!r}; must match {_AGENT_ID_RE.pattern}"
+        )
+    return agent_id
+
+
 class RuntimePatch(Protocol):
     """Internal monkey-patch mechanism used by framework adapters.
 
