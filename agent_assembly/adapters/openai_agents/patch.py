@@ -435,8 +435,14 @@ async def _record_async_tool_result(
 
 
 def _is_governance_error(error: Exception) -> bool:
-    del error
-    return True
+    """Check if error is a governance-specific error that should be handled.
+
+    Non-governance errors (network, malformed response, etc.) should propagate
+    to maintain fail-closed security posture.
+    """
+    from agent_assembly.exceptions import AssemblyError
+
+    return isinstance(error, AssemblyError)
 
 
 def _apply_function_tool_patch(function_tool_cls: type[Any], callback_handler: Any) -> None:
