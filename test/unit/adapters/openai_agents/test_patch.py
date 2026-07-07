@@ -280,15 +280,49 @@ async def test_records_tool_result_after_successful_execution(
 
 
 @pytest.mark.asyncio
-async def test_gateway_error_uses_fail_open_and_executes_original_tool(
+async def test_non_governance_error_propagates_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Non-governance errors (RuntimeError, ValueError, etc.) must propagate.
+
+    This ensures fail-closed security posture: if an unexpected error occurs
+    during governance checks, the tool call is blocked rather than allowed
+    through. See AAASM-4252.
+    """
     function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
 
     class Interceptor:
         async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
             del kwargs
             raise RuntimeError("gateway unavailable")
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=Interceptor())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="fail_closed_tool")
+    with pytest.raises(RuntimeError, match="gateway unavailable"):
+        await tool.on_invoke_tool(SimpleNamespace(agent_id="agent-fail-closed"), '{"x": 2}')
+
+
+@pytest.mark.asyncio
+async def test_governance_error_allows_fail_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AssemblyError subclasses are handled gracefully (fail-open).
+
+    Governance-specific errors (e.g., transient gateway issues represented as
+    GatewayError) are caught and the tool executes. This is intentional: if
+    the governance system itself has a known error, we fail-open rather than
+    blocking all tool calls. See AAASM-4252.
+    """
+    from agent_assembly.exceptions import GatewayError
+
+    function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            raise GatewayError("gateway temporarily unavailable")
 
     patcher = openai_patch.OpenAIAgentsPatch(callback_handler=Interceptor())
     assert patcher.apply() is True
@@ -300,17 +334,16 @@ async def test_gateway_error_uses_fail_open_and_executes_original_tool(
 
 
 @pytest.mark.asyncio
-async def test_non_governance_error_is_reraised(
+async def test_value_error_propagates_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """ValueError (non-governance) must propagate for fail-closed posture."""
     function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
 
     class Interceptor:
         async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
             del kwargs
             raise ValueError("unexpected")
-
-    monkeypatch.setattr(openai_patch, "_is_governance_error", lambda _error: False)
 
     patcher = openai_patch.OpenAIAgentsPatch(callback_handler=Interceptor())
     assert patcher.apply() is True
