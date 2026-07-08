@@ -23,11 +23,11 @@ specific to that example.
 
 ## Install the SDK
 
-Each example declares `agent-assembly` as a dependency, so `uv sync` (below) pulls it in.
-To install the SDK on its own in your own project:
+Each example declares `{{ aa.python_sdk.package_name }}` as a dependency, so `uv sync`
+(below) pulls it in. To install the SDK on its own in your own project:
 
 ```bash
-pip install agent-assembly
+{{ aa.commands.install_pip }}
 ```
 
 Some examples need a framework extra alongside the SDK (for instance LangChain pulls in

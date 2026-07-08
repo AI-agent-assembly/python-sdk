@@ -7,24 +7,26 @@ mock LLM, so you need no API keys and no network access to the outside world.
 ## 1. Install
 
 The package is published on PyPI as
-[`agent-assembly`](https://pypi.org/project/agent-assembly/).
+[`{{ aa.python_sdk.package_name }}`]({{ aa.urls.pypi }}) (current version:
+`{{ aa.python_sdk.version }}`).
 
 === "pip"
 
     ```bash
-    pip install agent-assembly            # pure-Python SDK
-    pip install 'agent-assembly[runtime]' # SDK + bundled aasm runtime binary (platform wheel)
+    {{ aa.commands.install_pip }}            # pure-Python SDK
+    {{ aa.commands.install_pip_runtime }} # SDK + bundled aasm runtime binary (platform wheel)
     ```
 
 === "uv"
 
     ```bash
-    uv add agent-assembly
+    {{ aa.commands.install_uv }}
     ```
 
-`agent-assembly` is the pure-Python client. `agent-assembly[runtime]` additionally pulls a
-platform wheel (`manylinux`, `macosx`) that bundles the `aasm` gateway/runtime binary, so a
-local gateway is available without a separate install.
+`{{ aa.python_sdk.package_name }}` is the pure-Python client.
+`{{ aa.python_sdk.package_name }}[runtime]` additionally pulls a platform wheel
+(`manylinux`, `macosx`) that bundles the `{{ aa.python_sdk.cli_name }}`
+gateway/runtime binary, so a local gateway is available without a separate install.
 
 ## 2. Point the SDK at a gateway
 
@@ -48,7 +50,7 @@ local default port).
 This example imports LangChain alongside the SDK, so install both:
 
 ```bash
-pip install agent-assembly langchain langchain-community
+{{ aa.commands.install_pip }} langchain langchain-community
 ```
 
 Then run:

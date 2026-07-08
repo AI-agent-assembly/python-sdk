@@ -14,9 +14,10 @@ core runtime does a given SDK build talk to?*, and *how do versions and releases
 
 The SDK is **pre-1.0 (`0.x`)**. It is published and usable, but the public API is not yet
 frozen: until `1.0.0`, minor versions may carry breaking changes. If you need a stable
-contract, **pin an exact version** (`agent-assembly==0.0.x`). From `1.0.0` onward the project
-follows [SemVer](https://semver.org/). The canonical version lives in `pyproject.toml`
-(`[project].version`) and is mirrored in `agent_assembly.__version__`.
+contract, **pin an exact version** (`{{ aa.python_sdk.package_name }}=={{ aa.python_sdk.version }}`).
+From `1.0.0` onward the project follows [SemVer](https://semver.org/). The canonical version
+lives in `pyproject.toml` (`[project].version`) and is mirrored in
+`{{ aa.python_sdk.import_name }}.__version__`.
 
 ## Core ↔ SDK compatibility matrix
 
