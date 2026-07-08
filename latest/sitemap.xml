@@ -65,6 +65,10 @@
          <lastmod>2026-07-08</lastmod>
     </url>
     <url>
+         <loc>https://docs.agent-assembly.com/python-sdk/latest/development/docs-macros/</loc>
+         <lastmod>2026-07-08</lastmod>
+    </url>
+    <url>
          <loc>https://docs.agent-assembly.com/python-sdk/latest/development/adr/0001-hook-architecture/</loc>
          <lastmod>2026-07-08</lastmod>
     </url>

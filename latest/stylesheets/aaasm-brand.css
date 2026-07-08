@@ -29,5 +29,19 @@
 :root { --md-text-font: "Inter"; --md-code-font: "JetBrains Mono"; }
 .md-typeset { line-height: 1.65; }
 .md-typeset h1 { font-weight: 700; }
-/* readability measure — cap the reading column (Material's grid stays full width) */
-.md-content__inner { max-width: 50rem; margin-inline: auto; }   /* ~72ch */
+/* readability measure — cap the reading column (Material's grid stays full width).
+   AAASM-4319: keep a 0.8rem side gutter (padding, not margin) so mkdocs-material's
+   negative-margin overflow escape hatches (`.md-typeset__scrollwrap`, wide tables,
+   `.md-version__list`) stay inside the viewport at <=76.1875em. Upstream applies
+   this gutter as `margin`, which our `margin-inline: auto` overrode. */
+.md-content__inner { max-width: 50rem; margin-inline: auto; padding-inline: 0.8rem; }   /* ~72ch */
+
+/* AAASM-4319: constrain mike's version-selector dropdown at mobile viewports so
+   its intrinsic width (~338px for long semver tags) can't push scrollWidth past
+   the viewport. Scoped to <=76.1875em, matching mkdocs-material's drawer breakpoint. */
+@media (max-width: 76.1875em) {
+  .md-version__list {
+    max-width: calc(100vw - 2rem);
+    overflow-x: auto;
+  }
+}
