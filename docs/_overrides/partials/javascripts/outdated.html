@@ -7,8 +7,11 @@
   `..`, which is not an absolute URL, so `new URL("..")` throws
   `TypeError: Failed to construct 'URL': Invalid URL` on every page load.
 
-  The only change here is passing `location` as the base so the relative
-  `base_url` resolves against the current page. Behaviour is otherwise identical
-  to Material's generated script.
+  Passing `location` as the base resolves the relative `base_url` against the
+  current page. The try/catch (AAASM-4317) is defense-in-depth: any future
+  template regression that renders `base_url` as an unparseable value (e.g. an
+  empty string on a build variant that omits `site_url`) will silently no-op
+  the outdated banner instead of surfacing a page-load TypeError. Behaviour is
+  otherwise identical to Material's generated script.
 -#}
-<script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("{{ base_url }}",location),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+<script>try{var el=document.querySelector("[data-md-component=outdated]"),base=new URL("{{ base_url }}",location),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)}catch(e){}</script>
