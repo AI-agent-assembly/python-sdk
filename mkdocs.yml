@@ -24,6 +24,12 @@ extra_css:
 # docs/_overrides/partials/source.html (AAASM-3785); see the file header.
 extra_javascript:
   - javascripts/source-facts-guard.js
+  # Self-hosted mermaid runtime (AAASM-4320). Loading this file *before* the
+  # theme's superfences integration wires up its mermaid custom fence prevents
+  # mkdocs-material from injecting the third-party unpkg CDN copy at render
+  # time — that CDN was returning "Invalid script" on every page load. Keep
+  # this entry in sync with the pinned mermaid@11 blob in docs/assets/js/.
+  - assets/js/mermaid.min.js
 
 theme:
   name: material
