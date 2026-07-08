@@ -187,8 +187,20 @@
       // above it. Resolving the bare relative `base_url` against `location`
       // yields an absolute URL; popping only the page's last path segment (the
       // previous approach) 404s on deep pages.
-      var versionRoot = new URL("/python-sdk/latest/", window.location);
-      var versionsUrl = new URL("../versions.json", versionRoot).toString();
+      //
+      // AAASM-4317: guard the URL constructors so that a malformed or empty
+      // template value (e.g. a stray build variant where `base_url` renders
+      // blank) cannot throw `TypeError: Failed to construct 'URL': Invalid URL`
+      // and leave a visible page-load error in the console. On failure we keep
+      // the static fallback copy that is already rendered above.
+      var versionRoot;
+      var versionsUrl;
+      try {
+        versionRoot = new URL("/python-sdk/latest/", window.location);
+        versionsUrl = new URL("../versions.json", versionRoot).toString();
+      } catch (e) {
+        return;
+      }
 
       // The current version id is the last path segment of the deploy root.
       var current =
@@ -257,7 +269,7 @@
   </script>
 
             </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("/python-sdk/latest",location),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+            <script>try{var el=document.querySelector("[data-md-component=outdated]"),base=new URL("/python-sdk/latest",location),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)}catch(e){}</script>
           </aside>
         
       </div>
