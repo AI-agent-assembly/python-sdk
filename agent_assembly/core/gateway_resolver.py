@@ -155,6 +155,8 @@ def _load_config_file(path: str = DEFAULT_CONFIG_FILE_PATH) -> dict[str, Any]:
     if not resolved.is_file():
         return {}
 
+    _warn_if_world_readable(resolved)
+
     try:
         loaded = yaml.safe_load(resolved.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError):
