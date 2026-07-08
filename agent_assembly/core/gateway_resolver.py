@@ -17,8 +17,10 @@ Resolution precedence (highest first)::
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
+import stat
 import subprocess
 import time
 import warnings
@@ -28,6 +30,8 @@ from typing import Any
 import httpx
 
 from agent_assembly.exceptions import ConfigurationError, GatewayError
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_GATEWAY_URL = "http://localhost:7391"
 DEFAULT_HEALTHZ_PATH = "/healthz"
@@ -48,6 +52,30 @@ AASM_AUTO_START_ARGV = ("start", "--mode", "local", "--foreground")
 # Tracks which legacy env vars have already warned, so the DeprecationWarning
 # fires once per variable rather than on every resolution call.
 _warned_legacy_env: set[str] = set()
+
+
+def _warn_if_world_readable(path: Path) -> None:
+    """Emit a warning when ``path`` is readable by group or other.
+
+    Defense-in-depth for ``~/.aasm/config.yaml``, which may contain an
+    ``api_key``. Follows the AWS CLI / gcloud / docker convention of
+    warning-not-refusing: the read still proceeds, but the operator is
+    prompted to ``chmod 600``. Any stat failure (missing, unreadable) is
+    swallowed — the caller has already checked existence and will handle
+    the read error path itself.
+    """
+    try:
+        mode = stat.S_IMODE(path.stat().st_mode)
+    except OSError:
+        return
+    if mode & 0o077:
+        logger.warning(
+            "Config file %s has group/other-readable permissions (mode %o); "
+            "run `chmod 600 %s` to secure it.",
+            path,
+            mode,
+            path,
+        )
 
 
 def _resolve_env(canonical: str, legacy: str) -> str | None:
