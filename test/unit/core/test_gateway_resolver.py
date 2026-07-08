@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import sys
 import warnings
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -272,3 +274,35 @@ class TestResolveApiKey:
         monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
         with patch.object(gateway_resolver, "_load_config_file", return_value={}):
             assert gateway_resolver.resolve_api_key() == ""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission bits are not meaningful on Windows")
+class TestWarnIfWorldReadable:
+    """Defense-in-depth permission warning for ~/.aasm/config.yaml (AAASM-4323)."""
+
+    def test_no_warning_when_mode_is_0600(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        cfg = tmp_path / "config.yaml"
+        cfg.write_text("agent:\n  api_key: k\n", encoding="utf-8")
+        cfg.chmod(0o600)
+
+        with caplog.at_level(logging.WARNING, logger=_RESOLVER_MOD):
+            gateway_resolver._warn_if_world_readable(cfg)
+
+        assert caplog.records == []
+
+    def test_warns_when_mode_is_0644(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        cfg = tmp_path / "config.yaml"
+        cfg.write_text("agent:\n  api_key: k\n", encoding="utf-8")
+        cfg.chmod(0o644)
+
+        with caplog.at_level(logging.WARNING, logger=_RESOLVER_MOD):
+            gateway_resolver._warn_if_world_readable(cfg)
+
+        assert len(caplog.records) == 1
+        message = caplog.records[0].getMessage()
+        assert "chmod 600" in message
+        assert "644" in message
