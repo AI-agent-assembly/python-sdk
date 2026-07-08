@@ -271,5 +271,6 @@ nav:
   - Troubleshooting: troubleshooting.md
   - Development:
       - development/index.md
+      - Docs macros (shared metadata): development/docs-macros.md
       - ADR:
           - 0001 — Hook architecture: development/adr/0001-hook-architecture.md
