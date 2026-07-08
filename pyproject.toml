@@ -138,6 +138,9 @@ docs = [
     "mkdocs-autorefs>=1.0.0,<2",
     "mkdocs-git-revision-date-localized-plugin>=1.2.0,<2",
     "mkdocs-git-authors-plugin>=0.9.0,<1",
+    # AAASM-4308: shared metadata macros for docs pages. Docs-only — MUST NOT
+    # be added to `[project].dependencies` (runtime install stays lean).
+    "mkdocs-macros-plugin>=1,<2",
 ]
 
 [tool.uv]

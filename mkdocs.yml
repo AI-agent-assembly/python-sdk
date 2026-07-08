@@ -80,6 +80,16 @@ theme:
 plugins:
   # Built-in client-side search — restores the search bar in the rendered site.
   - search
+  # AAASM-4308: shared metadata macros. Reads pyproject.toml (via docs_macros.py)
+  # and exposes an `aa` variable to Markdown pages so version/install/URL literals
+  # are sourced from a single place. `on_undefined: strict` + `on_error_fail: true`
+  # makes an unknown `{{ aa.* }}` reference fail the strict build instead of
+  # silently rendering empty. Placed before mkdocstrings so macros are expanded
+  # before docstring blocks render.
+  - macros:
+      module_name: docs_macros
+      on_error_fail: true
+      on_undefined: strict
   # Doc-as-Code — render Python API reference inline from package docstrings.
   - mkdocstrings:
       handlers:
