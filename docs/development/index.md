@@ -9,6 +9,7 @@ Agent Assembly Python SDK. Start here when contributing code or operating a rele
 | --- | --- |
 | [CONTRIBUTING.md](https://github.com/ai-agent-assembly/python-sdk/blob/master/CONTRIBUTING.md) | Dev environment setup, framework adapter authoring, test/lint commands, branch naming, PR checklist. |
 | [Architecture](../concepts/architecture.md) | Internals: the adapter/patch layers, the PyO3 FFI layer, and the exact `init_assembly()` bootstrap/teardown order. |
+| [Docs macros (shared metadata)](docs-macros.md) | How the MkDocs macro variables (`aa.*`) work, how to add a new shared value, and what must stay literal. |
 | [Compatibility & Versioning](../compatibility/index.md) | Supported Python versions, core-runtime tracking, and the release process. |
 | [Troubleshooting](../troubleshooting.md) | Common integration errors, what they mean, and how to fix them. |
 

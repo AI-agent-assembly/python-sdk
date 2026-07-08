@@ -7,7 +7,7 @@ Python versions it supports.
 
 | | |
 | --- | --- |
-| Supported | Python **3.12, 3.13, 3.14** (`requires-python = ">=3.12,<4.0"`) |
+| Supported | Python **3.12, 3.13, 3.14** (`requires-python = "{{ aa.python_sdk.requires_python }}"`) |
 | Tested in CI | 3.12 – 3.14 across Linux and macOS |
 
 The SDK uses modern typing (PEP 695 `type` aliases, PEP 604 unions), so 3.12 is the floor.

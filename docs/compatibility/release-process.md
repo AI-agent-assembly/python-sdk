@@ -20,8 +20,9 @@ wheel by platform tag, no post-install scripts needed:
 | `agent_assembly-<v>-…-macosx_*_arm64.whl` / `…x86_64.whl` | SDK + macOS `aasm` binary |
 | `agent_assembly-<v>.tar.gz` (sdist) | Pure-Python source |
 
-`pip install agent-assembly` gets the pure-Python client; `pip install 'agent-assembly[runtime]'`
-pulls the platform wheel that bundles the binary. See [Installation](https://github.com/ai-agent-assembly/python-sdk#installation).
+`{{ aa.commands.install_pip }}` gets the pure-Python client;
+`{{ aa.commands.install_pip_runtime }}` pulls the platform wheel that bundles the binary.
+See [Installation]({{ aa.urls.repo }}#installation).
 
 ## Publishing: Trusted Publisher (OIDC)
 
@@ -39,16 +40,16 @@ dry-run without publishing.
 2. Land it on `master` through the normal PR flow.
 3. Push the release tag — the workflow builds every platform wheel + sdist and publishes them
    to PyPI via the Trusted Publisher.
-4. Verify the wheels appear on the [PyPI release page](https://pypi.org/project/agent-assembly/#history)
+4. Verify the wheels appear on the [PyPI release page]({{ aa.urls.pypi }}#history)
    and carry platform tags (`manylinux_*`, `macosx_*`), not `none-any`.
 
 ## Documentation versioning
 
 Docs are versioned with [`mike`](https://github.com/jimporter/mike): every push to `master`
 deploys to **`latest`**, and a release promotes to **`stable`**. Readers switch versions with
-the selector at the top of the [documentation site](https://docs.agent-assembly.com/python-sdk/).
+the selector at the top of the [documentation site]({{ aa.urls.docs }}).
 
 ## Release notes
 
 Release notes are tracked on the [Release notes](release-notes.md) page and the
-[GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases) feed.
+[GitHub releases]({{ aa.urls.repo }}/releases) feed.
