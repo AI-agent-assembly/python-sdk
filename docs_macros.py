@@ -60,7 +60,7 @@ def define_env(env: Any) -> None:
             "pypi": "https://pypi.org/project/agent-assembly/",
         },
         "commands": {
-            "install_uv": "uv add agent-assembly",
+            "install_uv": "uv add --prerelease=allow agent-assembly",
             "install_pip": "pip install --pre agent-assembly",
             "install_pip_runtime": "pip install --pre 'agent-assembly[runtime]'",
         },
