@@ -68,7 +68,7 @@ A governed LangChain ReAct agent that runs **offline** against a mock LLM — no
 and no network calls. Install the SDK plus LangChain:
 
 ```bash
-pip install agent-assembly langchain langchain-community
+pip install --pre agent-assembly langchain langchain-community
 ```
 
 ```python

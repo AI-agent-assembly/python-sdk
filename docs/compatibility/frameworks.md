@@ -135,7 +135,7 @@ your agent already uses, alongside the SDK, and the matching adapter activates
 automatically:
 
 ```bash
-pip install agent-assembly langchain   # or crewai, pydantic-ai, mcp, openai-agents, smolagents, ...
+pip install --pre agent-assembly langchain   # or crewai, pydantic-ai, mcp, openai-agents, smolagents, ...
 ```
 
 The SDK deliberately does **not** declare these frameworks as `pip install

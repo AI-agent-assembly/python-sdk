@@ -80,7 +80,7 @@ Report bugs on the [issue tracker]({{ aa.urls.issues }}).
   pinning pattern rather than the current version.
 - **One-off framework-composed install commands** where the readability cost
   of `{{ aa.commands.install_pip }} langchain` exceeds the drift risk of
-  `pip install agent-assembly langchain`. Templating everything is not the
+  `pip install --pre agent-assembly langchain`. Templating everything is not the
   goal; the goal is to keep the **current-state, high-drift** values in sync.
 
 If in doubt, ask: *"When we cut the next release, will this line become

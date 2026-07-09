@@ -51,7 +51,7 @@ still works.
 To enable it:
 
 ```bash
-pip install 'agent-assembly[runtime]'   # bundled platform wheel, or
+pip install --pre 'agent-assembly[runtime]'   # bundled platform wheel, or
 uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --release  # build locally (needs Rust)
 ```
 

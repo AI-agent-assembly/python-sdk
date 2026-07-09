@@ -23,6 +23,11 @@ The package is published on PyPI as
     {{ aa.commands.install_uv }}
     ```
 
+!!! note "`--pre` is required for now"
+    Agent Assembly is currently published only as a pre-release on PyPI, and `pip`
+    skips pre-releases unless you pass `--pre` (already included above). Drop the flag
+    once a stable (non-pre-release) version is published.
+
 `{{ aa.python_sdk.package_name }}` is the pure-Python client.
 `{{ aa.python_sdk.package_name }}[runtime]` additionally pulls a platform wheel
 (`manylinux`, `macosx`) that bundles the `{{ aa.python_sdk.cli_name }}`
