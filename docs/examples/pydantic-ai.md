@@ -193,6 +193,6 @@ Assembly context shut down.
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/pydantic-ai)
-- [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/pydantic-ai/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/pydantic-ai)
+- [Example README](https://github.com/ai-agent-assembly/examples/blob/master/python/pydantic-ai/README.md)
 - [Pydantic AI documentation](https://ai.pydantic.dev/)

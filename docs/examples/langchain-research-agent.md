@@ -211,6 +211,6 @@ The final block replays the full audit trail and the running budget total — th
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-research-agent)
-- [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/langchain-research-agent/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/langchain-research-agent)
+- [Example README](https://github.com/ai-agent-assembly/examples/blob/master/python/langchain-research-agent/README.md)
 - [LangChain documentation](https://python.langchain.com/)

@@ -204,6 +204,6 @@ The `chain:` column in the audit replay is the delegation call stack each `Audit
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/crewai-research-crew)
-- [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/crewai-research-crew/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/crewai-research-crew)
+- [Example README](https://github.com/ai-agent-assembly/examples/blob/master/python/crewai-research-crew/README.md)
 - [CrewAI documentation](https://docs.crewai.com/)

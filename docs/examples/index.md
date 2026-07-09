@@ -2,7 +2,7 @@
 
 End-to-end, runnable examples that govern real AI agent frameworks with Agent Assembly. Each
 example is a self-contained project in the
-[`agent-assembly-examples`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python)
+[`agent-assembly-examples`](https://github.com/ai-agent-assembly/examples/tree/master/python)
 repository, and each page below walks through what it demonstrates, how the `init_assembly()`
 adapter flow wires the framework, an annotated code walkthrough, and the expected output.
 

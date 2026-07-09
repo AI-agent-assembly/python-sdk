@@ -144,6 +144,6 @@ Running governed tool calls:
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/custom-tool-policy)
-- [README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/custom-tool-policy/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/custom-tool-policy)
+- [README](https://github.com/ai-agent-assembly/examples/blob/master/python/custom-tool-policy/README.md)
 - [LlamaIndex — manual tool policy](llamaindex-tool-policy.md)

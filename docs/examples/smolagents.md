@@ -112,6 +112,6 @@ It asserts that an allowed tool runs its body, a denied tool returns the `[BLOCK
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/smolagents-tool-policy)
-- [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/smolagents-tool-policy/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/smolagents-tool-policy)
+- [Example README](https://github.com/ai-agent-assembly/examples/blob/master/python/smolagents-tool-policy/README.md)
 - [Smolagents documentation](https://github.com/huggingface/smolagents)

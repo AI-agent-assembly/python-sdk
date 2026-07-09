@@ -1,7 +1,7 @@
 # Preparing the runtime environment
 
 Every page in this section walks through a self-contained, cloneable example from the
-[`agent-assembly-examples`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python)
+[`agent-assembly-examples`](https://github.com/ai-agent-assembly/examples/tree/master/python)
 repository. The examples share the same prerequisites and the same run shape, so this page
 collects everything you need **once** — each per-framework page then only lists what is
 specific to that example.
@@ -41,7 +41,7 @@ The examples live in a dedicated repository. Clone it and change into the `pytho
 directory:
 
 ```bash
-git clone https://github.com/ai-agent-assembly/agent-assembly-examples.git
+git clone https://github.com/ai-agent-assembly/examples.git
 cd agent-assembly-examples/python
 ```
 

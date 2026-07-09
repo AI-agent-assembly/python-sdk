@@ -107,6 +107,6 @@ uv run pytest tests/ -v
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/agno-tool-policy)
-- [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/agno-tool-policy/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/agno-tool-policy)
+- [Example README](https://github.com/ai-agent-assembly/examples/blob/master/python/agno-tool-policy/README.md)
 - [Agno documentation](https://docs.agno.com/)
