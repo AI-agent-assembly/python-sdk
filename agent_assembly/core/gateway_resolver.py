@@ -182,7 +182,7 @@ def _auto_start_gateway(
     if aasm_path is None:
         raise ConfigurationError(
             f"No gateway found at {base_url} and 'aasm' is not on PATH. "
-            "Install it with: pip install 'agent-assembly[runtime]'"
+            "Install it with: pip install --pre 'agent-assembly[runtime]'"
         )
 
     subprocess.Popen(
