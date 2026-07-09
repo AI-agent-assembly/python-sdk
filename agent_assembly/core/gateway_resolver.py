@@ -70,8 +70,7 @@ def _warn_if_world_readable(path: Path) -> None:
         return
     if mode & 0o077:
         logger.warning(
-            "Config file %s has group/other-readable permissions (mode %o); "
-            "run `chmod 600 %s` to secure it.",
+            "Config file %s has group/other-readable permissions (mode %o); " "run `chmod 600 %s` to secure it.",
             path,
             mode,
             path,
@@ -183,7 +182,7 @@ def _auto_start_gateway(
     if aasm_path is None:
         raise ConfigurationError(
             f"No gateway found at {base_url} and 'aasm' is not on PATH. "
-            "Install it with: pip install agent-assembly[cli]"
+            "Install it with: pip install 'agent-assembly[runtime]'"
         )
 
     subprocess.Popen(
