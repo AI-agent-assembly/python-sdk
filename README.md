@@ -99,8 +99,13 @@ is the pure-Python client and expects an `aasm` runtime to be reachable some oth
 With [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
-uv add agent-assembly
+uv add --prerelease=allow agent-assembly
 ```
+
+> **`--prerelease=allow` is required for now.** Unlike `pip`, `uv` refuses to
+> resolve pre-releases unless you opt in. Agent Assembly is currently published only
+> as a pre-release on PyPI, so `uv add agent-assembly` fails to resolve without it.
+> Drop the flag once a stable (non-pre-release) version is published.
 
 To track unreleased changes, install from the `master` branch:
 
