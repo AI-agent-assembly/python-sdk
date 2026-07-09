@@ -127,6 +127,6 @@ The smoke tests `pytest.importorskip("agent_framework")`, so they **skip cleanly
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/microsoft-agent-framework-tool-policy)
-- [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/microsoft-agent-framework-tool-policy/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/microsoft-agent-framework-tool-policy)
+- [Example README](https://github.com/ai-agent-assembly/examples/blob/master/python/microsoft-agent-framework-tool-policy/README.md)
 - [Microsoft Agent Framework](https://github.com/microsoft/agent-framework)

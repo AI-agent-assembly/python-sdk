@@ -165,6 +165,6 @@ Assembly context shut down.
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langgraph)
-- [README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/langgraph/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/langgraph)
+- [README](https://github.com/ai-agent-assembly/examples/blob/master/python/langgraph/README.md)
 - [LangGraph documentation](https://langchain-ai.github.io/langgraph/)

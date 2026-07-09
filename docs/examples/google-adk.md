@@ -161,6 +161,6 @@ Assembly context shut down.
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/google-adk)
-- [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/google-adk/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/google-adk)
+- [Example README](https://github.com/ai-agent-assembly/examples/blob/master/python/google-adk/README.md)
 - [Google ADK documentation](https://google.github.io/adk-docs/)

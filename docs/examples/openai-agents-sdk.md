@@ -157,6 +157,6 @@ Running governed tool calls:
 
 ## Links
 
-- [Example directory](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/openai-agents-sdk)
-- [Example README](https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/openai-agents-sdk/README.md)
+- [Example directory](https://github.com/ai-agent-assembly/examples/tree/master/python/openai-agents-sdk)
+- [Example README](https://github.com/ai-agent-assembly/examples/blob/master/python/openai-agents-sdk/README.md)
 - [OpenAI Agents SDK docs](https://openai.github.io/openai-agents-python/)

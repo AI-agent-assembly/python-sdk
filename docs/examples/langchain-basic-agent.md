@@ -189,6 +189,6 @@ Assembly context shut down.
 
 ## Links
 
-- Example directory: <https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python/langchain-basic-agent>
-- Example README: <https://github.com/ai-agent-assembly/agent-assembly-examples/blob/master/python/langchain-basic-agent/README.md>
+- Example directory: <https://github.com/ai-agent-assembly/examples/tree/master/python/langchain-basic-agent>
+- Example README: <https://github.com/ai-agent-assembly/examples/blob/master/python/langchain-basic-agent/README.md>
 - LangChain documentation: <https://python.langchain.com/>

@@ -36,7 +36,7 @@ entry points. On exit, all hooks are removed in reverse order.
 Each framework below ships an adapter under `agent_assembly/adapters/`. The
 **Runnable example** column reflects whether a complete, validated example exists today —
 either inline in this guide or as a curated script in the central
-[`agent-assembly-examples`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python)
+[`agent-assembly-examples`](https://github.com/ai-agent-assembly/examples/tree/master/python)
 repository.
 
 | Framework | Adapter | Runnable example |
@@ -104,7 +104,7 @@ directory for additional in-repo runnable scripts and their status.
 ## More runnable examples
 
 Curated, end-to-end examples for each framework live in the central
-[`agent-assembly-examples`](https://github.com/ai-agent-assembly/agent-assembly-examples/tree/master/python)
+[`agent-assembly-examples`](https://github.com/ai-agent-assembly/examples/tree/master/python)
 repository. Each directory is a self-contained, cloneable project. This section documents each
 one in detail — start with [Preparing the runtime environment](preparing-the-runtime-environment.md),
 then follow the per-framework page:
