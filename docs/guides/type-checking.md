@@ -34,7 +34,7 @@ care about.
 Use any PEP 561-aware checker. With mypy:
 
 ```bash
-pip install agent-assembly mypy
+pip install --pre agent-assembly mypy
 mypy your_app.py
 ```
 

@@ -78,9 +78,13 @@ version (`agent-assembly==0.0.x`) if you need a stable contract.
 The package is published on PyPI as [`agent-assembly`](https://pypi.org/project/agent-assembly/):
 
 ```bash
-pip install agent-assembly            # pure-Python SDK
-pip install 'agent-assembly[runtime]' # SDK + bundled aasm runtime binary (platform wheel)
+pip install --pre agent-assembly            # pure-Python SDK
+pip install --pre 'agent-assembly[runtime]' # SDK + bundled aasm runtime binary (platform wheel)
 ```
+
+> **`--pre` is required for now.** Agent Assembly is currently published only as a
+> pre-release on PyPI, and `pip` skips pre-releases unless you pass `--pre`. Drop the
+> flag once a stable (non-pre-release) version is published.
 
 `agent-assembly[runtime]` pulls a platform wheel (`manylinux`, `macosx`) that bundles the
 `aasm` sidecar binary, so you don't need a separate runtime install. Plain `agent-assembly`
@@ -127,7 +131,7 @@ The pure-Python SDK works without the native extension — `maturin develop` is 
 A governed LangChain ReAct agent that runs offline against a mock LLM. The example imports LangChain in addition to the SDK, so install both:
 
 ```bash
-pip install agent-assembly langchain langchain-community
+pip install --pre agent-assembly langchain langchain-community
 ```
 
 ```python

@@ -61,8 +61,8 @@ def define_env(env: Any) -> None:
         },
         "commands": {
             "install_uv": "uv add agent-assembly",
-            "install_pip": "pip install agent-assembly",
-            "install_pip_runtime": "pip install 'agent-assembly[runtime]'",
+            "install_pip": "pip install --pre agent-assembly",
+            "install_pip_runtime": "pip install --pre 'agent-assembly[runtime]'",
         },
     }
 
