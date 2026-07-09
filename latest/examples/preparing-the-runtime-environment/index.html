@@ -2702,7 +2702,7 @@ gateway is an optional "production mode" step documented on each page.</p>
 <h2 id="install-the-sdk">Install the SDK<a class="headerlink" href="#install-the-sdk" title="Permanent link">&para;</a></h2>
 <p>Each example declares <code>agent-assembly</code> as a dependency, so <code>uv sync</code>
 (below) pulls it in. To install the SDK on its own in your own project:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>agent-assembly
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>--pre<span class="w"> </span>agent-assembly
 </span></code></pre></div>
 <p>Some examples need a framework extra alongside the SDK (for instance LangChain pulls in
 <code>langchain-core</code>, LangGraph pulls in <code>langgraph</code>, CrewAI offers an optional <code>live</code> extra).
