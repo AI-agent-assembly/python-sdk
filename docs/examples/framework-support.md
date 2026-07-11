@@ -68,12 +68,12 @@ A governed LangChain ReAct agent that runs **offline** against a mock LLM — no
 and no network calls. Install the SDK plus LangChain:
 
 ```bash
-pip install --pre agent-assembly langchain langchain-community
+pip install --pre agent-assembly langchain langchain-classic langchain-community
 ```
 
 ```python
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.tools import Tool
+from langchain_classic.agents import AgentExecutor, create_react_agent
+from langchain_classic.tools import Tool
 from langchain_community.llms import FakeListLLM
 from langchain_core.prompts import PromptTemplate
 
