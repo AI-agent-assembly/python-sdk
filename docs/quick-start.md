@@ -55,14 +55,14 @@ local default port).
 This example imports LangChain alongside the SDK, so install both:
 
 ```bash
-{{ aa.commands.install_pip }} langchain langchain-community
+{{ aa.commands.install_pip }} langchain langchain-classic langchain-community
 ```
 
 Then run:
 
 ```python
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.tools import Tool
+from langchain_classic.agents import AgentExecutor, create_react_agent
+from langchain_classic.tools import Tool
 from langchain_community.llms import FakeListLLM
 from langchain_core.prompts import PromptTemplate
 
