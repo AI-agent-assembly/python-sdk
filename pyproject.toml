@@ -24,16 +24,16 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "pydantic>=2.0.0,<3.0.0",
+    "pydantic>=2.13.4,<3.0.0",
     "httpx>=0.27.0,<1.0.0",
-    "typing-extensions>=4.0.0",
+    "typing-extensions>=4.16.0",
     # AAASM-1654 (PR-E): OpControlSubscriber consumes PolicyService.OpControlStream
     # via gRPC. Held to grpcio's modern stable line.
-    "grpcio>=1.66,<2",
+    "grpcio>=1.82.1,<2",
     # AAASM-4434 (dependency completeness re-audit): resolves to 6.33.6, not raw
-    # PyPI latest (7.35.1), even though >=5,<8 permits 7.x. Confirmed this is a
+    # PyPI latest (7.35.1), even though >=5,<8 permitted 7.x. Confirmed this is a
     # REAL transitive ceiling, not a stale "permissive floor" resolution: the
-    # `dev`/test group's pydantic-ai>=2.0.0 pulls in
+    # `dev`/test group's pydantic-ai>=2.9.0 pulls in
     # `pydantic-ai-slim[...,logfire,...]`, and logfire (<=4.37.0) pins
     # `opentelemetry-exporter-otlp-proto-http<1.43.0`; every otlp-proto-http
     # release in that range depends on an `opentelemetry-proto` that caps
@@ -42,7 +42,10 @@ dependencies = [
     # pydantic-ai's logfire extra; a bare `uv lock --upgrade` (no floor change)
     # also leaves protobuf pinned at 6.33.6. Re-audit once logfire raises its
     # opentelemetry-exporter-otlp-proto-http ceiling above 1.43.0.
-    "protobuf>=5,<8",
+    # AAASM-4434 (manifest transparency follow-up): floor tightened from the
+    # wide-open "5" to the exact resolved 6.33.6 so the manifest states what is
+    # actually locked, not just the outer bound of what's permitted.
+    "protobuf>=6.33.6,<8",
 ]
 
 [project.optional-dependencies]
@@ -62,7 +65,7 @@ Repository = "https://github.com/AI-agent-assembly/python-sdk"
 
 [dependency-groups]
 dev = [
-    "coverage~=7.10",
+    "coverage~=7.15",
     "python-dotenv>=1.0.1,<2",
     # AAASM-1654 (PR-E): grpcio-tools provides protoc + Python plugin used by
     # scripts/gen_proto.py to regenerate agent_assembly/proto/*_pb2*.py from
@@ -73,20 +76,20 @@ dev = [
     # forced transitively by pydantic-ai's logfire extra (see the protobuf
     # comment under [project].dependencies for the full evidence chain).
     # Re-audit alongside protobuf once that transitive ceiling lifts.
-    "grpcio-tools>=1.66,<2",
+    "grpcio-tools>=1.81.1,<2",
     { include-group = "lint" },
     { include-group = "test" },
 ]
 lint = [
-    "ruff>=0.1.0",
-    "mypy>=1.11,<3",
+    "ruff>=0.15.21",
+    "mypy>=2.2.0,<3",
 ]
 test = [
-    "pytest>=8.1.1,<10",
-    "pytest-cov>=5.0.0,<8",
-    "pytest-rerunfailures>=14.0,<17",
-    "pytest-asyncio>=0.23.0,<2",
-    "pytest-benchmark>=4.0.0,<6",
+    "pytest>=9.1.1,<10",
+    "pytest-cov>=7.1.0,<8",
+    "pytest-rerunfailures>=16.4,<17",
+    "pytest-asyncio>=1.4.0,<2",
+    "pytest-benchmark>=5.2.3,<6",
     # AAASM-2943: dev/test-only (NOT a runtime dependency). Installing the
     # framework lets the `importorskip`-guarded Pydantic AI integration tests
     # run in CI (the `dev` group includes `test`, and the integration-test job
@@ -95,30 +98,42 @@ test = [
     # AAASM-4434: floor raised 0.3.0 -> 2.0.0 — with an unbounded floor, `uv lock
     # --upgrade` resolved pydantic-ai down to 0.7.2 rather than latest, because an
     # unconstrained solve found a cheaper-to-satisfy graph at that older version.
-    # Raising the floor forces resolution to latest stable (2.9.0), which is
-    # verified compatible (protobuf still resolves within our >=5,<8 range, just
-    # at 6.33.6 instead of 7.x).
-    "pydantic-ai>=2.0.0",
+    # Raising the floor forces resolution to latest stable, which is verified
+    # compatible (protobuf still resolves within our >=5,<8 range, just at
+    # 6.33.6 instead of 7.x).
+    # AAASM-4434 (manifest transparency follow-up): floor tightened again to the
+    # exact resolved version (2.9.0) so the manifest doesn't understate what's
+    # actually locked.
+    "pydantic-ai>=2.9.0",
     # AAASM-3528: dev/test-only (NOT a runtime dependency). The shipped OpenAI
     # Agents framework is the top-level `agents` package (NOT `openai.agents`),
     # and a tool runs via its per-instance `on_invoke_tool` coroutine (NOT a
     # `FunctionTool.__call__`). Installing it lets the `importorskip`-guarded
     # integration test drive a real tool call, so a regression to the old
     # fail-open no-op patch is actually caught instead of silently skipped.
-    "openai-agents>=0.1.0",
+    # AAASM-4434 (manifest transparency follow-up): floor tightened from the
+    # wide-open 0.1.0 to the exact resolved version (0.18.2) so the manifest
+    # doesn't understate what's actually locked.
+    "openai-agents>=0.18.2",
     # AAASM-3539: dev/test-only (NOT a runtime dependency). smolagents routes
     # every tool execution through `smolagents.tools.Tool.__call__` (which calls
     # `self.forward`); installing it lets the `importorskip`-guarded adapter
     # tests drive a real `Tool` subclass, so a regression to a fail-open no-op
     # patch is caught (deny must block `forward`) instead of silently skipped.
-    "smolagents>=1.0.0,<2.0.0",
+    # AAASM-4434 (manifest transparency follow-up): floor tightened from the
+    # wide-open 1.0.0 to the exact resolved version (1.26.0) so the manifest
+    # doesn't understate what's actually locked. Upper bound <2.0.0 unchanged.
+    "smolagents>=1.26.0,<2.0.0",
     # AAASM-3537: dev/test-only (NOT a runtime dependency). Agno (formerly
     # Phidata) runs every function-tool body through
     # `agno.tools.function.FunctionCall.execute` / `aexecute`. Installing it lets
     # the `importorskip`-guarded integration test drive a real `FunctionCall`, so
     # the negative-control deny test fails if the patch ever regresses to a no-op
     # instead of being silently skipped.
-    "agno>=2.0.0",
+    # AAASM-4434 (manifest transparency follow-up): floor tightened from the
+    # wide-open 2.0.0 to the exact resolved version (2.7.2) so the manifest
+    # doesn't understate what's actually locked.
+    "agno>=2.7.2",
     # AAASM-3536: dev/test-only (NOT a runtime dependency). LlamaIndex routes
     # tool execution through the concrete `FunctionTool.call` / `acall` methods;
     # installing it lets the `importorskip`-guarded governance tests drive a
@@ -132,7 +147,10 @@ test = [
     # by the SDK or its tests. No upstream fix exists (3.9.4 is the latest release;
     # `first_patched_version: none`), so no lock upgrade removes it. Tracked in
     # AAASM-4169; Dependabot #27 recommended for dismissal as dev/test-only.
-    "llama-index-core>=0.10.0",
+    # AAASM-4434 (manifest transparency follow-up): floor tightened from the
+    # wide-open 0.10.0 to the exact resolved version (0.14.23) so the manifest
+    # doesn't understate what's actually locked.
+    "llama-index-core>=0.14.23",
     # AAASM-4434: dev/test-only (NOT a runtime dependency). The LangGraph adapter
     # (agent_assembly/adapters/langgraph/) never hard-imports langgraph — it
     # reflectively loads `langgraph.graph.state.StateGraph` via importlib and
@@ -146,8 +164,8 @@ test = [
     "langgraph>=1.2.9,<2",
 ]
 pre-commit-ci = [
-    "pre-commit>=3.5.0,<5",
-    "pylint>=3.1.0,<5",
+    "pre-commit>=4.6.0,<5",
+    "pylint>=4.0.6,<5",
     { include-group = "lint" },
 ]
 # AAASM-4034: dev/test-only (NOT a runtime dependency) and DELIBERATELY excluded
@@ -162,20 +180,23 @@ pre-commit-ci = [
 #   .venv/bin/python -m pytest test/unit/adapters/langchain/test_getattr_contract_with_langchain.py
 langchain-test = [
     { include-group = "test" },
-    "langchain-core>=0.3.0,<1.5.0",
+    "langchain-core>=1.4.9,<1.5.0",
 ]
 docs = [
     "mkdocs>=1.6.0,<2",
     "mkdocs-material>=9.5.0,<10",
-    "mkdocstrings>=0.24.0,<2",
-    "mkdocstrings-python>=1.10.0,<3",
+    "mkdocstrings>=1.0.5,<2",
+    "mkdocstrings-python>=2.0.5,<3",
     "mike>=2.1.0,<3",
-    "mkdocs-autorefs>=1.0.0,<2",
-    "mkdocs-git-revision-date-localized-plugin>=1.2.0,<2",
+    "mkdocs-autorefs>=1.4.4,<2",
+    "mkdocs-git-revision-date-localized-plugin>=1.5.3,<2",
     "mkdocs-git-authors-plugin>=0.9.0,<1",
     # AAASM-4308: shared metadata macros for docs pages. Docs-only — MUST NOT
     # be added to `[project].dependencies` (runtime install stays lean).
-    "mkdocs-macros-plugin>=1,<2",
+    # AAASM-4434 (manifest transparency follow-up): floor tightened from the
+    # wide-open 1 to the exact resolved version (1.5.0) so the manifest
+    # doesn't understate what's actually locked.
+    "mkdocs-macros-plugin>=1.5.0,<2",
 ]
 
 [tool.uv]
