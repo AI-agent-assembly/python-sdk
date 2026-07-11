@@ -197,6 +197,111 @@ def test_real_stategraph_subgraph_as_node_propagates_spawn_lineage() -> None:
         patch.revert()
 
 
+@pytest.mark.integration
+def test_real_stategraph_reused_subgraph_across_parents_sync_invoke_lineage_depth_stable() -> None:
+    """A compiled subgraph reused as a node in two different parent graphs must not
+    accumulate wrapping layers on ``.invoke``.
+
+    Regresses AAASM-4474: ``_wrap_subgraph_invoke_methods_in_place`` guards the
+    async path against double-wrapping via ``_agent_assembly_ainvoke_spawned``,
+    but has no equivalent guard for the sync path. Compiling a second parent
+    graph that reuses the same compiled subgraph instance re-wraps ``.invoke``
+    around the already-wrapped ``.invoke``, so a single synchronous invoke of the
+    first parent graph corrupts the lineage depth captured inside the subgraph's
+    own node (comes back as 2 instead of the expected 1).
+    """
+    captured_depths: list[int | None] = []
+
+    def _inner_node(state: _CounterState) -> dict[str, int]:
+        spawn_ctx = _SPAWN_CTX.get()
+        captured_depths.append(spawn_ctx.depth if spawn_ctx is not None else None)
+        return {"count": state["count"] + 1}
+
+    sub_graph = StateGraph(_CounterState)
+    sub_graph.add_node("inner", _inner_node)
+    sub_graph.add_edge(START, "inner")
+    sub_graph.add_edge("inner", END)
+    compiled_subgraph = sub_graph.compile()
+
+    recorder = _EventRecorder()
+    patch = LangGraphPatch(callback_handler=recorder, process_agent_id="parent-agent-a")
+    assert patch.apply() is True
+
+    try:
+        parent_graph_a = StateGraph(_CounterState)
+        parent_graph_a.add_node("sub", compiled_subgraph)
+        parent_graph_a.add_edge(START, "sub")
+        parent_graph_a.add_edge("sub", END)
+        compiled_parent_a = parent_graph_a.compile()
+
+        # Reuse the same compiled subgraph instance as a node in a second,
+        # unrelated parent graph. This is a legitimate pattern (a shared
+        # reusable subgraph mounted under multiple parent orchestrators) and is
+        # what triggers the double-wrap when compiled a second time.
+        parent_graph_b = StateGraph(_CounterState)
+        parent_graph_b.add_node("sub", compiled_subgraph)
+        parent_graph_b.add_edge(START, "sub")
+        parent_graph_b.add_edge("sub", END)
+        parent_graph_b.compile()
+
+        result = compiled_parent_a.invoke(_CounterState(count=0))
+
+        assert result == {"count": 1}
+        assert captured_depths == [1], (
+            "expected lineage depth 1 for a sync invoke of a subgraph reused "
+            "across two parent graphs, not an accumulated double-wrap depth"
+        )
+    finally:
+        patch.revert()
+
+
+@pytest.mark.integration
+def test_real_stategraph_reused_subgraph_across_parents_async_ainvoke_lineage_depth_stable() -> None:
+    """Async counterpart of the sync test above.
+
+    The existing ``_agent_assembly_ainvoke_spawned`` guard already prevents
+    double-wrapping ``.ainvoke``, so this must already pass before the sync fix
+    lands and must keep passing afterward as a regression guard confirming the
+    async path stays correct.
+    """
+    captured_depths: list[int | None] = []
+
+    def _inner_node(state: _CounterState) -> dict[str, int]:
+        spawn_ctx = _SPAWN_CTX.get()
+        captured_depths.append(spawn_ctx.depth if spawn_ctx is not None else None)
+        return {"count": state["count"] + 1}
+
+    sub_graph = StateGraph(_CounterState)
+    sub_graph.add_node("inner", _inner_node)
+    sub_graph.add_edge(START, "inner")
+    sub_graph.add_edge("inner", END)
+    compiled_subgraph = sub_graph.compile()
+
+    recorder = _EventRecorder()
+    patch = LangGraphPatch(callback_handler=recorder, process_agent_id="parent-agent-a")
+    assert patch.apply() is True
+
+    try:
+        parent_graph_a = StateGraph(_CounterState)
+        parent_graph_a.add_node("sub", compiled_subgraph)
+        parent_graph_a.add_edge(START, "sub")
+        parent_graph_a.add_edge("sub", END)
+        compiled_parent_a = parent_graph_a.compile()
+
+        parent_graph_b = StateGraph(_CounterState)
+        parent_graph_b.add_node("sub", compiled_subgraph)
+        parent_graph_b.add_edge(START, "sub")
+        parent_graph_b.add_edge("sub", END)
+        parent_graph_b.compile()
+
+        result = asyncio.run(compiled_parent_a.ainvoke(_CounterState(count=0)))
+
+        assert result == {"count": 1}
+        assert captured_depths == [1]
+    finally:
+        patch.revert()
+
+
 def test_revert_restores_the_real_stategraph_compile() -> None:
     """``revert()`` must restore the genuine (unpatched) ``StateGraph.compile``."""
     original_compile = StateGraph.compile

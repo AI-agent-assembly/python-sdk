@@ -377,7 +377,7 @@ def _wrap_subgraph_invoke_methods_in_place(node_name: Any, subgraph: Any, proces
     wrapped_any = False
 
     original_invoke = getattr(subgraph, "invoke", None)
-    if callable(original_invoke):
+    if callable(original_invoke) and not getattr(subgraph, "_agent_assembly_invoke_spawned", False):
 
         def sync_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
             spawn_ctx = SpawnContext(
@@ -390,6 +390,7 @@ def _wrap_subgraph_invoke_methods_in_place(node_name: Any, subgraph: Any, proces
                 return original_invoke(*args, **kwargs)
 
         subgraph.invoke = sync_subgraph_wrapper
+        subgraph._agent_assembly_invoke_spawned = True
         wrapped_any = True
 
     original_ainvoke = getattr(subgraph, "ainvoke", None)
