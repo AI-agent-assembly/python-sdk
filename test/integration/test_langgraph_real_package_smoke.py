@@ -37,6 +37,7 @@ from agent_assembly.adapters.langgraph import (  # noqa: E402
     patch as langgraph_patch_module,
 )
 from agent_assembly.adapters.langgraph.patch import LangGraphPatch  # noqa: E402
+from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -145,6 +146,53 @@ def test_real_stategraph_async_ainvoke_fires_node_hooks() -> None:
             ("start", "b"),
             ("end", "b"),
         ]
+    finally:
+        patch.revert()
+
+
+@pytest.mark.integration
+def test_real_stategraph_subgraph_as_node_propagates_spawn_lineage() -> None:
+    """A compiled subgraph used as a parent-graph node must get spawn lineage.
+
+    Regresses AAASM-4472: ``_wrap_node_entry`` checked ``_is_compiled_subgraph()``
+    against the *outer* ``PregelNode`` wrapper before unwrapping it via ``.bound``.
+    That outer wrapper never exposes ``.nodes``, so the check failed and the code
+    fell through to generic hook-wrapping instead of ``_wrap_subgraph_spawn_node``.
+    Coarse hooks still fired, but ``_SPAWN_CTX`` was never set inside the
+    subgraph's own nodes, so parent-agent lineage was lost for the standard
+    multi-agent delegation pattern (``parent_graph.add_node("sub", compiled_subgraph)``).
+    """
+    captured_spawn_ctx: list[SpawnContext | None] = []
+
+    def _inner_node(state: _CounterState) -> dict[str, int]:
+        captured_spawn_ctx.append(_SPAWN_CTX.get())
+        return {"count": state["count"] + 1}
+
+    sub_graph = StateGraph(_CounterState)
+    sub_graph.add_node("inner", _inner_node)
+    sub_graph.add_edge(START, "inner")
+    sub_graph.add_edge("inner", END)
+    compiled_subgraph = sub_graph.compile()
+
+    recorder = _EventRecorder()
+    patch = LangGraphPatch(callback_handler=recorder, process_agent_id="parent-agent-42")
+    assert patch.apply() is True
+
+    try:
+        parent_graph = StateGraph(_CounterState)
+        parent_graph.add_node("sub", compiled_subgraph)
+        parent_graph.add_edge(START, "sub")
+        parent_graph.add_edge("sub", END)
+        compiled_parent = parent_graph.compile()
+
+        result = compiled_parent.invoke(_CounterState(count=0))
+
+        assert result == {"count": 1}
+        assert len(captured_spawn_ctx) == 1
+        spawn_ctx = captured_spawn_ctx[0]
+        assert spawn_ctx is not None, "expected _SPAWN_CTX to be populated inside the subgraph's own node"
+        assert spawn_ctx.parent_agent_id == "parent-agent-42"
+        assert spawn_ctx.delegation_reason == "langgraph_node:sub"
     finally:
         patch.revert()
 
