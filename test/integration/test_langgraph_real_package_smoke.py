@@ -107,12 +107,7 @@ def test_real_stategraph_sync_invoke_fires_node_hooks() -> None:
         graph.add_edge("b", END)
         compiled = graph.compile()
 
-        # AAASM-4434: mypy cannot infer CompiledStateGraph's StateT generic
-        # parameter from `StateGraph(_CounterState)` (a runtime-value constructor
-        # argument, not a `StateGraph[_CounterState]` type-subscript), so the
-        # concrete TypedDict input doesn't structurally match the generic overload
-        # even though it's exactly what LangGraph expects and returns at runtime.
-        result = compiled.invoke(_CounterState(count=0))  # type: ignore[arg-type]
+        result = compiled.invoke(_CounterState(count=0))
 
         assert result == {"count": 11}
         assert recorder.events == [
@@ -141,8 +136,7 @@ def test_real_stategraph_async_ainvoke_fires_node_hooks() -> None:
         graph.add_edge("b", END)
         compiled = graph.compile()
 
-        # AAASM-4434: see the matching type: ignore note on the sync test above.
-        result = asyncio.run(compiled.ainvoke(_CounterState(count=0)))  # type: ignore[arg-type]
+        result = asyncio.run(compiled.ainvoke(_CounterState(count=0)))
 
         assert result == {"count": 11}
         assert recorder.events == [

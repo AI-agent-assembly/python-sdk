@@ -14,6 +14,12 @@ exclude = [
     "dist",
     "docs_with_docusarus",
     "docs",
+    # AAASM-4434: generated gRPC/protobuf stubs (scripts/gen_proto.py), committed
+    # verbatim; a CI drift check regenerates them and asserts no diff, so they
+    # must not be hand-edited to satisfy lint (mirrors the mypy.ini ignore for the
+    # same directory). The ruff 0.15 bump newly flags unused-argument findings in
+    # the generated grpc servicer stubs.
+    "agent_assembly/proto/",
 ]
 
 line-length = 120
@@ -42,10 +48,24 @@ ignore = [
 
 [lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"test/**/*.py" = ["S101"]
+# AAASM-4434: ARG002/ARG005 (unused method/lambda argument) are the same category
+# already ignored repo-wide for plain functions as ARG001 — mock/callback test
+# doubles routinely accept an argument only to match the interface they stand in
+# for (monkeypatched hooks, callback signatures, fixture-injected params). The
+# ruff 0.15 bump is what newly enabled these two rule IDs; scope the exception to
+# test/ (unlike ARG001) so a genuinely-unused argument in production code under
+# agent_assembly/ still gets flagged.
+"test/**/*.py" = ["S101", "ARG002", "ARG005"]
 
 [lint.isort]
 known-first-party = ["agent_assembly"]
+# AAASM-4434: the pre-commit `isort` hook (real isort, --profile=black) ships a
+# bundled stdlib module list that includes CPython's own `test` package (Lib/
+# test/), so it always classifies this repo's top-level `test.*` imports
+# (e.g. `from test.bench.conftest import ...`) as standard-library. Ruff's isort
+# implementation does not, so without this the two tools disagreed on where
+# `test.*` imports belong and repeatedly re-sorted each other's output.
+extra-standard-library = ["test"]
 
 [format]
 quote-style = "double"

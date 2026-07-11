@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import importlib
 import inspect
-from typing import Any, Literal, Mapping, cast
+from collections.abc import Mapping
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from agent_assembly.exceptions import ToolExecutionBlockedError

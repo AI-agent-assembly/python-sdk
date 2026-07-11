@@ -51,9 +51,9 @@ def test_runtime_import_does_not_pull_in_httpx() -> None:
         ["httpx", "pydantic"],
         "from agent_assembly.runtime import find_aasm_binary, init_assembly, is_running\nprint('ok')\n",
     )
-    assert result.returncode == 0, (
-        f"agent_assembly.runtime should not require httpx/pydantic.\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
+    assert (
+        result.returncode == 0
+    ), f"agent_assembly.runtime should not require httpx/pydantic.\nstdout: {result.stdout}\nstderr: {result.stderr}"
     assert result.stdout.strip() == "ok"
 
 

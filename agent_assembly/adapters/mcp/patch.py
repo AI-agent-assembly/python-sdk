@@ -5,8 +5,9 @@ from __future__ import annotations
 import importlib as importlib
 import importlib.util
 import inspect
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, Mapping
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from agent_assembly.exceptions import MCPToolBlockedError
@@ -301,7 +302,7 @@ def _apply_client_session_patch(client_session_cls: type[Any], callback_handler:
         return result
 
     setattr(client_session_cls, _ORIGINAL_CALL_TOOL, original_call_tool)
-    setattr(client_session_cls, "call_tool", patched_call_tool)
+    client_session_cls.call_tool = patched_call_tool
     setattr(client_session_cls, _PATCHED_FLAG, True)
 
 
@@ -311,7 +312,7 @@ def _revert_client_session_patch(client_session_cls: type[Any]) -> None:
 
     original_call_tool = getattr(client_session_cls, _ORIGINAL_CALL_TOOL, None)
     if callable(original_call_tool):
-        setattr(client_session_cls, "call_tool", original_call_tool)
+        client_session_cls.call_tool = original_call_tool
 
     if hasattr(client_session_cls, _ORIGINAL_CALL_TOOL):
         delattr(client_session_cls, _ORIGINAL_CALL_TOOL)

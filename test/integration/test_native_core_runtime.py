@@ -72,12 +72,7 @@ class MockRuntimeServer:
                             self._write_frame(conn, 1, self._policy_payload)
                         except OSError:
                             return
-                    elif tag == 2:
-                        try:
-                            self._write_frame(conn, 3, b"")
-                        except OSError:
-                            return
-                    elif tag == 3:
+                    elif tag == 2 or tag == 3:
                         try:
                             self._write_frame(conn, 3, b"")
                         except OSError:

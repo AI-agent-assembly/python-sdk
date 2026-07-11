@@ -5,9 +5,10 @@ from __future__ import annotations
 import os
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any, Callable, Literal, Protocol
+from typing import Any, Literal, Protocol
 
 from agent_assembly.adapters.base import FrameworkAdapter
 from agent_assembly.adapters.langchain.adapter import LangChainAdapter
@@ -58,9 +59,7 @@ def _validate_agent_id(agent_id: str) -> str:
     a malformed socket path.
     """
     if not _AGENT_ID_RE.fullmatch(agent_id):
-        raise ValueError(
-            f"invalid agent_id: {agent_id!r}; must match {_AGENT_ID_RE.pattern}"
-        )
+        raise ValueError(f"invalid agent_id: {agent_id!r}; must match {_AGENT_ID_RE.pattern}")
     return agent_id
 
 

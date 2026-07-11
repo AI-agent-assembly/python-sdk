@@ -116,9 +116,9 @@ def _check_supported_versions(instance: FrameworkAdapter) -> AdapterValidationRe
     )
 
 
-def _check_register_hooks_signature(cls: type) -> AdapterValidationResult:
+def _check_register_hooks_signature(cls: type[FrameworkAdapter]) -> AdapterValidationResult:
     """Check that register_hooks accepts a GovernanceInterceptor argument."""
-    register_hooks = getattr(cls, "register_hooks")
+    register_hooks = cls.register_hooks
     sig = inspect.signature(register_hooks)
     params = [p for name, p in sig.parameters.items() if name != "self"]
     if not params:

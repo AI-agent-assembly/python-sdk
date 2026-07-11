@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
@@ -239,8 +240,16 @@ def test_auto_detect_is_idempotent_for_entry_point_adapters(
     # probe of the real top-level ``agents`` package (a dev/test dependency), so
     # it bypasses the base import mock above. Stub it absent to keep this test
     # isolated to the entry-point adapter under test.
+    # AAASM-4434: patch via the already-imported module object rather than a
+    # dotted string target. pytest 9's monkeypatch.setattr(str, ...) resolves the
+    # string by calling the real importlib.import_module internally, and the
+    # patch above just replaced that same (process-global) function with
+    # fake_import_module, which raises ImportError for any module other than
+    # "entrypoint_counting_framework" — including the resolve() call this next
+    # patch would otherwise trigger.
     monkeypatch.setattr(
-        "agent_assembly.adapters.openai_agents.adapter.importlib.util.find_spec",
+        importlib.util,
+        "find_spec",
         lambda _name: None,
     )
 

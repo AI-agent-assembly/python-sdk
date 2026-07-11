@@ -255,7 +255,10 @@ async def test_real_agent_framework_function_tool_is_governed() -> None:
 
     side: list[tuple[str, str]] = []
 
-    @af.tool  # type: ignore[misc]  # framework decorator is untyped
+    # AAASM-4434: mypy 2.x reclassified "decorator returns Any" from `misc` to its
+    # own `untyped-decorator` code; `af` itself is `Any` (pytest.importorskip's
+    # return type), so the decorator is untyped regardless of code.
+    @af.tool  # type: ignore[untyped-decorator]  # framework decorator is untyped
     def write_note(path: str, content: str) -> str:
         """Write a note (records a side effect)."""
         side.append((path, content))

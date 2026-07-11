@@ -74,7 +74,13 @@ test = [
     # run in CI (the `dev` group includes `test`, and the integration-test job
     # installs `dev`), so the function-tool governance regression is actually
     # exercised instead of skipped.
-    "pydantic-ai>=0.3.0",
+    # AAASM-4434: floor raised 0.3.0 -> 2.0.0 — with an unbounded floor, `uv lock
+    # --upgrade` resolved pydantic-ai down to 0.7.2 rather than latest, because an
+    # unconstrained solve found a cheaper-to-satisfy graph at that older version.
+    # Raising the floor forces resolution to latest stable (2.9.0), which is
+    # verified compatible (protobuf still resolves within our >=5,<8 range, just
+    # at 6.33.6 instead of 7.x).
+    "pydantic-ai>=2.0.0",
     # AAASM-3528: dev/test-only (NOT a runtime dependency). The shipped OpenAI
     # Agents framework is the top-level `agents` package (NOT `openai.agents`),
     # and a tool runs via its per-instance `on_invoke_tool` coroutine (NOT a
