@@ -30,6 +30,18 @@ dependencies = [
     # AAASM-1654 (PR-E): OpControlSubscriber consumes PolicyService.OpControlStream
     # via gRPC. Held to grpcio's modern stable line.
     "grpcio>=1.66,<2",
+    # AAASM-4434 (dependency completeness re-audit): resolves to 6.33.6, not raw
+    # PyPI latest (7.35.1), even though >=5,<8 permits 7.x. Confirmed this is a
+    # REAL transitive ceiling, not a stale "permissive floor" resolution: the
+    # `dev`/test group's pydantic-ai>=2.0.0 pulls in
+    # `pydantic-ai-slim[...,logfire,...]`, and logfire (<=4.37.0) pins
+    # `opentelemetry-exporter-otlp-proto-http<1.43.0`; every otlp-proto-http
+    # release in that range depends on an `opentelemetry-proto` that caps
+    # `protobuf<7.0`. Verified by temporarily setting `protobuf>=7.35.1,<8` and
+    # re-running `uv lock`, which fails with a resolver conflict rooted at
+    # pydantic-ai's logfire extra; a bare `uv lock --upgrade` (no floor change)
+    # also leaves protobuf pinned at 6.33.6. Re-audit once logfire raises its
+    # opentelemetry-exporter-otlp-proto-http ceiling above 1.43.0.
     "protobuf>=5,<8",
 ]
 
@@ -55,6 +67,12 @@ dev = [
     # AAASM-1654 (PR-E): grpcio-tools provides protoc + Python plugin used by
     # scripts/gen_proto.py to regenerate agent_assembly/proto/*_pb2*.py from
     # the sibling agent-assembly/proto/ checkout.
+    # AAASM-4434 (dependency completeness re-audit): resolves to 1.81.1, not raw
+    # PyPI latest (1.82.1). Not a stale-resolution bug — grpcio-tools 1.82.1
+    # requires protobuf>=7.35.1, which conflicts with the protobuf<7.0 ceiling
+    # forced transitively by pydantic-ai's logfire extra (see the protobuf
+    # comment under [project].dependencies for the full evidence chain).
+    # Re-audit alongside protobuf once that transitive ceiling lifts.
     "grpcio-tools>=1.66,<2",
     { include-group = "lint" },
     { include-group = "test" },
