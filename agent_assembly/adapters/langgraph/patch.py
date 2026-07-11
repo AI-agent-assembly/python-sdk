@@ -360,6 +360,58 @@ def _wrap_subgraph_spawn_node(node_map: Any, node_name: Any, node_executor: Any,
     return True
 
 
+def _wrap_subgraph_invoke_methods_in_place(node_name: Any, subgraph: Any, process_agent_id: str | None) -> bool:
+    """Wrap a compiled subgraph's own invoke/ainvoke in place for lineage.
+
+    AAASM-4472: used when the subgraph is reached via an already-unwrapped
+    ``PregelNode.bound`` rather than arriving bare in the node map. Unlike
+    ``_wrap_subgraph_spawn_node`` (which replaces the whole node_map entry for a
+    bare subgraph), the outer ``PregelNode`` container here must stay intact —
+    its channels/triggers/mapper/writers are what the Pregel runtime uses to
+    build the executable task — so this mutates the bound Runnable's own
+    invoke/ainvoke attributes instead. The original methods are captured before
+    reassignment so the wrapper calls the real invoke/ainvoke rather than
+    recursing into itself once installed.
+    """
+    node_delegation_reason = f"langgraph_node:{node_name}"
+    wrapped_any = False
+
+    original_invoke = getattr(subgraph, "invoke", None)
+    if callable(original_invoke):
+
+        def sync_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
+            spawn_ctx = SpawnContext(
+                parent_agent_id=process_agent_id or "",
+                depth=_current_spawn_depth(),
+                spawned_by_tool=None,
+                delegation_reason=node_delegation_reason,
+            )
+            with spawn_context_scope(spawn_ctx):
+                return original_invoke(*args, **kwargs)
+
+        subgraph.invoke = sync_subgraph_wrapper
+        wrapped_any = True
+
+    original_ainvoke = getattr(subgraph, "ainvoke", None)
+    if callable(original_ainvoke) and not getattr(subgraph, "_agent_assembly_ainvoke_spawned", False):
+
+        async def async_subgraph_wrapper(*args: Any, **kwargs: Any) -> Any:
+            spawn_ctx = SpawnContext(
+                parent_agent_id=process_agent_id or "",
+                depth=_current_spawn_depth(),
+                spawned_by_tool=None,
+                delegation_reason=node_delegation_reason,
+            )
+            with spawn_context_scope(spawn_ctx):
+                return await original_ainvoke(*args, **kwargs)
+
+        subgraph.ainvoke = async_subgraph_wrapper
+        subgraph._agent_assembly_ainvoke_spawned = True
+        wrapped_any = True
+
+    return wrapped_any
+
+
 def _wrap_node_invoke_methods(node_name: Any, node_executor: Any, callback_handler: Any) -> bool:
     """Wrap a node executor's invoke/ainvoke methods. Return True if either was wrapped."""
     wrapped_any = False
@@ -384,18 +436,27 @@ def _wrap_node_entry(
     if _is_tool_node(node_executor):
         return _wrap_tool_node_subgraphs(node_executor, process_agent_id)
 
+    # AAASM-4434/AAASM-4472: current langgraph node-map entries are PregelNode
+    # wrappers whose own .invoke/.ainvoke are never called by the Pregel runtime
+    # — it dispatches through PregelNode.bound. Unwrap *before* any other
+    # detection (including _is_compiled_subgraph) and dispatch against the
+    # unwrapped object: checking _is_compiled_subgraph() against the outer
+    # PregelNode itself always fails (only the wrapped object exposes `.nodes`),
+    # so subgraph detection must run post-unwrap to work whether a subgraph
+    # arrives bare or already PregelNode-wrapped.
+    if _is_pregel_node_wrapper(node_executor):
+        bound = node_executor.bound
+        if _is_compiled_subgraph(bound):
+            return _wrap_subgraph_invoke_methods_in_place(node_name, bound, process_agent_id)
+        return _wrap_node_invoke_methods(node_name, bound, callback_handler)
+
     if callable(node_executor):
         return _wrap_callable_node_executor(node_map, node_name, node_executor, callback_handler)
 
-    # Spawn point: node is itself a compiled subgraph — wrap for lineage.
+    # Spawn point: node is itself a compiled subgraph, not PregelNode-wrapped —
+    # wrap for lineage.
     if _is_compiled_subgraph(node_executor):
         return _wrap_subgraph_spawn_node(node_map, node_name, node_executor, process_agent_id)
-
-    # AAASM-4434: current langgraph node-map entries are PregelNode wrappers whose
-    # own .invoke/.ainvoke are never called by the Pregel runtime — it dispatches
-    # through PregelNode.bound. Wrap that inner Runnable instead, or hooks never fire.
-    if _is_pregel_node_wrapper(node_executor):
-        return _wrap_node_invoke_methods(node_name, node_executor.bound, callback_handler)
 
     return _wrap_node_invoke_methods(node_name, node_executor, callback_handler)
 
