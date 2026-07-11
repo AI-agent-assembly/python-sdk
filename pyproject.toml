@@ -109,6 +109,17 @@ test = [
     # `first_patched_version: none`), so no lock upgrade removes it. Tracked in
     # AAASM-4169; Dependabot #27 recommended for dismissal as dev/test-only.
     "llama-index-core>=0.10.0",
+    # AAASM-4434: dev/test-only (NOT a runtime dependency). The LangGraph adapter
+    # (agent_assembly/adapters/langgraph/) never hard-imports langgraph — it
+    # reflectively loads `langgraph.graph.state.StateGraph` via importlib and
+    # structurally duck-types compiled-graph node maps and ToolNode so it degrades
+    # gracefully when the framework isn't installed. That resilience previously
+    # meant the patch was never exercised against a *real* langgraph install.
+    # Pinning latest stable here lets the `importorskip`-guarded real-package test
+    # (test/integration/test_langgraph_real_package_smoke.py) actually compile and
+    # invoke a real StateGraph, proving the reflection-based patch still matches
+    # LangGraph 1.x's current API surface instead of only mocked SimpleNamespaces.
+    "langgraph>=1.2.9,<2",
 ]
 pre-commit-ci = [
     "pre-commit>=3.5.0,<5",
