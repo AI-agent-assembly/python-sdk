@@ -101,9 +101,11 @@ class TestHttpTransportSecurity:
     """
 
     def test_bearer_over_http_non_loopback_rejected(self) -> None:
-        with GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k") as client:
-            with pytest.raises(ValueError, match="Bearer"):
-                _ = client.client
+        with (
+            GatewayClient(gateway_url="http://gw.test", agent_id="a", api_key="k") as client,
+            pytest.raises(ValueError, match="Bearer"),
+        ):
+            _ = client.client
 
     def test_bearer_over_http_loopback_allowed(self) -> None:
         with GatewayClient(gateway_url="http://localhost:7391", agent_id="a", api_key="k") as client:
@@ -123,11 +125,13 @@ class TestHttpTransportSecurity:
     def test_control_plane_url_is_the_validated_target(self) -> None:
         # The Bearer header rides the control-plane base URL when set; a remote
         # plaintext control-plane URL must be refused even if gateway_url is safe.
-        with GatewayClient(
-            gateway_url="https://gw.test",
-            agent_id="a",
-            api_key="k",
-            control_plane_url="http://cp.remote",
-        ) as client:
-            with pytest.raises(ValueError, match="Bearer"):
-                _ = client.client
+        with (
+            GatewayClient(
+                gateway_url="https://gw.test",
+                agent_id="a",
+                api_key="k",
+                control_plane_url="http://cp.remote",
+            ) as client,
+            pytest.raises(ValueError, match="Bearer"),
+        ):
+            _ = client.client

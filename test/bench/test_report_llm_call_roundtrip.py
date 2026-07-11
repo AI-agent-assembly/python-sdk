@@ -11,6 +11,7 @@ Contract: per-call overhead must be <2ms P99 (AAASM-45).
 
 from __future__ import annotations
 
+import contextlib
 import json
 from typing import Any
 
@@ -77,11 +78,9 @@ def test_send_event_enqueue(benchmark: Any) -> None:
     client = _core.RuntimeClient.connect("/tmp/aa-bench-nonexistent.sock")
 
     def send() -> None:
-        try:
+        # Worker may close the channel after failing to connect — the benchmark
+        # still captures the Python→PyO3 boundary cost.
+        with contextlib.suppress(RuntimeError):
             client.send_event(event)
-        except RuntimeError:
-            # Worker may close the channel after failing to connect —
-            # the benchmark still captures the Python→PyO3 boundary cost.
-            pass
 
     benchmark(send)

@@ -280,9 +280,7 @@ class TestResolveApiKey:
 class TestWarnIfWorldReadable:
     """Defense-in-depth permission warning for ~/.aasm/config.yaml (AAASM-4323)."""
 
-    def test_no_warning_when_mode_is_0600(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_no_warning_when_mode_is_0600(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         cfg = tmp_path / "config.yaml"
         cfg.write_text("agent:\n  api_key: k\n", encoding="utf-8")
         cfg.chmod(0o600)
@@ -292,9 +290,7 @@ class TestWarnIfWorldReadable:
 
         assert caplog.records == []
 
-    def test_warns_when_mode_is_0644(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_warns_when_mode_is_0644(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         cfg = tmp_path / "config.yaml"
         cfg.write_text("agent:\n  api_key: k\n", encoding="utf-8")
         cfg.chmod(0o644)

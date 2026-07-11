@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import metadata
 from threading import Lock
-from typing import Callable, Literal
+from typing import Literal
 
 from agent_assembly.adapters.agno.adapter import AgnoAdapter
 from agent_assembly.adapters.base import FrameworkAdapter

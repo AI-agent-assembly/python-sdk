@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 from types import SimpleNamespace
 from typing import Any
 
@@ -176,24 +177,34 @@ def test_wrap_compiled_graph_nodes_supports_pregel_fallback() -> None:
 def test_patch_stategraph_compile_handles_import_and_stategraph_edge_cases(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # AAASM-4434: patch via the imported module object (not a dotted string target).
+    # pytest 9's monkeypatch.setattr(str, ...) resolves the string by calling the
+    # real importlib.import_module internally; since the first patch below replaces
+    # that same (process-global) importlib.import_module with an always-raising
+    # stub, a string-based setattr for the *next* patch in this test would itself
+    # fail to resolve. Passing the object directly sidesteps that internal resolve.
     monkeypatch.setattr(
-        "agent_assembly.adapters.langchain.langgraph_patch.importlib.import_module",
+        importlib,
+        "import_module",
         lambda name: (_ for _ in ()).throw(ImportError(name)),
     )
     assert langgraph_patch.patch_stategraph_compile(GraphEventRecorder()) is False
 
     monkeypatch.setattr(
-        "agent_assembly.adapters.langchain.langgraph_patch.importlib.import_module",
+        importlib,
+        "import_module",
         lambda name: SimpleNamespace(),
     )
     assert langgraph_patch.patch_stategraph_compile(GraphEventRecorder()) is False
 
     class AlreadyPatchedStateGraph:
-        compile = lambda self: object()
+        def compile(self) -> object:
+            return object()
 
     setattr(AlreadyPatchedStateGraph, langgraph_patch._PATCHED_FLAG, True)
     monkeypatch.setattr(
-        "agent_assembly.adapters.langchain.langgraph_patch.importlib.import_module",
+        importlib,
+        "import_module",
         lambda name: SimpleNamespace(StateGraph=AlreadyPatchedStateGraph),
     )
     assert langgraph_patch.patch_stategraph_compile(GraphEventRecorder()) is True

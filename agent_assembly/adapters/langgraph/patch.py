@@ -216,6 +216,24 @@ def _is_compiled_subgraph(node_executor: Any) -> bool:
     return hasattr(node_executor, "nodes") and hasattr(node_executor, "invoke")
 
 
+def _is_pregel_node_wrapper(node_executor: Any) -> bool:
+    """Return True when node_executor looks like a langgraph PregelNode.
+
+    AAASM-4434: since langgraph's Pregel graph-compilation rewrite (the node-map
+    entries in a CompiledStateGraph.nodes dict stopped being directly-callable/
+    directly-invokable node executors and became ``PregelNode`` wrapper objects),
+    ``PregelNode.invoke``/``.ainvoke`` are present but are *not* what the Pregel
+    runtime calls when executing a node — it dispatches through the wrapped
+    Runnable at ``PregelNode.bound`` instead. A node_executor with a `.bound`
+    attribute that itself exposes invoke/ainvoke is that shape; wrap `.bound`,
+    not the PregelNode itself, or the governance hooks silently never fire.
+    """
+    bound = getattr(node_executor, "bound", None)
+    if bound is None:
+        return False
+    return callable(getattr(bound, "invoke", None)) or callable(getattr(bound, "ainvoke", None))
+
+
 def _current_spawn_depth() -> int:
     """Return depth for a new spawn context: current depth + 1, or 1 if root."""
     current = _SPAWN_CTX.get()
@@ -372,6 +390,12 @@ def _wrap_node_entry(
     # Spawn point: node is itself a compiled subgraph — wrap for lineage.
     if _is_compiled_subgraph(node_executor):
         return _wrap_subgraph_spawn_node(node_map, node_name, node_executor, process_agent_id)
+
+    # AAASM-4434: current langgraph node-map entries are PregelNode wrappers whose
+    # own .invoke/.ainvoke are never called by the Pregel runtime — it dispatches
+    # through PregelNode.bound. Wrap that inner Runnable instead, or hooks never fire.
+    if _is_pregel_node_wrapper(node_executor):
+        return _wrap_node_invoke_methods(node_name, node_executor.bound, callback_handler)
 
     return _wrap_node_invoke_methods(node_name, node_executor, callback_handler)
 
