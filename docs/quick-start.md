@@ -50,6 +50,15 @@ decisions. You have three options:
 See [Configuration](configuration.md) for the full URL/key resolution chain (`7391` is the
 local default port).
 
+!!! note "Local-mode transports: `:7391` REST + `:50051` gRPC"
+    `aasm start --mode local` binds **two** loopback surfaces in one process: the REST/dashboard
+    API on `http://localhost:7391` (what `gateway_url` points to, and what the SDK probes and
+    auto-starts) **and** the gRPC `AgentLifecycleService` on `127.0.0.1:50051`, which is the
+    endpoint the native SDK uses to **register** your agent. You don't configure `:50051`
+    yourself — registration dials it automatically — so a no-argument `init_assembly()` both
+    connects and shows the agent in the dashboard. `:8080` is **not** the local gateway port;
+    ignore older docs or examples that point registration there.
+
 ## 3. Govern your first agent
 
 This example imports LangChain alongside the SDK, so install both:

@@ -56,6 +56,15 @@ fallback chain (see `agent_assembly.core.gateway_resolver`):
 This means a local development loop often needs no arguments at all — start a gateway with
 `aasm`, or let the SDK start one for you.
 
+!!! note "`gateway_url` is the REST surface; registration uses gRPC `:50051`"
+    `gateway_url` (local default `http://localhost:7391`) is the gateway's **REST** surface —
+    the SDK uses it for the `/healthz` probe, auto-start, and HTTP routes. The native SDK's
+    agent **registration** is a separate transport: it dials the gRPC `AgentLifecycleService`
+    at its own loopback default `127.0.0.1:50051`, which `aasm start --mode local` also serves.
+    You don't set the registration endpoint yourself, and it is **not** derived from
+    `gateway_url` — so leave the port alone and disregard any `:8080` reference for local
+    registration.
+
 For the full gateway configuration surface (policy files, budgets, mTLS) and the complete
 `aasm` CLI reference, see the core
 [Gateway configuration](https://docs.agent-assembly.com/core/configuration/) and
