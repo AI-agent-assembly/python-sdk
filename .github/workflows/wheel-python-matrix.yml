@@ -1,0 +1,55 @@
+name: Wheel Python matrix drift guard
+
+# Fail any PR where the release wheel-build interpreter matrix diverges from the
+# Python support pyproject.toml declares. AAASM-4446 shipped cp312-only wheels
+# while pyproject claimed 3.13/3.14, so a 3.13 install silently fell back to a
+# native-core-less sdist. This runs the guard on EVERY PR that touches either
+# side of that contract (not only at release), so the drift is caught in review
+# rather than after publish.
+#
+# Triggers on the inputs the guard reads plus its own script/test/workflow, so a
+# change to any of them re-runs the check.
+#
+# Refs AAASM-4446 / AAASM-4453.
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "pyproject.toml"
+      - ".github/workflows/release-python.yml"
+      - ".github/scripts/check-wheel-python-matrix.sh"
+      - ".github/scripts/test_check-wheel-python-matrix.sh"
+      - ".github/workflows/wheel-python-matrix.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "pyproject.toml"
+      - ".github/workflows/release-python.yml"
+      - ".github/scripts/check-wheel-python-matrix.sh"
+      - ".github/scripts/test_check-wheel-python-matrix.sh"
+      - ".github/workflows/wheel-python-matrix.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wheel-python-matrix:
+    name: Check wheel matrix matches declared Python support
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - name: Lint guard + test scripts
+        run: |
+          shellcheck .github/scripts/check-wheel-python-matrix.sh
+          shellcheck -x .github/scripts/test_check-wheel-python-matrix.sh
+      - name: Assert wheel matrix matches pyproject Python support
+        run: bash .github/scripts/check-wheel-python-matrix.sh
+      - name: Run drift-guard fixture suite
+        run: bash .github/scripts/test_check-wheel-python-matrix.sh
