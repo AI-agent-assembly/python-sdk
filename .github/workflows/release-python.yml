@@ -274,7 +274,11 @@ jobs:
         with:
           target: x86_64-unknown-linux-gnu
           command: build
-          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+          # Build a wheel for every supported CPython so no supported interpreter
+          # silently falls back to the native-core-less hatchling sdist
+          # (AAASM-4446). The manylinux image ships all CPythons; maturin resolves
+          # each X.Y tag to the matching /opt/python interpreter in-image.
+          args: --release --out dist --interpreter 3.12 3.13 3.14
           manylinux: auto
           # The manylinux2014 image (CentOS 7-based) lacks protoc; aa-proto's
           # build.rs needs it via prost-build for proto3 syntax. The yum/dnf
@@ -366,7 +370,10 @@ jobs:
         with:
           target: aarch64-unknown-linux-gnu
           command: build
-          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+          # See linux-x86_64 above: build one wheel per supported CPython so no
+          # supported interpreter falls back to the native-core-less sdist
+          # (AAASM-4446). manylinux ships all CPythons; maturin resolves each tag.
+          args: --release --out dist --interpreter 3.12 3.13 3.14
           manylinux: auto
           # See linux-x86_64 above for rationale + security model. Same
           # SHA-verified protoc binary download.
@@ -400,7 +407,15 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          # macOS runners have no manylinux image bundling every CPython, so
+          # each interpreter the Build wheel step targets below must be installed
+          # here first — otherwise maturin finds only the runner's default python
+          # and the wheel ships for that single version, the AAASM-4446 gap.
+          # Keep this list in lockstep with the --interpreter list below.
+          python-version: |
+            3.12
+            3.13
+            3.14
       - name: Stage aasm sidecar binary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -452,7 +467,11 @@ jobs:
         with:
           target: aarch64-apple-darwin
           command: build
-          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+          # See linux-x86_64 above: build one wheel per supported CPython so no
+          # supported interpreter falls back to the native-core-less sdist
+          # (AAASM-4446). Each X.Y here is provided by the multi-version
+          # setup-python step above (macOS has no manylinux image).
+          args: --release --out dist --interpreter 3.12 3.13 3.14
       - name: Upload wheel artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
@@ -467,7 +486,15 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          # macOS runners have no manylinux image bundling every CPython, so
+          # each interpreter the Build wheel step targets below must be installed
+          # here first — otherwise maturin finds only the runner's default python
+          # and the wheel ships for that single version, the AAASM-4446 gap.
+          # Keep this list in lockstep with the --interpreter list below.
+          python-version: |
+            3.12
+            3.13
+            3.14
       - name: Stage aasm sidecar binary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -519,7 +546,11 @@ jobs:
         with:
           target: x86_64-apple-darwin
           command: build
-          args: --release --out dist --interpreter ${{ env.PYTHON_VERSION }}
+          # See linux-x86_64 above: build one wheel per supported CPython so no
+          # supported interpreter falls back to the native-core-less sdist
+          # (AAASM-4446). Each X.Y here is provided by the multi-version
+          # setup-python step above (macOS has no manylinux image).
+          args: --release --out dist --interpreter 3.12 3.13 3.14
       - name: Upload wheel artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
