@@ -1,4 +1,9 @@
-exclude: '.github/|docs/'
+# quickstart_snippets/ holds verbatim, vendored copies of the examples repo's
+# quick-start regions (AAASM-4513); several are partial governance slices (e.g.
+# a trailing `try:`/`with … as ctx:` with no body) that are valid as doc
+# excerpts but not as standalone modules. Formatting/parsing them would rewrite
+# the vendored copy and break the drift check, so exclude the dir from all hooks.
+exclude: '.github/|docs/|quickstart_snippets/'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
