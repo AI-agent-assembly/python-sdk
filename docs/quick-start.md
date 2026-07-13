@@ -1,8 +1,9 @@
 # Quick Start
 
-Govern your first agent in about five minutes. By the end you'll have a LangChain agent whose
-tool calls pass through the Agent Assembly policy gate — and it runs **offline**, against a
-mock LLM, so you need no API keys and no network access to the outside world.
+Govern your first agent in about five minutes. By the end you'll have an agent — in whichever
+framework you already use — whose tool calls pass through the Agent Assembly policy gate, and it
+runs **offline** against a local policy, so you need no API keys and no network access to the
+outside world.
 
 ## 1. Install
 
@@ -61,60 +62,393 @@ local default port).
 
 ## 3. Govern your first agent
 
-This example imports LangChain alongside the SDK, so install both:
+Agent Assembly governs whichever agent framework you already use. Pick your framework below —
+each tab is the **governance-wiring slice** (`init_assembly()` plus that framework's adapter
+hookup) taken verbatim from that framework's runnable example in the
+[examples repo](https://github.com/ai-agent-assembly/examples/tree/master/python). Copy the
+full, runnable script — imports, tools, and the agent run — from the linked example; the slice
+below is the part that wires in governance.
 
-```bash
-{{ aa.commands.install_pip }} langchain langchain-classic langchain-community
-```
+Every example runs **offline** in `mode="sdk-only"` against a local policy, so you can try it
+with no API keys and no outbound network.
 
-Then run:
+<!-- BEGIN GENERATED: quickstart-framework-tabs -->
 
-```python
-from langchain_classic.agents import AgentExecutor, create_react_agent
-from langchain_classic.tools import Tool
-from langchain_community.llms import FakeListLLM
-from langchain_core.prompts import PromptTemplate
+=== "Agno"
 
-from agent_assembly import init_assembly
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="agno-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
 
-with init_assembly(
-    gateway_url="http://localhost:7391",
-    api_key="dev-key",
-    agent_id="quickstart-agent",
-    mode="sdk-only",
-):
-    llm = FakeListLLM(responses=[
-        "Thought: I should look up the user.\nAction: whoami\nAction Input: alice\n",
-        "Thought: I have the answer.\nFinal Answer: alice is in engineering\n",
-    ])
-    tools = [Tool(name="whoami", func=lambda name: f"{name} is in engineering", description="who")]
-    prompt = PromptTemplate.from_template(
-        "Use the tools.\n{tools}\nTool names: {tool_names}\nQ: {input}\n{agent_scratchpad}"
-    )
-    executor = AgentExecutor(agent=create_react_agent(llm, tools, prompt), tools=tools, max_iterations=2)
-    print(executor.invoke({"input": "Which team is alice on?"})["output"])
-```
+        policy = LocalPolicyEngine()
+
+        print("Policy rules (local simulation of gateway policy):")
+        print("  DENY   — execute_sql, run_shell_command  (arbitrary execution)")
+        print("  ALLOW  — everything else")
+        print()
+
+        # In production init_assembly() auto-detects Agno and wires the live
+        # runtime as the interceptor automatically. In this offline sdk-only demo
+        # there is no live runtime, so init_assembly() installs a no-op hook; we
+        # revert it and re-apply the hook wired to our local policy so the demo
+        # shows real allow/deny decisions without a gateway. (The patch is
+        # idempotent, so we must revert the no-op hook before installing ours.)
+        AgnoPatch(policy).revert()
+        patch = AgnoPatch(policy)
+        assert patch.apply(), (
+            "Agno governance hook did not install — is agno importable?"
+        )
+    ```
+
+=== "AutoGen"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="autogen-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        policy = LocalPolicyEngine()
+    ```
+
+=== "CrewAI"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="crewai-research-crew",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} ({mode_label})")
+        print()
+
+        print("Crew members:")
+        for member in CREW:
+            print(f"  • {member.name:<11} — {member.role}")
+        print()
+
+        print("Crew policy (local simulation of gateway policy):")
+        print("  APPROVAL — any agent attempting a file write must be approved")
+        print(f"  BUDGET   — ${DAILY_BUDGET_USD:.2f} / day, shared across all agents")
+        print("  TRACK    — every call recorded with its delegation call stack")
+        print()
+
+        policy = CrewPolicyEngine(approver=MockApprover(auto_approve=False))
+        handler = AssemblyCallbackHandler(interceptor=policy)
+    ```
+
+=== "Custom (no framework)"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="custom-tool-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        policy = LocalPolicyEngine()
+
+        raw_fns = {
+            "compute_sum": compute_sum,
+            "fetch_stock_price": fetch_stock_price,
+            "send_http_request": send_http_request,
+            "write_to_disk": write_to_disk,
+        }
+        tools = {name: governed(name, fn, policy) for name, fn in raw_fns.items()}
+    ```
+
+=== "Google ADK"
+
+    ```python
+    # Govern the concrete demo tool class BEFORE init_assembly so the offline
+    # LocalPolicyEngine stays wired as the interceptor (the patch is idempotent).
+    govern_tool_class(DemoTool, LocalPolicyEngine())
+
+    try:
+        with init_assembly(
+            gateway_url=gateway_url,
+            api_key=api_key,
+            agent_id="google-adk-demo-agent",
+            mode="sdk-only",
+        ) as ctx:
+    ```
+
+=== "Haystack"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="haystack-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        print("Policy rules (local simulation of gateway policy):")
+        print("  DENY   — execute_sql, run_shell_command  (arbitrary execution)")
+        print("  ALLOW  — everything else")
+        print()
+
+        # init_assembly() has already auto-detected Haystack and patched
+        # Tool.invoke — but in offline sdk-only mode it wires a no-op interceptor
+        # (there is no live gateway/runtime to answer policy). For this *offline*
+        # demo we revert that and re-install the same native adapter against a
+        # LocalPolicyEngine so a real allow/deny is visible without a gateway. In
+        # production you would instead point init_assembly() at a gateway and let
+        # its auto-detected adapter enforce real policy — no manual re-install.
+        print("Installing the native Haystack adapter against the demo policy...")
+        HaystackPatch(LocalPolicyEngine()).revert()  # drop the auto-applied no-op patch
+        patch = HaystackPatch(LocalPolicyEngine())
+        installed = patch.apply()
+    ```
+
+=== "LangChain"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="langchain-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        policy = LocalPolicyEngine()
+        handler = AssemblyCallbackHandler(interceptor=policy)
+    ```
+
+=== "LangChain (Research Agent)"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="langchain-research-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} ({mode_label})")
+        print()
+
+        policy = BalancedPolicyEngine(daily_budget_usd=DAILY_BUDGET_USD)
+        handler = AssemblyCallbackHandler(interceptor=policy)
+    ```
+
+=== "LangGraph"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="langgraph-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        policy = LocalPolicyEngine()
+        handler = AssemblyCallbackHandler(interceptor=policy)
+
+        # Install LangGraph node-level governance hooks. The adapter wraps the
+        # compiled graph's nodes so tool calls inside each node are governed.
+        adapter = LangGraphAdapter()
+        adapter.set_process_agent_id(ctx.client.agent_id)
+        adapter.register_hooks(handler)
+    ```
+
+=== "LlamaIndex"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="llamaindex-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        print("Policy rules (local simulation of gateway policy):")
+        print("  DENY   — execute_sql, run_shell_command  (arbitrary execution)")
+        print("  ALLOW  — everything else")
+        print()
+
+        # Register the native LlamaIndex adapter against the local policy engine.
+        # This patches FunctionTool.call so every tool call below is governed
+        # automatically — no per-tool wrapper needed.
+        #
+        # init_assembly() in sdk-only mode already auto-detected LlamaIndex and
+        # patched FunctionTool.call against a no-op interceptor (there is no
+        # gateway offline). Revert that first so this example's LocalPolicyEngine
+        # is the live interceptor; in production init_assembly wires the adapter
+        # to the gateway and this manual step is unnecessary.
+        print("Registering the native LlamaIndex governance adapter...")
+        LlamaIndexPatch(callback_handler=None).revert()
+        adapter = LlamaIndexAdapter()
+        adapter.register_hooks(LocalPolicyEngine())
+    ```
+
+=== "Microsoft Agent Framework"
+
+    ```python
+    policy = LocalPolicyEngine()
+
+    # Live path: install the governance hooks BEFORE init_assembly. The adapter
+    # patches `agent_framework.FunctionTool.invoke`; because the patch is
+    # idempotent, registering first makes init_assembly's auto-detection a no-op
+    # and keeps the offline `LocalPolicyEngine` wired as the interceptor (rather
+    # than the no-op interceptor auto-detection would install).
+    adapter: MicrosoftAgentFrameworkAdapter | None = None
+    if not mock:
+        adapter = MicrosoftAgentFrameworkAdapter()
+        adapter.set_process_agent_id("microsoft-agent-framework-demo-agent")
+        adapter.register_hooks(policy)
+
+    try:
+        with init_assembly(
+            gateway_url=gateway_url,
+            api_key=api_key,
+            agent_id="microsoft-agent-framework-demo-agent",
+            mode="sdk-only",
+        ) as ctx:
+    ```
+
+=== "OpenAI Agents SDK"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="openai-agents-demo",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        policy = LocalPolicyEngine()
+        handler = AssemblyCallbackHandler(interceptor=policy)
+    ```
+
+=== "Pydantic AI"
+
+    ```python
+    adapter = PydanticAIAdapter()
+    adapter.set_process_agent_id("pydantic-ai-demo-agent")
+    adapter.register_hooks(LocalPolicyEngine())
+
+    try:
+        with init_assembly(
+            gateway_url=gateway_url,
+            api_key=api_key,
+            agent_id="pydantic-ai-demo-agent",
+            mode="sdk-only",
+        ) as ctx:
+    ```
+
+=== "Semantic Kernel"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="semantic-kernel-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        policy = LocalPolicyEngine()
+        kernel = build_kernel()
+    ```
+
+=== "smolagents"
+
+    ```python
+    policy = LocalPolicyEngine()
+    patch = SmolagentsPatch(policy)
+    patch.apply()
+
+    print(f"Initializing Agent Assembly (gateway: {gateway_url}, sdk-only mode)...")
+
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="smolagents-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+    ```
+
+=== "Strands Agents"
+
+    ```python
+    with init_assembly(
+        gateway_url=gateway_url,
+        api_key=api_key,
+        agent_id="strands-demo-agent",
+        mode="sdk-only",
+    ) as ctx:
+        print(f"  Agent:    {ctx.client.agent_id}")
+        print(f"  Gateway:  {ctx.client.gateway_url}")
+        print(f"  Mode:     {ctx.network_mode} (offline demo)")
+        print()
+
+        policy = LocalPolicyEngine()
+    ```
+
+<!-- END GENERATED: quickstart-framework-tabs -->
 
 ## What just happened
 
-1. **`init_assembly()` wired in governance.** It registered the agent (`quickstart-agent`)
-   with the gateway and auto-loaded the LangChain adapter — every tool call from this point
-   on is routed through the policy gate.
-2. **The `FakeListLLM` replays canned responses**, so the agent runs entirely offline with no
-   real LLM.
-3. **The `whoami` tool call was governed.** The adapter intercepted `BaseTool._run` and asked
-   the gateway for a verdict before the tool actually ran.
+1. **`init_assembly()` wired in governance.** It registered the agent with the gateway and
+   auto-loaded the adapter for your framework — every tool call from this point on is routed
+   through the policy gate.
+2. **`mode="sdk-only"` kept it offline.** The in-process adapter enforces on tool calls with no
+   network sidecar, so the example runs deterministically with no real LLM or gateway
+   round-trip.
+3. **Tool calls were governed.** The adapter intercepts the framework's tool-invocation path and
+   asks the policy engine for an allow/deny verdict before the tool actually runs.
 4. **The `with` block tore everything down on exit** — adapter hooks were unwound and the
    gateway connection closed, leaving the process exactly as it was before.
 
-### Expected output
-
-```text
-alice is in engineering
-```
-
-If instead you see a `ToolExecutionBlockedError`, that is not a bug — the gateway's policy
-denied the `whoami` call. That's the product working. See
+If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — the policy denied the
+call. That's the product working. See
 [Handling allow/deny decisions](guides/handling-decisions.md) for how to catch and respond to
 those, and [Troubleshooting](troubleshooting.md) if `init_assembly()` itself raised.
 
