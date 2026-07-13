@@ -45,3 +45,9 @@
     overflow-x: auto;
   }
 }
+
+/* AAASM-4560: content-tab titles (pymdownx.tabbed) render at body-text size by
+   default, making them compete visually with the prose they introduce. Shrink
+   them relative to the surrounding text so tab titles read as UI chrome, not
+   as another line of body copy. */
+.tabbed-set > .tabbed-labels > label { font-size: 0.85em; }
