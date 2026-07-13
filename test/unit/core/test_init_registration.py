@@ -27,6 +27,10 @@ from ._fake_core import (
 
 _GW_URL = "http://gateway.test"
 _API_KEY = "test-key"
+# The gRPC register endpoint derived from _GW_URL's host with the gateway gRPC
+# port (:50051) substituted for the REST port — see resolve_gateway_grpc_endpoint
+# (AAASM-4547). register_agent forwards this as the 4th positional argument.
+_GRPC_ENDPOINT = "http://gateway.test:50051"
 
 
 class _CapturingAdapter(FrameworkAdapter):
@@ -73,7 +77,7 @@ def test_init_assembly_registers_agent_on_init(monkeypatch: pytest.MonkeyPatch) 
 
     context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="agent-7", mode="sdk-only")
     try:
-        assert runtime_client.register_calls == [("agent-7", "agent-7", "python", None, None, None)]
+        assert runtime_client.register_calls == [("agent-7", "agent-7", "python", _GRPC_ENDPOINT, None, None)]
     finally:
         context.shutdown()
 
@@ -96,7 +100,9 @@ def test_init_assembly_forwards_team_and_parent_on_register(
         parent_agent_id="parent-42",
     )
     try:
-        assert runtime_client.register_calls == [("child-1", "child-1", "python", None, "team-payments", "parent-42")]
+        assert runtime_client.register_calls == [
+            ("child-1", "child-1", "python", _GRPC_ENDPOINT, "team-payments", "parent-42")
+        ]
     finally:
         context.shutdown()
 
@@ -118,7 +124,9 @@ def test_init_assembly_forwards_only_team_when_parent_absent(
         team_id="team-billing",
     )
     try:
-        assert runtime_client.register_calls == [("team-only", "team-only", "python", None, "team-billing", None)]
+        assert runtime_client.register_calls == [
+            ("team-only", "team-only", "python", _GRPC_ENDPOINT, "team-billing", None)
+        ]
     finally:
         context.shutdown()
 
@@ -140,7 +148,9 @@ def test_init_assembly_forwards_only_parent_when_team_absent(
         parent_agent_id="orchestrator-1",
     )
     try:
-        assert runtime_client.register_calls == [("parent-only", "parent-only", "python", None, None, "orchestrator-1")]
+        assert runtime_client.register_calls == [
+            ("parent-only", "parent-only", "python", _GRPC_ENDPOINT, None, "orchestrator-1")
+        ]
     finally:
         context.shutdown()
 
@@ -159,7 +169,7 @@ def test_init_assembly_no_lineage_when_neither_set(monkeypatch: pytest.MonkeyPat
         mode="sdk-only",
     )
     try:
-        assert runtime_client.register_calls == [("solo", "solo", "python", None, None, None)]
+        assert runtime_client.register_calls == [("solo", "solo", "python", _GRPC_ENDPOINT, None, None)]
     finally:
         context.shutdown()
 
@@ -188,7 +198,7 @@ def test_init_assembly_forwards_ambient_spawn_parent_on_register(
         )
     try:
         assert runtime_client.register_calls == [
-            ("spawned-child", "spawned-child", "python", None, None, "ambient-parent")
+            ("spawned-child", "spawned-child", "python", _GRPC_ENDPOINT, None, "ambient-parent")
         ]
     finally:
         context.shutdown()
@@ -214,7 +224,7 @@ def test_explicit_parent_overrides_ambient_spawn_parent(
         )
     try:
         assert runtime_client.register_calls == [
-            ("override-child", "override-child", "python", None, None, "explicit-parent")
+            ("override-child", "override-child", "python", _GRPC_ENDPOINT, None, "explicit-parent")
         ]
     finally:
         context.shutdown()
@@ -241,7 +251,7 @@ def test_register_falls_back_on_older_native_build_without_lineage_kwargs(
     try:
         # Lineage is dropped against an old core, but registration still succeeds
         # via the 4-arg legacy signature — no exception.
-        assert legacy_client.register_calls == [("legacy-agent", "legacy-agent", "python", None)]
+        assert legacy_client.register_calls == [("legacy-agent", "legacy-agent", "python", _GRPC_ENDPOINT)]
     finally:
         context.shutdown()
 
@@ -266,7 +276,9 @@ def test_init_assembly_lineage_values_round_trip_verbatim(
         parent_agent_id=parent,
     )
     try:
-        assert runtime_client.register_calls == [("unicode-child", "unicode-child", "python", None, team, parent)]
+        assert runtime_client.register_calls == [
+            ("unicode-child", "unicode-child", "python", _GRPC_ENDPOINT, team, parent)
+        ]
     finally:
         context.shutdown()
 

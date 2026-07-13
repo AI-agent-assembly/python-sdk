@@ -15,7 +15,11 @@ from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langchain.runtime import get_active_callback_handler
 from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
-from agent_assembly.core.gateway_resolver import resolve_api_key, resolve_gateway_url
+from agent_assembly.core.gateway_resolver import (
+    resolve_api_key,
+    resolve_gateway_grpc_endpoint,
+    resolve_gateway_url,
+)
 from agent_assembly.core.runtime_interceptor import (
     _native_core_available,
     build_governance_interceptor,
@@ -255,6 +259,7 @@ def init_assembly(
                 runtime_client=runtime_client,
                 agent_id=resolved_agent_id,
                 enforcement_mode=enforcement_mode,
+                gateway_endpoint=resolve_gateway_grpc_endpoint(gateway_url),
                 team_id=team_id,
                 parent_agent_id=parent_agent_id,
             )
@@ -316,6 +321,7 @@ def _register_agent_with_gateway(
     runtime_client: Any | None,
     agent_id: str,
     enforcement_mode: EnforcementMode | None,
+    gateway_endpoint: str,
     team_id: str | None = None,
     parent_agent_id: str | None = None,
 ) -> None:
@@ -325,6 +331,11 @@ def _register_agent_with_gateway(
     issued credential token is stored on the same client the
     ``RuntimeQueryInterceptor`` later uses for ``query_policy`` — the SDK never
     calls a core HTTP endpoint directly (ADR 0004).
+
+    ``gateway_endpoint`` is the gateway's **gRPC** endpoint (:50051) the direct
+    register call dials — distinct from the REST ``gateway_url`` (:7391) the HTTP
+    client uses (AAASM-4547). It is resolved by
+    :func:`~agent_assembly.core.gateway_resolver.resolve_gateway_grpc_endpoint`.
 
     ``team_id`` and ``parent_agent_id`` are forwarded to the native register so
     the gateway gets the agent's team-budget scoping and topology lineage on the
@@ -344,6 +355,7 @@ def _register_agent_with_gateway(
             runtime_client,
             agent_id,
             framework,
+            gateway_endpoint=gateway_endpoint,
             team_id=team_id,
             parent_agent_id=parent_agent_id,
         )
