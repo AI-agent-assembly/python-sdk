@@ -302,3 +302,31 @@ class TestWarnIfWorldReadable:
         message = caplog.records[0].getMessage()
         assert "chmod 600" in message
         assert "644" in message
+
+
+class TestResolveGatewayGrpcEndpoint:
+    """The register gRPC endpoint (:50051) is resolved distinctly from the REST
+    ``gateway_url`` (:7391) so registration never dials the REST port (AAASM-4547)."""
+
+    def test_env_override_wins_verbatim(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, "http://ep.example:9999")
+        assert gateway_resolver.resolve_gateway_grpc_endpoint("http://gw.example:7391") == "http://ep.example:9999"
+
+    def test_derives_host_and_substitutes_grpc_port(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
+        # The REST :7391 URL becomes the same host on the gRPC :50051 port — not
+        # the REST port, which exposes no AgentLifecycleService.
+        assert gateway_resolver.resolve_gateway_grpc_endpoint("http://gw.example:7391") == "http://gw.example:50051"
+
+    def test_preserves_non_loopback_host(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
+        # A remote gateway host registers against *that* host's gRPC port, not 127.0.0.1.
+        assert (
+            gateway_resolver.resolve_gateway_grpc_endpoint("https://gateway.internal")
+            == "https://gateway.internal:50051"
+        )
+
+    def test_falls_back_to_loopback_default_when_no_host(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
+        assert gateway_resolver.resolve_gateway_grpc_endpoint(None) == gateway_resolver.DEFAULT_GRPC_ENDPOINT
+        assert gateway_resolver.resolve_gateway_grpc_endpoint("") == gateway_resolver.DEFAULT_GRPC_ENDPOINT

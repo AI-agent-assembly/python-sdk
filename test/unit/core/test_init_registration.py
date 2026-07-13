@@ -531,3 +531,85 @@ def _patched_register_adapters(adapter: _CapturingAdapter) -> object:
         return [adapter]
 
     return _impl
+
+
+def test_successful_register_marks_context_registered(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A successful native register sets ``ctx.registered`` True (AAASM-4547)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="reg-ok", mode="sdk-only")
+    try:
+        assert context.registered is True
+    finally:
+        context.shutdown()
+
+
+def test_native_absent_warns_loudly_and_marks_unregistered(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """With the native extension absent, init no longer silently skips register:
+    it warns loudly and reports ``ctx.registered`` False (AAASM-4547)."""
+    monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="no-native", mode="sdk-only")
+    try:
+        assert context.registered is False
+        err = capsys.readouterr().err
+        assert "NOT registered" in err
+        assert "agent_assembly._core" in err
+        assert "AAASM-4547" in err
+    finally:
+        context.shutdown()
+
+
+def test_native_present_but_no_runtime_client_warns_and_marks_unregistered(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Native present but the runtime client could not be established (e.g. a
+    distrusted socket) → warn + ``registered`` False, not a silent skip (AAASM-4547)."""
+    monkeypatch.setattr(core_assembly, "_native_core_available", lambda: True)
+    monkeypatch.setattr(core_assembly, "connect_runtime_client", lambda _agent_id: None)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="no-client", mode="sdk-only")
+    try:
+        assert context.registered is False
+        assert "NOT registered" in capsys.readouterr().err
+    finally:
+        context.shutdown()
+
+
+def test_register_failure_under_observe_warns_and_marks_unregistered(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Under observe a register failure no longer aborts init, but it is now loud
+    and reflected in ``ctx.registered`` False rather than swallowed (AAASM-4547)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    runtime_client.register_should_raise = RuntimeError("gateway gRPC endpoint is unreachable")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(
+        gateway_url=_GW_URL,
+        api_key=_API_KEY,
+        agent_id="reg-fail",
+        mode="sdk-only",
+        enforcement_mode="observe",
+    )
+    try:
+        assert context.registered is False
+        err = capsys.readouterr().err
+        assert "NOT registered" in err
+        assert "registration failed" in err
+    finally:
+        context.shutdown()
