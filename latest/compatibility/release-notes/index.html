@@ -2167,6 +2167,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#001-rc4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.0.1-rc.4
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#001-rc3" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2489,6 +2500,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#001-rc4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.0.1-rc.4
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#001-rc3" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2582,6 +2604,31 @@
 <p class="admonition-title">0.x development</p>
 <p>The SDK is in active 0.x development; per-release notes are minimal. Track full changes via <a href="https://github.com/ai-agent-assembly/python-sdk/commits/master">the commits to <code>master</code></a> and the <a href="https://github.com/ai-agent-assembly/python-sdk/releases">GitHub releases</a> feed.</p>
 </div>
+<h2 id="001-rc4">0.0.1-rc.4<a class="headerlink" href="#001-rc4" title="Permanent link">&para;</a></h2>
+<p>Fourth <strong>release candidate</strong> on the <code>0.0.1</code> line. This release tracks the published
+<code>agent-assembly</code> core <strong><code>v0.0.1-rc.4</code></strong>: the bundled <code>aasm</code> runtime binary and the
+compiled <code>aa-ffi-python</code> extension are pinned to that core tag.</p>
+<p>Headline is the <strong>release wheel matrix</strong>: the SDK now builds and publishes
+<code>cp313</code>/<code>cp314</code> wheels alongside <code>cp312</code>, and a CI drift guard keeps the release
+matrix and the supported-interpreter list in lockstep so a missing ABI can no
+longer ship silently.</p>
+<ul>
+<li>Build <code>cp313</code>/<code>cp314</code> wheels in the release matrix (AAASM-4446).</li>
+<li>Add a wheel-python-matrix drift guard (script + fixture suite) that runs on every
+  PR, failing if the release interpreter matrix diverges from the declared support
+  window (AAASM-4453).</li>
+<li>Repoint quick-start and framework-support LangChain imports to <code>langchain-classic</code>
+  (AAASM-4451).</li>
+<li>LangGraph subgraph-as-node lineage tracking and sync-subgraph idempotency fixes
+  (AAASM-4472 / AAASM-4474).</li>
+<li>Bump Python dependencies to latest stable and migrate the LangGraph graph API
+  (AAASM-4434).</li>
+<li>Warn when <code>~/.aasm/config.yaml</code> is group/other-readable.</li>
+<li>Docs: per-framework quick-start tabs, and clarify local-mode transports
+  (:7391 REST + :50051 gRPC) (AAASM-4465).</li>
+<li>Bump the <code>aa-core</code> / <code>aa-proto</code> / <code>aa-sdk-client</code> pins in <code>aa-ffi-python</code> to the
+  core <code>v0.0.1-rc.4</code> tag.</li>
+</ul>
 <h2 id="001-rc3">0.0.1-rc.3<a class="headerlink" href="#001-rc3" title="Permanent link">&para;</a></h2>
 <p>Third <strong>release candidate</strong> on the <code>0.0.1</code> line. This release tracks the published
 <code>agent-assembly</code> core <strong><code>v0.0.1-rc.3</code></strong>: the bundled <code>aasm</code> runtime binary and the
@@ -2664,7 +2711,7 @@ binary and compiled <code>aa-ffi-python</code> extension track the <code>agent-a
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="July 4, 2026 08:13:36 CST"><span class="timeago" datetime="2026-07-04T08:13:36+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="July 4, 2026 08:13:36 CST">2026-07-04</span> by Bryant</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="July 13, 2026 10:08:10 CST"><span class="timeago" datetime="2026-07-13T10:08:10+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="July 13, 2026 10:08:10 CST">2026-07-13</span> by Bryant</span>
 
     
     
