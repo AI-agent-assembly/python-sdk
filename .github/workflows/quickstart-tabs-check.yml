@@ -1,0 +1,49 @@
+name: Quick-start Tabs Drift Check
+
+# AAASM-4513: the per-framework tab block in docs/quick-start.md §3 is generated
+# from the vendored quickstart_snippets/ (a committed copy of the examples repo's
+# quick-start regions — examples is a separate repo, so the doc build stays
+# hermetic). This gate re-runs the generator and fails if the committed doc no
+# longer matches the vendored snippets + manifest, so the tabs can never drift.
+
+on:
+  pull_request:
+    paths:
+      - "quickstart_snippets/**"
+      - "scripts/generate_quickstart_tabs.py"
+      - "docs/quick-start.md"
+      - ".github/workflows/quickstart-tabs-check.yml"
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  drift-check:
+    name: quick-start tabs drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate quick-start framework tabs
+        run: python scripts/generate_quickstart_tabs.py
+
+      - name: Fail if regeneration produced a diff
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::docs/quick-start.md §3 is out of sync with quickstart_snippets/."
+            echo "::error::Snippet source: quickstart_snippets/ (vendored from ai-agent-assembly/examples, AAASM-4512)."
+            echo "::error::Run the generator locally and commit the result:"
+            echo "::error::  python scripts/generate_quickstart_tabs.py"
+            exit 1
+          fi
