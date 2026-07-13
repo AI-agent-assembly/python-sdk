@@ -3,6 +3,30 @@
 <head>
   <meta charset="utf-8">
   <title>Redirecting</title>
+  <!--
+    Custom mike root-redirect template (AAASM-3558).
+
+    mike's default redirect.html carries no analytics, so Google's "Test your
+    website" cannot detect GA on the bare-root URL (/python-sdk/). This template
+    is byte-for-byte mike's default plus a self-contained gtag.js snippet using
+    advanced Consent Mode v2 (analytics_storage denied by default → cookieless,
+    modelled pings until consent), matching the per-page posture and the other
+    four doc sites. Wired via `mike set-default --template` in
+    scripts/ci/deploy-release-version-documentation.sh.
+  -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-L8JTJDG8G7"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag("consent", "default", {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied"
+    });
+    gtag("js", new Date());
+    gtag("config", "G-L8JTJDG8G7");
+  </script>
   <noscript>
     <meta http-equiv="refresh" content="1; url=pre-release/" />
   </noscript>
