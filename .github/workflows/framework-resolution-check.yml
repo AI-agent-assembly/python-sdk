@@ -1,0 +1,38 @@
+name: Framework resolution check
+
+# AAASM-4518 pre-publish guard: agent-assembly's runtime dependency floors must
+# stay co-installable with the supported agent frameworks (AutoGen / CrewAI /
+# Semantic Kernel). A floor raised above what a framework permits is a metadata-only
+# break that only surfaces AFTER the immutable wheel is published to PyPI — this job
+# turns that into a PR-time failure. See scripts/ci/check_framework_resolution.py.
+on:
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - "scripts/ci/check_framework_resolution.py"
+      - ".github/workflows/framework-resolution-check.yml"
+  push:
+    branches: [master]
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - "scripts/ci/check_framework_resolution.py"
+      - ".github/workflows/framework-resolution-check.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  framework-floors-resolve:
+    name: Dependency floors co-resolve with supported frameworks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v7
+      - name: Resolve agent-assembly floors against the framework matrix
+        run: python scripts/ci/check_framework_resolution.py --python-version 3.12
