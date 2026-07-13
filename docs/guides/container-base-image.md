@@ -101,13 +101,19 @@ which `agent-assembly` SDK release gets baked in.
 | *unset* (default) | Installs the **latest stable** SDK release; if no stable release exists yet, the **latest pre-release**. |
 | set to a version | Installs **exactly** that version — e.g. `SDK_VERSION=0.0.1b5`. |
 
-```bash
-# Default — let the image resolve the newest appropriate SDK release:
-docker build -t my-agent .
+=== "Default"
 
-# Pin an exact SDK version for a fully reproducible build:
-docker build --build-arg SDK_VERSION=0.0.1b5 -t my-agent .
-```
+    ```bash
+    # Let the image resolve the newest appropriate SDK release:
+    docker build -t my-agent .
+    ```
+
+=== "Pinned version"
+
+    ```bash
+    # Pin an exact SDK version for a fully reproducible build:
+    docker build --build-arg SDK_VERSION=0.0.1b5 -t my-agent .
+    ```
 
 !!! tip "Published images already pin the SDK"
     The images published to GHCR are built with `SDK_VERSION` pinned to a specific SDK
