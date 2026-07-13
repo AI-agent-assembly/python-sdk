@@ -15,7 +15,11 @@ from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langchain.runtime import get_active_callback_handler
 from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
-from agent_assembly.core.gateway_resolver import resolve_api_key, resolve_gateway_url
+from agent_assembly.core.gateway_resolver import (
+    resolve_api_key,
+    resolve_gateway_grpc_endpoint,
+    resolve_gateway_url,
+)
 from agent_assembly.core.runtime_interceptor import (
     _native_core_available,
     build_governance_interceptor,
@@ -94,6 +98,13 @@ class AssemblyContext:
     adapters: list[FrameworkAdapter]
     network_mode: NetworkMode
     _network_shutdown: Callable[[], None]
+    # Whether this SDK actually registered the agent with the governance gateway
+    # during init. False means the agent will NOT appear in the dashboard /
+    # ``GET /api/v1/agents`` — the native extension was absent or registration
+    # failed. Surfaced so callers can detect the unregistered state
+    # programmatically rather than relying on the stderr warning alone
+    # (AAASM-4547, mirroring the Node SDK's ``ctx.registered``).
+    registered: bool = True
     _lock: Lock = field(default_factory=Lock, init=False, repr=False)
     _is_shutdown: bool = field(default=False, init=False, repr=False)
 
@@ -248,13 +259,16 @@ def init_assembly(
         registered_adapters: list[FrameworkAdapter] = []
         network_mode: NetworkMode = "sdk-only"
         network_shutdown: Callable[[], None] = _noop_shutdown
+        registered = False
         try:
             native_available = _native_core_available()
             runtime_client = connect_runtime_client(resolved_agent_id) if native_available else None
-            _register_agent_with_gateway(
+            registered = _register_agent_with_gateway(
                 runtime_client=runtime_client,
                 agent_id=resolved_agent_id,
                 enforcement_mode=enforcement_mode,
+                gateway_endpoint=resolve_gateway_grpc_endpoint(gateway_url),
+                native_available=native_available,
                 team_id=team_id,
                 parent_agent_id=parent_agent_id,
             )
@@ -276,6 +290,7 @@ def init_assembly(
             adapters=registered_adapters,
             network_mode=network_mode,
             _network_shutdown=network_shutdown,
+            registered=registered,
         )
         _ACTIVE_CONTEXT = context
         return context
@@ -311,14 +326,42 @@ def _validate_inputs(
     return gateway_url, control_plane_url
 
 
+def _warn_agent_unregistered(detail: str) -> None:
+    """Emit a loud, unconditional stderr warning that the agent is unregistered.
+
+    Registration is what makes an agent visible to the gateway — it appears in
+    the dashboard / ``GET /api/v1/agents`` and gets policy/budget tracking. When
+    registration cannot happen (the native ``agent_assembly._core`` extension is
+    absent on a pure-Python / unsupported-platform install, or the gateway gRPC
+    endpoint is unreachable), a governance SDK must not report a clean init for an
+    agent that never registered. Previously this failure was silent (the
+    AAASM-4446 shape); now it mirrors the Node SDK's ``warnAgentUnregistered``
+    (AAASM-4468): written straight to ``sys.stderr`` so ``logging`` configuration
+    cannot silence it, once per ``init_assembly`` call (AAASM-4547).
+
+    :param detail: A short clause explaining *why* registration did not happen,
+        interpolated into the warning (must not contain credentials).
+    """
+    sys.stderr.write(
+        "[agent-assembly] WARNING: the agent is NOT registered with the "
+        f"governance gateway ({detail}). It will NOT appear in the dashboard or "
+        "GET /api/v1/agents, and the gateway will not track its policy or budget "
+        "state; the proxy / eBPF layers remain authoritative. Inspect the "
+        "'registered' attribute on the returned assembly context to detect this "
+        "programmatically (AAASM-4547).\n"
+    )
+
+
 def _register_agent_with_gateway(
     *,
     runtime_client: Any | None,
     agent_id: str,
     enforcement_mode: EnforcementMode | None,
+    gateway_endpoint: str,
+    native_available: bool,
     team_id: str | None = None,
     parent_agent_id: str | None = None,
-) -> None:
+) -> bool:
     """Register the agent with the gateway over the native gRPC ``register``.
 
     Registration goes through the native runtime client (AAASM-3399) so the
@@ -326,30 +369,50 @@ def _register_agent_with_gateway(
     ``RuntimeQueryInterceptor`` later uses for ``query_policy`` — the SDK never
     calls a core HTTP endpoint directly (ADR 0004).
 
+    ``gateway_endpoint`` is the gateway's **gRPC** endpoint (:50051) the direct
+    register call dials — distinct from the REST ``gateway_url`` (:7391) the HTTP
+    client uses (AAASM-4547). It is resolved by
+    :func:`~agent_assembly.core.gateway_resolver.resolve_gateway_grpc_endpoint`.
+
     ``team_id`` and ``parent_agent_id`` are forwarded to the native register so
     the gateway gets the agent's team-budget scoping and topology lineage on the
     native path, restoring what the legacy REST register sent (AAASM-3415).
 
-    No native runtime (extension missing or socket unreachable) means there is
-    nothing to register against: the call is skipped. Under ``enforce`` a native
-    registration failure propagates so a misconfigured gateway surfaces at init;
-    under ``observe`` / ``disabled`` (or no mode) it is swallowed so the dry-run
-    / hermetic-test layer never hard-fails on registration.
+    Returns whether the agent was registered. When there is no native runtime
+    client to register through (``native_available`` False → extension missing on
+    a pure-Python install; or True but the socket path was distrusted), or when
+    ``register`` raises, the failure is no longer silent: a loud
+    :func:`_warn_agent_unregistered` fires and ``False`` is returned (AAASM-4547).
+    Init still proceeds so the proxy / eBPF layers stay authoritative — except
+    under ``enforce``, where a ``register`` failure propagates so a misconfigured
+    gateway fails init closed.
     """
     if runtime_client is None:
-        return
+        if native_available:
+            detail = "the native runtime client could not be established"
+        else:
+            detail = (
+                "the native agent_assembly._core extension is not installed, so this "
+                "build cannot perform in-SDK gateway registration"
+            )
+        _warn_agent_unregistered(detail)
+        return False
     framework = "python"
     try:
         register_agent(
             runtime_client,
             agent_id,
             framework,
+            gateway_endpoint=gateway_endpoint,
             team_id=team_id,
             parent_agent_id=parent_agent_id,
         )
-    except Exception:
+    except Exception as error:
         if enforcement_mode == "enforce":
             raise
+        _warn_agent_unregistered(f"registration failed: {error}")
+        return False
+    return True
 
 
 def _register_adapters(
