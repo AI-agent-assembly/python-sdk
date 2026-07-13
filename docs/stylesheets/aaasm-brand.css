@@ -45,3 +45,13 @@
     overflow-x: auto;
   }
 }
+
+/* AAASM-4560: content-tab titles (pymdownx.tabbed, alternate_style) default to the
+   full body size, which reads as heavy for short labels like "pip"/"uv"/"Default".
+   Render them a step smaller and tighter than body text so the tab strip stays a
+   quiet control, not a heading. Scoped to the tab labels only — tab *content* keeps
+   body sizing. */
+.md-typeset .tabbed-set > .tabbed-labels > label {
+  font-size: 0.68rem;
+  letter-spacing: -0.005em;
+}
