@@ -1,0 +1,27 @@
+{#-
+  Override of Material's partials/integrations/analytics.html (AAASM-3558).
+
+  Material's generated partial only calls `__md_analytics()` once the analytics
+  consent cookie is granted (`__md_get("__consent").analytics`). With our opt-in
+  consent (cookies.analytics.checked: false, off by default) that call never
+  fires for ordinary visitors, so gtag.js is never loaded and GA never reports.
+
+  We switch python to *advanced* Consent Mode v2 (matching the other four doc
+  sites): the overridden google.html partial declares `analytics_storage:
+  'denied'` as the default before loading gtag, so calling `__md_analytics()`
+  unconditionally is GDPR-correct — GA sends cookieless, modelled pings until
+  the visitor grants analytics consent, then full hits. We therefore drop
+  Material's consent gate and always run the loader.
+
+  The native `extra.consent` banner UI is kept; google.html reads the stored
+  consent on each load and updates Consent Mode to 'granted' when the analytics
+  cookie is enabled (the consent form reloads the page on submit, so reading
+  stored consent at load time is sufficient — no live form hook needed).
+-#}
+{% if config.extra.analytics %}
+  {% set provider = config.extra.analytics.provider %}
+{% endif %}
+{% if provider %}
+  {% include "partials/integrations/analytics/" ~ provider ~ ".html" %}
+  <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+{% endif %}

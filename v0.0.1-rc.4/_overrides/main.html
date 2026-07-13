@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+<!--
+  Version-warning banner (AAASM-2750).
+
+  Material for MkDocs renders this `outdated` block inside the version-warning
+  container and reveals it (via its mike integration) whenever the reader is on
+  a version that is NOT the configured default channel. By itself Material shows
+  one fixed message; we want the copy to match the channel model:
+
+    * latest (master)  — "in development", may change before release
+    * pre-release       — once a stable exists: "outdated, read stable instead";
+                          while no stable exists yet: gentle "pre-release, no
+                          stable shipped yet"
+    * any older frozen version — "outdated, read stable instead"
+
+  Material can't express that branching in static Jinja (the default set is the
+  only signal it has at build time and it's the same for every page), so the
+  copy is selected client-side from `versions.json`, which mike keeps current on
+  gh-pages. The fallback text below is what renders if JS is disabled.
+-->
+{% block outdated %}
+  <span data-aaasm-outdated>
+    You're not viewing the latest stable documentation.
+    <a href="{{ '../' ~ base_url }}">
+      <strong>Go to the recommended version.</strong>
+    </a>
+  </span>
+  <script>
+    (function () {
+      var host = document.currentScript
+        ? document.currentScript.parentElement.querySelector("[data-aaasm-outdated]")
+        : document.querySelector("[data-aaasm-outdated]");
+      if (!host) return;
+
+      // mike serves each version under /<base>/<version>/, with versions.json
+      // one level up at /<base>/versions.json. mkdocs renders `base_url` so it
+      // points at the deploy root (the current version directory) from *any*
+      // page depth, so the deploy-root versions.json is reliably one level
+      // above it. Resolving the bare relative `base_url` against `location`
+      // yields an absolute URL; popping only the page's last path segment (the
+      // previous approach) 404s on deep pages.
+      //
+      // AAASM-4317: guard the URL constructors so that a malformed or empty
+      // template value (e.g. a stray build variant where `base_url` renders
+      // blank) cannot throw `TypeError: Failed to construct 'URL': Invalid URL`
+      // and leave a visible page-load error in the console. On failure we keep
+      // the static fallback copy that is already rendered above.
+      var versionRoot;
+      var versionsUrl;
+      try {
+        versionRoot = new URL("{{ base_url }}/", window.location);
+        versionsUrl = new URL("../versions.json", versionRoot).toString();
+      } catch (e) {
+        return;
+      }
+
+      // The current version id is the last path segment of the deploy root.
+      var current =
+        versionRoot.pathname.replace(/\/+$/, "").split("/").pop() || "";
+
+      fetch(versionsUrl, { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (versions) {
+          if (!Array.isArray(versions)) return;
+
+          // A version entry matches the current page if its version id or any
+          // of its aliases equals the current path segment.
+          function matches(v) {
+            if (v.version === current) return true;
+            return Array.isArray(v.aliases) && v.aliases.indexOf(current) !== -1;
+          }
+          var entry = versions.find(matches);
+
+          function hasAlias(name) {
+            return versions.some(function (v) {
+              return v.version === name ||
+                (Array.isArray(v.aliases) && v.aliases.indexOf(name) !== -1);
+            });
+          }
+          var stableExists = hasAlias("stable");
+
+          // Identify which channel the current page belongs to.
+          var aliases = (entry && entry.aliases) || [];
+          var isLatest = current === "latest" || aliases.indexOf("latest") !== -1;
+          var isPreRelease =
+            current === "pre-release" || aliases.indexOf("pre-release") !== -1;
+
+          // Build the recommended target: stable if it exists, else pre-release,
+          // else latest. base_url already points one level up from the page.
+          var recommended = stableExists
+            ? "stable"
+            : (hasAlias("pre-release") ? "pre-release" : "latest");
+          var link =
+            '<a href="../' + recommended + '/"><strong>' +
+            (recommended === "stable"
+              ? "Go to the stable release."
+              : recommended === "pre-release"
+                ? "Go to the latest pre-release."
+                : "Go to latest (master).") +
+            "</strong></a>";
+
+          var msg;
+          if (isLatest) {
+            msg =
+              "This is the in-development <strong>latest (master)</strong> " +
+              "documentation. It tracks the main branch and may change before " +
+              "the next release. ";
+          } else if (isPreRelease && !stableExists) {
+            msg =
+              "This is a <strong>pre-release</strong>. No stable release has " +
+              "shipped yet, so this is the most current published version. ";
+          } else {
+            msg =
+              "You're not reading the latest stable documentation. ";
+          }
+
+          host.innerHTML = msg + link;
+        })
+        .catch(function () { /* keep the static fallback copy */ });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,17 @@
+{#-
+  Override of Material's partials/javascripts/outdated.html (AAASM-3558, carried
+  over from the closed PR #169 / AAASM-3557).
+
+  Material's generated script calls `new URL("{{ base_url }}")` with no base
+  argument. On many pages `base_url` is a bare relative value such as `.` or
+  `..`, which is not an absolute URL, so `new URL("..")` throws
+  `TypeError: Failed to construct 'URL': Invalid URL` on every page load.
+
+  Passing `location` as the base resolves the relative `base_url` against the
+  current page. The try/catch (AAASM-4317) is defense-in-depth: any future
+  template regression that renders `base_url` as an unparseable value (e.g. an
+  empty string on a build variant that omits `site_url`) will silently no-op
+  the outdated banner instead of surfacing a page-load TypeError. Behaviour is
+  otherwise identical to Material's generated script.
+-#}
+<script>try{var el=document.querySelector("[data-md-component=outdated]"),base=new URL("{{ base_url }}",location),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)}catch(e){}</script>
