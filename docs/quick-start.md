@@ -24,6 +24,24 @@ The package is published on PyPI as
     {{ aa.commands.install_uv }}
     ```
 
+=== "poetry"
+
+    ```bash
+    {{ aa.commands.install_poetry }}            # pure-Python SDK
+    {{ aa.commands.install_poetry_runtime }} # SDK + bundled aasm runtime binary (platform wheel)
+    ```
+
+=== "conda"
+
+    `{{ aa.python_sdk.package_name }}` is not published on conda-forge or the
+    Anaconda default channel — create a conda environment, then install from
+    PyPI with `pip` inside it:
+
+    ```bash
+    {{ aa.commands.install_conda }}
+    {{ aa.commands.install_conda_pip }}
+    ```
+
 !!! note "`--pre` is required for now"
     Agent Assembly is currently published only as a pre-release on PyPI, and `pip`
     skips pre-releases unless you pass `--pre` (already included above). Drop the flag

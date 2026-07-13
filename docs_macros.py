@@ -63,6 +63,10 @@ def define_env(env: Any) -> None:
             "install_uv": "uv add --prerelease=allow agent-assembly",
             "install_pip": "pip install --pre agent-assembly",
             "install_pip_runtime": "pip install --pre 'agent-assembly[runtime]'",
+            "install_poetry": "poetry add agent-assembly --allow-prereleases",
+            "install_poetry_runtime": "poetry add 'agent-assembly[runtime]' --allow-prereleases",
+            "install_conda": "conda create -n agent-assembly python=3.12 && conda activate agent-assembly",
+            "install_conda_pip": "pip install --pre agent-assembly",
         },
     }
 
