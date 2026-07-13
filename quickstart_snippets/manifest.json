@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "source": "ai-agent-assembly/examples: snippets/manifest.json (AAASM-4512, PR examples#267)",
+  "sdk": "python",
+  "frameworks": [
+    {
+      "framework_id": "agno-tool-policy",
+      "label": "Agno",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/agno-tool-policy/src/main.py"
+    },
+    {
+      "framework_id": "autogen-tool-policy",
+      "label": "AutoGen",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/autogen-tool-policy/src/main.py"
+    },
+    {
+      "framework_id": "crewai-research-crew",
+      "label": "CrewAI",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/crewai-research-crew/src/main.py"
+    },
+    {
+      "framework_id": "custom-tool-policy",
+      "label": "Custom (no framework)",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/custom-tool-policy/src/main.py"
+    },
+    {
+      "framework_id": "google-adk",
+      "label": "Google ADK",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/google-adk/src/main.py"
+    },
+    {
+      "framework_id": "haystack-tool-policy",
+      "label": "Haystack",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/haystack-tool-policy/src/main.py"
+    },
+    {
+      "framework_id": "langchain-basic-agent",
+      "label": "LangChain",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/langchain-basic-agent/src/main.py"
+    },
+    {
+      "framework_id": "langchain-research-agent",
+      "label": "LangChain (Research Agent)",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/langchain-research-agent/src/main.py"
+    },
+    {
+      "framework_id": "langgraph",
+      "label": "LangGraph",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/langgraph/src/main.py"
+    },
+    {
+      "framework_id": "llamaindex-tool-policy",
+      "label": "LlamaIndex",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/llamaindex-tool-policy/src/main.py"
+    },
+    {
+      "framework_id": "microsoft-agent-framework-tool-policy",
+      "label": "Microsoft Agent Framework",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/microsoft-agent-framework-tool-policy/src/main.py"
+    },
+    {
+      "framework_id": "openai-agents-sdk",
+      "label": "OpenAI Agents SDK",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/openai-agents-sdk/src/main.py"
+    },
+    {
+      "framework_id": "pydantic-ai",
+      "label": "Pydantic AI",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/pydantic-ai/src/main.py"
+    },
+    {
+      "framework_id": "semantic-kernel-tool-policy",
+      "label": "Semantic Kernel",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/semantic-kernel-tool-policy/src/main.py"
+    },
+    {
+      "framework_id": "smolagents-tool-policy",
+      "label": "smolagents",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/smolagents-tool-policy/src/main.py"
+    },
+    {
+      "framework_id": "strands-agents-tool-policy",
+      "label": "Strands Agents",
+      "status": "validated",
+      "lang": "python",
+      "source_example": "python/strands-agents-tool-policy/src/main.py"
+    }
+  ]
+}
