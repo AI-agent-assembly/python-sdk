@@ -50,10 +50,17 @@ still works.
 
 To enable it:
 
-```bash
-pip install --pre 'agent-assembly[runtime]'   # bundled platform wheel, or
-uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --release  # build locally (needs Rust)
-```
+=== "pip"
+
+    ```bash
+    pip install --pre 'agent-assembly[runtime]'   # bundled platform wheel
+    ```
+
+=== "uv"
+
+    ```bash
+    uv tool run maturin develop --manifest-path native/aa-ffi-python/Cargo.toml --release  # build locally (needs Rust)
+    ```
 
 ## Still stuck?
 
