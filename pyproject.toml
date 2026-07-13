@@ -24,28 +24,40 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "pydantic>=2.13.4,<3.0.0",
+    # AAASM-4518: floor held at the true minimum 2.0 — the SDK only uses
+    # BaseModel/Field/model_dump, all stable since pydantic 2.0. AAASM-4434 raised
+    # this to >=2.13.4 by pinning the floor to the then-resolved version, which made
+    # agent-assembly un-co-installable with CrewAI (caps pydantic<2.13) and Semantic
+    # Kernel (caps <2.12) — a framework-compat regression vs rc.3. Keep the floor at
+    # what the code needs, not what the lockfile happened to resolve to.
+    "pydantic>=2.0.0,<3.0.0",
     "httpx>=0.27.0,<1.0.0",
     "typing-extensions>=4.16.0",
     # AAASM-1654 (PR-E): OpControlSubscriber consumes PolicyService.OpControlStream
-    # via gRPC. Held to grpcio's modern stable line.
-    "grpcio>=1.82.1,<2",
-    # AAASM-4434 (dependency completeness re-audit): resolves to 6.33.6, not raw
-    # PyPI latest (7.35.1), even though >=5,<8 permitted 7.x. Confirmed this is a
-    # REAL transitive ceiling, not a stale "permissive floor" resolution: the
-    # `dev`/test group's pydantic-ai>=2.9.0 pulls in
-    # `pydantic-ai-slim[...,logfire,...]`, and logfire (<=4.37.0) pins
-    # `opentelemetry-exporter-otlp-proto-http<1.43.0`; every otlp-proto-http
-    # release in that range depends on an `opentelemetry-proto` that caps
-    # `protobuf<7.0`. Verified by temporarily setting `protobuf>=7.35.1,<8` and
-    # re-running `uv lock`, which fails with a resolver conflict rooted at
-    # pydantic-ai's logfire extra; a bare `uv lock --upgrade` (no floor change)
-    # also leaves protobuf pinned at 6.33.6. Re-audit once logfire raises its
-    # opentelemetry-exporter-otlp-proto-http ceiling above 1.43.0.
-    # AAASM-4434 (manifest transparency follow-up): floor tightened from the
-    # wide-open "5" to the exact resolved 6.33.6 so the manifest states what is
-    # actually locked, not just the outer bound of what's permitted.
-    "protobuf>=6.33.6,<8",
+    # via gRPC. AAASM-4518: floor restored to rc.3's >=1.66. AAASM-4434 raised it to
+    # >=1.82.1 to mirror the then-resolved version — an over-tighten, not a real
+    # minimum required by the SDK.
+    "grpcio>=1.66,<2",
+    # AAASM-4518: floor restored to rc.3's >=5 so agent-assembly can co-install with
+    # AutoGen (autogen-core>=0.7.5 caps protobuf<5.30). AAASM-4434 raised this to
+    # >=6.33.6 by pinning the floor to the then-resolved version, which made rc.4
+    # unresolvable with AutoGen — a framework-compat regression vs rc.3.
+    #
+    # CAVEAT (pre-existing, NOT introduced by this change): the checked-in gRPC stubs
+    # under agent_assembly/proto/ are protobuf gencode 6.31.1 and require a protobuf
+    # 6.x RUNTIME (>=6.31.1) to import — protobuf 5.x raises a VersionError. Those
+    # stubs are imported only by the optional OpControl gRPC transport
+    # (agent_assembly/op_control.py), never at package-import time, so mainstream
+    # framework quick-starts (which don't use that transport) run fine under protobuf
+    # 5.x — exactly as they did on rc.3, which also shipped 6.31.1 gencode under a
+    # >=5 floor since 2026-05-21. A user who needs the OpControl gRPC path must have
+    # protobuf>=6.31.1. Regenerating the stubs at 5.x gencode to make protobuf 5.x
+    # fully runtime-safe is a separate concern, not this compat fix.
+    #
+    # dev/test note: a bare `uv lock` still resolves protobuf to 6.33.6 because the
+    # dev-only pydantic-ai logfire extra caps protobuf<7.0 (via opentelemetry-proto);
+    # that transitive dev-time ceiling is independent of this runtime floor.
+    "protobuf>=5,<8",
 ]
 
 [project.optional-dependencies]
