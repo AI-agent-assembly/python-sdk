@@ -26,6 +26,7 @@ import time
 import warnings
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -34,6 +35,15 @@ from agent_assembly.exceptions import ConfigurationError, GatewayError
 logger = logging.getLogger(__name__)
 
 DEFAULT_GATEWAY_URL = "http://localhost:7391"
+
+# Agent registration is the SDK's one *direct* gateway gRPC call
+# (``AgentLifecycleService.Register`` via ``aa-sdk-client``). It targets the
+# gateway's gRPC port, which is distinct from the REST port the ``gateway_url``
+# HTTP client uses — dialing the REST port for registration hits a socket with no
+# ``AgentLifecycleService`` and fails (AAASM-4547).
+DEFAULT_GRPC_PORT = 50051
+DEFAULT_GRPC_ENDPOINT = "http://127.0.0.1:50051"
+ENV_GATEWAY_ENDPOINT = "AA_GATEWAY_ENDPOINT"
 DEFAULT_HEALTHZ_PATH = "/healthz"
 DEFAULT_PROBE_TIMEOUT_SECONDS = 0.5
 DEFAULT_AUTO_START_TIMEOUT_SECONDS = 5.0
@@ -70,7 +80,7 @@ def _warn_if_world_readable(path: Path) -> None:
         return
     if mode & 0o077:
         logger.warning(
-            "Config file %s has group/other-readable permissions (mode %o); " "run `chmod 600 %s` to secure it.",
+            "Config file %s has group/other-readable permissions (mode %o); run `chmod 600 %s` to secure it.",
             path,
             mode,
             path,
@@ -223,6 +233,42 @@ def resolve_gateway_url(explicit: str | None = None) -> str:
 
     _auto_start_gateway(DEFAULT_GATEWAY_URL)
     return DEFAULT_GATEWAY_URL
+
+
+def resolve_gateway_grpc_endpoint(gateway_url: str | None = None) -> str:
+    """Resolve the gRPC endpoint the native ``register`` call should dial.
+
+    Agent registration goes over the gateway's **gRPC** port (:50051), which is a
+    different port from the **REST** ``gateway_url`` (:7391) the HTTP client uses.
+    Passing the REST URL into ``register`` would dial a port that exposes no
+    ``AgentLifecycleService`` and fail, so the register endpoint is resolved
+    separately here (AAASM-4547).
+
+    Resolution precedence (highest first):
+
+        1. ``AA_GATEWAY_ENDPOINT`` — explicit operator override, honoured verbatim
+           (the same env var the native ``aa-sdk-client`` resolver reads, so a
+           value set for one path applies to both).
+        2. The resolved REST ``gateway_url``'s host with the gRPC port (:50051)
+           substituted — so a non-loopback gateway host registers against *that*
+           host's gRPC port rather than always ``127.0.0.1``.
+        3. The loopback default ``http://127.0.0.1:50051``.
+
+    :param gateway_url: The already-resolved REST gateway URL, used only for its
+        host. When it carries no usable host the loopback default is returned.
+    :returns: A gRPC endpoint URL (e.g. ``http://127.0.0.1:50051``).
+    """
+    env_value = os.environ.get(ENV_GATEWAY_ENDPOINT)
+    if env_value:
+        return env_value
+
+    if gateway_url:
+        parsed = urlparse(gateway_url)
+        if parsed.hostname:
+            scheme = parsed.scheme or "http"
+            return f"{scheme}://{parsed.hostname}:{DEFAULT_GRPC_PORT}"
+
+    return DEFAULT_GRPC_ENDPOINT
 
 
 def resolve_api_key(explicit: str | None = None) -> str:
