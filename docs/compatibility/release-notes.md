@@ -5,6 +5,33 @@ Release notes for the Agent Assembly Python SDK. Versions follow [SemVer](https:
 !!! info "0.x development"
     The SDK is in active 0.x development; per-release notes are minimal. Track full changes via [the commits to `master`](https://github.com/ai-agent-assembly/python-sdk/commits/master) and the [GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases) feed.
 
+## 0.0.1-rc.4
+
+Fourth **release candidate** on the `0.0.1` line. This release tracks the published
+`agent-assembly` core **`v0.0.1-rc.4`**: the bundled `aasm` runtime binary and the
+compiled `aa-ffi-python` extension are pinned to that core tag.
+
+Headline is the **release wheel matrix**: the SDK now builds and publishes
+`cp313`/`cp314` wheels alongside `cp312`, and a CI drift guard keeps the release
+matrix and the supported-interpreter list in lockstep so a missing ABI can no
+longer ship silently.
+
+- Build `cp313`/`cp314` wheels in the release matrix (AAASM-4446).
+- Add a wheel-python-matrix drift guard (script + fixture suite) that runs on every
+  PR, failing if the release interpreter matrix diverges from the declared support
+  window (AAASM-4453).
+- Repoint quick-start and framework-support LangChain imports to `langchain-classic`
+  (AAASM-4451).
+- LangGraph subgraph-as-node lineage tracking and sync-subgraph idempotency fixes
+  (AAASM-4472 / AAASM-4474).
+- Bump Python dependencies to latest stable and migrate the LangGraph graph API
+  (AAASM-4434).
+- Warn when `~/.aasm/config.yaml` is group/other-readable.
+- Docs: per-framework quick-start tabs, and clarify local-mode transports
+  (:7391 REST + :50051 gRPC) (AAASM-4465).
+- Bump the `aa-core` / `aa-proto` / `aa-sdk-client` pins in `aa-ffi-python` to the
+  core `v0.0.1-rc.4` tag.
+
 ## 0.0.1-rc.3
 
 Third **release candidate** on the `0.0.1` line. This release tracks the published

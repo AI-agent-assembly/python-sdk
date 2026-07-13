@@ -19,7 +19,7 @@ Version pins (from `pyproject.toml`):
 | Dependency | Version |
 |---|---|
 | `agno` | `>=2.0.0` |
-| `agent-assembly` | `>=0.0.1rc3` (the release that ships the Agno adapter) |
+| `agent-assembly` | `>=0.0.1rc4` (the release that ships the Agno adapter) |
 | Python | `>=3.12` |
 
 ## How it works

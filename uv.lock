@@ -11,7 +11,7 @@ resolution-markers = [
 
 [[package]]
 name = "agent-assembly"
-version = "0.0.1rc3"
+version = "0.0.1rc4"
 source = { editable = "." }
 dependencies = [
     { name = "grpcio" },
