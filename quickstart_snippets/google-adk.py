@@ -2,7 +2,7 @@ from agent_assembly import init_assembly
 
 from src.governance import govern_tool_class, ungovern_tool_class
 from src.policy import LocalPolicyEngine
-from src.tools import DemoTool, build_tools
+from src.tools import DemoTool
 
 # Govern the concrete demo tool class BEFORE init_assembly so the offline
 # LocalPolicyEngine stays wired as the interceptor (the patch is idempotent).

@@ -144,7 +144,7 @@ with no API keys and no outbound network.
     ```python
     from agent_assembly import init_assembly
 
-    from src.policy import LocalPolicyEngine, governed_run
+    from src.policy import LocalPolicyEngine
 
     with init_assembly(
         gateway_url=gateway_url,
@@ -174,7 +174,7 @@ with no API keys and no outbound network.
     from agent_assembly import init_assembly
     from agent_assembly.adapters.langchain import AssemblyCallbackHandler
 
-    from src.crew import CREW, MOCK_TRAJECTORY
+    from src.crew import CREW
     from src.policy import DAILY_BUDGET_USD, CrewPolicyEngine, MockApprover
 
     with init_assembly(
@@ -245,7 +245,7 @@ with no API keys and no outbound network.
 
     from src.governance import govern_tool_class, ungovern_tool_class
     from src.policy import LocalPolicyEngine
-    from src.tools import DemoTool, build_tools
+    from src.tools import DemoTool
 
     # Govern the concrete demo tool class BEFORE init_assembly so the offline
     # LocalPolicyEngine stays wired as the interceptor (the patch is idempotent).
@@ -354,7 +354,7 @@ with no API keys and no outbound network.
     from agent_assembly import init_assembly
     from agent_assembly.adapters.langchain import AssemblyCallbackHandler
 
-    from src.policy import DAILY_BUDGET_USD, NETWORK_ALLOWLIST, BalancedPolicyEngine
+    from src.policy import DAILY_BUDGET_USD, BalancedPolicyEngine
 
     with init_assembly(
         gateway_url=gateway_url,
@@ -570,8 +570,8 @@ with no API keys and no outbound network.
     ```python
     from agent_assembly import init_assembly
 
-    from src.policy import LocalPolicyEngine, governed_invoke
-    from src.tools import PLUGIN_NAME, build_kernel
+    from src.policy import LocalPolicyEngine
+    from src.tools import build_kernel
 
     with init_assembly(
         gateway_url=gateway_url,
@@ -623,7 +623,7 @@ with no API keys and no outbound network.
     ```python
     from agent_assembly import init_assembly
 
-    from src.policy import LocalPolicyEngine, governed_run
+    from src.policy import LocalPolicyEngine
 
     with init_assembly(
         gateway_url=gateway_url,

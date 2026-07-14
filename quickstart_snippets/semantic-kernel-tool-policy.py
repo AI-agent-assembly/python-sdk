@@ -1,7 +1,7 @@
 from agent_assembly import init_assembly
 
-from src.policy import LocalPolicyEngine, governed_invoke
-from src.tools import PLUGIN_NAME, build_kernel
+from src.policy import LocalPolicyEngine
+from src.tools import build_kernel
 
 with init_assembly(
     gateway_url=gateway_url,

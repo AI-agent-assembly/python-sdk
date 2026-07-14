@@ -1,6 +1,6 @@
 from agent_assembly import init_assembly
 
-from src.policy import LocalPolicyEngine, governed_run
+from src.policy import LocalPolicyEngine
 
 with init_assembly(
     gateway_url=gateway_url,
