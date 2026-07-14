@@ -211,6 +211,18 @@ with no API keys and no outbound network.
             agent_id="google-adk-demo-agent",
             mode="sdk-only",
         ) as ctx:
+            print(f"  Agent:    {ctx.client.agent_id}")
+            print(f"  Gateway:  {ctx.client.gateway_url}")
+            print(f"  Mode:     {ctx.network_mode} (offline demo)")
+            print()
+
+            print("Policy rules (local simulation of gateway policy):")
+            print("  DENY    — delete_records, write_file  (destructive operations)")
+            print("  PENDING — send_email                  (requires human approval)")
+            print("  ALLOW   — everything else")
+            print()
+    finally:
+        ungovern_tool_class(DemoTool)
     ```
 
 === "Haystack"
@@ -362,6 +374,19 @@ with no API keys and no outbound network.
             agent_id="microsoft-agent-framework-demo-agent",
             mode="sdk-only",
         ) as ctx:
+            print(f"  Agent:    {ctx.client.agent_id}")
+            print(f"  Gateway:  {ctx.client.gateway_url}")
+            print(f"  Mode:     {ctx.network_mode} (offline demo)")
+            print()
+
+            print("Policy rules (local simulation of gateway policy):")
+            print("  DENY    — delete_records, write_file  (destructive operations)")
+            print("  PENDING — send_email                  (requires human approval)")
+            print("  ALLOW   — everything else")
+            print()
+    finally:
+        if adapter is not None:
+            adapter.unregister_hooks()
     ```
 
 === "OpenAI Agents SDK"
@@ -396,6 +421,18 @@ with no API keys and no outbound network.
             agent_id="pydantic-ai-demo-agent",
             mode="sdk-only",
         ) as ctx:
+            print(f"  Agent:    {ctx.client.agent_id}")
+            print(f"  Gateway:  {ctx.client.gateway_url}")
+            print(f"  Mode:     {ctx.network_mode} (offline demo)")
+            print()
+
+            print("Policy rules (local simulation of gateway policy):")
+            print("  DENY    — delete_records, write_file  (destructive operations)")
+            print("  PENDING — send_email                  (requires human approval)")
+            print("  ALLOW   — everything else")
+            print()
+    finally:
+        adapter.unregister_hooks()
     ```
 
 === "Semantic Kernel"
