@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source": "ai-agent-assembly/examples: snippets/manifest.json (AAASM-4512, PR examples#267)",
+  "source": "ai-agent-assembly/examples: snippets/manifest.json (AAASM-4512, PR examples#267). The optional 'version_compat_note' field on some entries is a python-sdk-local addition (AAASM-4590), not present upstream.",
   "sdk": "python",
   "frameworks": [
     {
@@ -8,14 +8,16 @@
       "label": "Agno",
       "status": "validated",
       "lang": "python",
-      "source_example": "python/agno-tool-policy/src/main.py"
+      "source_example": "python/agno-tool-policy/src/main.py",
+      "version_compat_note": "Agno was previously published as **Phidata**; the rename replaced every `phi.*` import with `agno.*`.\n\n- Before (Phidata): `from phi.agent import Agent`\n- After (Agno): `from agno.agent import Agent`\n\nSource: [Agno's official Phidata → Agno migration guide](https://docs.agno.com/how-to/phidata-to-agno)."
     },
     {
       "framework_id": "autogen-tool-policy",
       "label": "AutoGen",
       "status": "validated",
       "lang": "python",
-      "source_example": "python/autogen-tool-policy/src/main.py"
+      "source_example": "python/autogen-tool-policy/src/main.py",
+      "version_compat_note": "AutoGen's `v0.4` rewrite (2024) replaced the single `pyautogen` package's `autogen.agentchat` namespace with separate `autogen-agentchat` / `autogen-core` / `autogen-ext` packages, and `llm_config` with an explicit `model_client`.\n\n- Before (v0.2, `pyautogen`): `from autogen.agentchat import AssistantAgent`\n- After (v0.4+): `from autogen_agentchat.agents import AssistantAgent`\n\nSource: [AutoGen's official v0.2 → v0.4 migration guide](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/migration-guide.html)."
     },
     {
       "framework_id": "crewai-research-crew",
@@ -43,35 +45,40 @@
       "label": "Haystack",
       "status": "validated",
       "lang": "python",
-      "source_example": "python/haystack-tool-policy/src/main.py"
+      "source_example": "python/haystack-tool-policy/src/main.py",
+      "version_compat_note": "Haystack 2.0 replaced the `farm-haystack` package with `haystack-ai` and flattened node imports into `haystack.components.*`; the two package versions cannot coexist in one environment.\n\n- Before (Haystack 1.x, `farm-haystack`): `from haystack.nodes import BM25Retriever`\n- After (Haystack 2.x, `haystack-ai`): `from haystack.components.retrievers.in_memory import InMemoryBM25Retriever`\n\nSource: [Haystack's official migration guide](https://docs.haystack.deepset.ai/docs/migration)."
     },
     {
       "framework_id": "langchain-basic-agent",
       "label": "LangChain",
       "status": "validated",
       "lang": "python",
-      "source_example": "python/langchain-basic-agent/src/main.py"
+      "source_example": "python/langchain-basic-agent/src/main.py",
+      "version_compat_note": "LangChain's import surface moved twice: `langchain-core` split out of `langchain` across the `0.1` → `0.3` series (2024), and the `1.0` rewrite (2025) moved legacy chains/agents/tools out of `langchain` entirely into `langchain-classic`.\n\n- Before (`<1.0`): `from langchain.agents import AgentExecutor, create_react_agent`\n- After (`>=1.0`): `from langchain_classic.agents import AgentExecutor, create_react_agent` (requires the separate `langchain-classic` package)\n\nThis SDK's own quick-start sample hit exactly this break — see AAASM-4451. Sources: [LangChain's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langchain-v1) and the [LangChain v0.3 announcement](https://www.langchain.com/blog/announcing-langchain-v0-3)."
     },
     {
       "framework_id": "langchain-research-agent",
       "label": "LangChain (Research Agent)",
       "status": "validated",
       "lang": "python",
-      "source_example": "python/langchain-research-agent/src/main.py"
+      "source_example": "python/langchain-research-agent/src/main.py",
+      "version_compat_note": "LangChain's import surface moved twice: `langchain-core` split out of `langchain` across the `0.1` → `0.3` series (2024), and the `1.0` rewrite (2025) moved legacy chains/agents/tools out of `langchain` entirely into `langchain-classic`.\n\n- Before (`<1.0`): `from langchain.agents import AgentExecutor, create_react_agent`\n- After (`>=1.0`): `from langchain_classic.agents import AgentExecutor, create_react_agent` (requires the separate `langchain-classic` package)\n\nThis SDK's own quick-start sample hit exactly this break — see AAASM-4451. Sources: [LangChain's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langchain-v1) and the [LangChain v0.3 announcement](https://www.langchain.com/blog/announcing-langchain-v0-3)."
     },
     {
       "framework_id": "langgraph",
       "label": "LangGraph",
       "status": "validated",
       "lang": "python",
-      "source_example": "python/langgraph/src/main.py"
+      "source_example": "python/langgraph/src/main.py",
+      "version_compat_note": "LangGraph `1.0` deprecated `langgraph.prebuilt.create_react_agent` in favor of LangChain's own agent constructor.\n\n- Before (`<1.0`): `from langgraph.prebuilt import create_react_agent`\n- After (`>=1.0`): `from langchain.agents import create_agent`\n\nSource: [LangGraph's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langgraph-v1)."
     },
     {
       "framework_id": "llamaindex-tool-policy",
       "label": "LlamaIndex",
       "status": "validated",
       "lang": "python",
-      "source_example": "python/llamaindex-tool-policy/src/main.py"
+      "source_example": "python/llamaindex-tool-policy/src/main.py",
+      "version_compat_note": "LlamaIndex `v0.10.0` (February 2024) split the monolithic `llama_index` package into a slim `llama-index-core` plus versioned per-provider packages (`llama-index-llms-openai`, etc.). An automated `llamaindex-cli upgrade` tool is provided for the migration.\n\n- Before (`<0.10`): `from llama_index.llms import OpenAI`\n- After (`>=0.10`): `from llama_index.llms.openai import OpenAI` (from the separate `llama-index-llms-openai` package)\n\nSource: [LlamaIndex's official v0.10 migration guide](https://www.llamaindex.ai/blog/llamaindex-v0-10-838e735948f8)."
     },
     {
       "framework_id": "microsoft-agent-framework-tool-policy",
@@ -106,7 +113,8 @@
       "label": "smolagents",
       "status": "validated",
       "lang": "python",
-      "source_example": "python/smolagents-tool-policy/src/main.py"
+      "source_example": "python/smolagents-tool-policy/src/main.py",
+      "version_compat_note": "smolagents `v1.14.0` (April 2025) renamed `HfApiModel` to `InferenceClientModel` to reflect that it wraps any Hugging Face Inference Provider, not just the HF Hub; backward-compatible re-export was restored in `v1.24.0`.\n\n- Before (`<1.14`): `from smolagents import HfApiModel`\n- After (`>=1.14`): `from smolagents import InferenceClientModel`\n\nSource: [smolagents releases](https://github.com/huggingface/smolagents/releases)."
     },
     {
       "framework_id": "strands-agents-tool-policy",
