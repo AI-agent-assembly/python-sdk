@@ -7,7 +7,7 @@
   It issues TWO unauthenticated calls to api.github.com per page load:
 
     1. GET https://api.github.com/repos/<owner>/<repo>/releases/latest
-       → 404, because this repo publishes only pre-releases (0.0.1a4..0.0.1rc3,
+       → 404, because this repo publishes only pre-releases (0.0.1a4..0.0.1rc4,
          0.0.2); GitHub's /releases/latest endpoint excludes pre-releases and
          returns 404 when no non-prerelease exists. AAASM-4318 rewrites this
          request to /releases?per_page=1 and picks the newest so the badge can
