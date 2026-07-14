@@ -1,3 +1,10 @@
+from agent_assembly import init_assembly
+from agent_assembly.adapters.microsoft_agent_framework import (
+    MicrosoftAgentFrameworkAdapter,
+)
+
+from src.policy import LocalPolicyEngine
+
 policy = LocalPolicyEngine()
 
 # Live path: install the governance hooks BEFORE init_assembly. The adapter

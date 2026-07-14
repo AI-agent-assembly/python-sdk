@@ -1,3 +1,8 @@
+from agent_assembly import init_assembly
+from agent_assembly.adapters.pydantic_ai import PydanticAIAdapter
+
+from src.policy import LocalPolicyEngine
+
 adapter = PydanticAIAdapter()
 adapter.set_process_agent_id("pydantic-ai-demo-agent")
 adapter.register_hooks(LocalPolicyEngine())

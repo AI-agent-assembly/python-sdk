@@ -1,3 +1,8 @@
+from agent_assembly import init_assembly
+from agent_assembly.adapters.smolagents import SmolagentsPatch
+
+from src.policy import LocalPolicyEngine
+
 policy = LocalPolicyEngine()
 patch = SmolagentsPatch(policy)
 patch.apply()
