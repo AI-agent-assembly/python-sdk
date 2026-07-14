@@ -5,6 +5,28 @@ Release notes for the Agent Assembly Python SDK. Versions follow [SemVer](https:
 !!! info "0.x development"
     The SDK is in active 0.x development; per-release notes are minimal. Track full changes via [the commits to `master`](https://github.com/ai-agent-assembly/python-sdk/commits/master) and the [GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases) feed.
 
+## 0.0.1-rc.5
+
+Fifth **release candidate** on the `0.0.1` line. This release tracks the published
+`agent-assembly` core **`v0.0.1-rc.5`**: the bundled `aasm` runtime binary and the
+compiled `aa-ffi-python` extension are pinned to that core tag.
+
+Headline is the **agent-registration fix**: the SDK now registers against the
+gateway's derived gRPC endpoint (`:50051`) instead of the REST base URL, and fails
+loud — warning and exposing an unregistered state — when that register call cannot
+reach the gateway, so a silent registration gap can no longer look healthy.
+
+- Register against the derived gRPC endpoint (`:50051`) rather than the REST base,
+  and warn loudly / expose the unregistered state when the register call fails
+  (AAASM-4547).
+- Relax the `pydantic` / `protobuf` / `grpcio` dependency floors and add a CI
+  dependency-resolution guard so an over-tight floor can no longer wedge resolution
+  (AAASM-4518).
+- Docs: per-framework quick-start tabs across the SDK docs (AAASM-4558 / AAASM-4559 /
+  AAASM-4560).
+- Bump the `aa-core` / `aa-proto` / `aa-sdk-client` pins in `aa-ffi-python` to the
+  core `v0.0.1-rc.5` tag.
+
 ## 0.0.1-rc.4
 
 Fourth **release candidate** on the `0.0.1` line. This release tracks the published
