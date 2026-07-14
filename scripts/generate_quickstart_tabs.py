@@ -23,6 +23,13 @@ DESIGN CONSTRAINTS (mirrors the examples ``extract_snippets.py`` gate)
 * Idempotent: running twice produces no diff. The drift check enforces this.
 * Data-driven: the tab list is exactly ``manifest.json``'s ``frameworks`` array,
   in listed order, so a framework added upstream appears once it is re-vendored.
+
+A framework entry may carry an optional ``version_compat_note`` (AAASM-4590):
+markdown text rendered as a nested "Version compatibility" admonition beneath that
+framework's code fence. This is a local extension of the vendored manifest schema
+(not part of the upstream ``examples`` copy) — the note isn't tied to a runnable
+example, it exists to warn readers about a real, citable import-path break in the
+framework's own version history. Add one only when there's a real source to cite.
 """
 
 from __future__ import annotations
@@ -59,11 +66,22 @@ def _indent_tab_body(line: str) -> str:
     return f"    {line}" if line else ""
 
 
-def render_tab(label: str, code: str) -> str:
-    """Render one ``=== "<label>"`` tab wrapping *code* in a python fence."""
+def render_tab(label: str, code: str, version_compat_note: str | None = None) -> str:
+    """Render one ``=== "<label>"`` tab wrapping *code* in a python fence.
+
+    *version_compat_note*, when the manifest entry carries one (AAASM-4590), is
+    rendered as a nested ``!!! note "Version compatibility"`` admonition beneath the
+    code fence — double-indented (tab body + admonition body) per mkdocs-material's
+    nesting convention. Only frameworks with a real, citable import-path break across
+    versions get one; see the manifest for the sources.
+    """
 
     body = ["```python", *code.splitlines(), "```"]
     lines = [f'=== "{label}"', "", *[_indent_tab_body(b) for b in body]]
+    if version_compat_note:
+        lines.append("")
+        lines.append(_indent_tab_body('!!! note "Version compatibility"'))
+        lines.extend(_indent_tab_body(_indent_tab_body(note_line)) for note_line in version_compat_note.splitlines())
     return "\n".join(lines)
 
 
@@ -85,7 +103,7 @@ def build_block(vendor_dir: Path) -> str:
         if not snippet_path.is_file():
             raise GenerateError(f"manifest lists '{framework_id}' but its snippet is missing: " f"{snippet_path}")
         code = snippet_path.read_text(encoding="utf-8").rstrip("\n")
-        tabs.append(render_tab(entry["label"], code))
+        tabs.append(render_tab(entry["label"], code, entry.get("version_compat_note")))
 
     return "\n".join([BEGIN_MARKER, "", "\n\n".join(tabs), "", END_MARKER])
 

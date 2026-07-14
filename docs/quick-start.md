@@ -95,6 +95,11 @@ with no API keys and no outbound network.
 === "Agno"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.agno import AgnoPatch
+
+    from src.policy import LocalPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -126,9 +131,21 @@ with no API keys and no outbound network.
         )
     ```
 
+    !!! note "Version compatibility"
+        Agno was previously published as **Phidata**; the rename replaced every `phi.*` import with `agno.*`.
+
+        - Before (Phidata): `from phi.agent import Agent`
+        - After (Agno): `from agno.agent import Agent`
+
+        Source: [Agno's official Phidata → Agno migration guide](https://docs.agno.com/how-to/phidata-to-agno).
+
 === "AutoGen"
 
     ```python
+    from agent_assembly import init_assembly
+
+    from src.policy import LocalPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -143,9 +160,23 @@ with no API keys and no outbound network.
         policy = LocalPolicyEngine()
     ```
 
+    !!! note "Version compatibility"
+        AutoGen's `v0.4` rewrite (2024) replaced the single `pyautogen` package's `autogen.agentchat` namespace with separate `autogen-agentchat` / `autogen-core` / `autogen-ext` packages, and `llm_config` with an explicit `model_client`.
+
+        - Before (v0.2, `pyautogen`): `from autogen.agentchat import AssistantAgent`
+        - After (v0.4+): `from autogen_agentchat.agents import AssistantAgent`
+
+        Source: [AutoGen's official v0.2 → v0.4 migration guide](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/migration-guide.html).
+
 === "CrewAI"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.langchain import AssemblyCallbackHandler
+
+    from src.crew import CREW
+    from src.policy import DAILY_BUDGET_USD, CrewPolicyEngine, MockApprover
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -175,6 +206,16 @@ with no API keys and no outbound network.
 === "Custom (no framework)"
 
     ```python
+    from agent_assembly import init_assembly
+
+    from src.policy import LocalPolicyEngine, governed
+    from src.tools import (
+        compute_sum,
+        fetch_stock_price,
+        send_http_request,
+        write_to_disk,
+    )
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -200,6 +241,12 @@ with no API keys and no outbound network.
 === "Google ADK"
 
     ```python
+    from agent_assembly import init_assembly
+
+    from src.governance import govern_tool_class, ungovern_tool_class
+    from src.policy import LocalPolicyEngine
+    from src.tools import DemoTool
+
     # Govern the concrete demo tool class BEFORE init_assembly so the offline
     # LocalPolicyEngine stays wired as the interceptor (the patch is idempotent).
     govern_tool_class(DemoTool, LocalPolicyEngine())
@@ -228,6 +275,11 @@ with no API keys and no outbound network.
 === "Haystack"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.haystack import HaystackPatch
+
+    from src.policy import LocalPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -257,9 +309,22 @@ with no API keys and no outbound network.
         installed = patch.apply()
     ```
 
+    !!! note "Version compatibility"
+        Haystack 2.0 replaced the `farm-haystack` package with `haystack-ai` and flattened node imports into `haystack.components.*`; the two package versions cannot coexist in one environment.
+
+        - Before (Haystack 1.x, `farm-haystack`): `from haystack.nodes import BM25Retriever`
+        - After (Haystack 2.x, `haystack-ai`): `from haystack.components.retrievers.in_memory import InMemoryBM25Retriever`
+
+        Source: [Haystack's official migration guide](https://docs.haystack.deepset.ai/docs/migration).
+
 === "LangChain"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.langchain import AssemblyCallbackHandler
+
+    from src.policy import LocalPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -275,9 +340,22 @@ with no API keys and no outbound network.
         handler = AssemblyCallbackHandler(interceptor=policy)
     ```
 
+    !!! note "Version compatibility"
+        LangChain's import surface moved twice: `langchain-core` split out of `langchain` across the `0.1` → `0.3` series (2024), and the `1.0` rewrite (2025) moved legacy chains/agents/tools out of `langchain` entirely into `langchain-classic`.
+
+        - Before (`<1.0`): `from langchain.agents import AgentExecutor, create_react_agent`
+        - After (`>=1.0`): `from langchain_classic.agents import AgentExecutor, create_react_agent` (requires the separate `langchain-classic` package)
+
+        This SDK's own quick-start sample hit exactly this break — see AAASM-4451. Sources: [LangChain's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langchain-v1) and the [LangChain v0.3 announcement](https://www.langchain.com/blog/announcing-langchain-v0-3).
+
 === "LangChain (Research Agent)"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.langchain import AssemblyCallbackHandler
+
+    from src.policy import DAILY_BUDGET_USD, BalancedPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -293,9 +371,23 @@ with no API keys and no outbound network.
         handler = AssemblyCallbackHandler(interceptor=policy)
     ```
 
+    !!! note "Version compatibility"
+        LangChain's import surface moved twice: `langchain-core` split out of `langchain` across the `0.1` → `0.3` series (2024), and the `1.0` rewrite (2025) moved legacy chains/agents/tools out of `langchain` entirely into `langchain-classic`.
+
+        - Before (`<1.0`): `from langchain.agents import AgentExecutor, create_react_agent`
+        - After (`>=1.0`): `from langchain_classic.agents import AgentExecutor, create_react_agent` (requires the separate `langchain-classic` package)
+
+        This SDK's own quick-start sample hit exactly this break — see AAASM-4451. Sources: [LangChain's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langchain-v1) and the [LangChain v0.3 announcement](https://www.langchain.com/blog/announcing-langchain-v0-3).
+
 === "LangGraph"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.langchain import AssemblyCallbackHandler
+    from agent_assembly.adapters.langgraph import LangGraphAdapter
+
+    from src.policy import LocalPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -317,9 +409,22 @@ with no API keys and no outbound network.
         adapter.register_hooks(handler)
     ```
 
+    !!! note "Version compatibility"
+        LangGraph `1.0` deprecated `langgraph.prebuilt.create_react_agent` in favor of LangChain's own agent constructor.
+
+        - Before (`<1.0`): `from langgraph.prebuilt import create_react_agent`
+        - After (`>=1.0`): `from langchain.agents import create_agent`
+
+        Source: [LangGraph's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langgraph-v1).
+
 === "LlamaIndex"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.llamaindex import LlamaIndexAdapter, LlamaIndexPatch
+
+    from src.policy import LocalPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -351,9 +456,24 @@ with no API keys and no outbound network.
         adapter.register_hooks(LocalPolicyEngine())
     ```
 
+    !!! note "Version compatibility"
+        LlamaIndex `v0.10.0` (February 2024) split the monolithic `llama_index` package into a slim `llama-index-core` plus versioned per-provider packages (`llama-index-llms-openai`, etc.). An automated `llamaindex-cli upgrade` tool is provided for the migration.
+
+        - Before (`<0.10`): `from llama_index.llms import OpenAI`
+        - After (`>=0.10`): `from llama_index.llms.openai import OpenAI` (from the separate `llama-index-llms-openai` package)
+
+        Source: [LlamaIndex's official v0.10 migration guide](https://www.llamaindex.ai/blog/llamaindex-v0-10-838e735948f8).
+
 === "Microsoft Agent Framework"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.microsoft_agent_framework import (
+        MicrosoftAgentFrameworkAdapter,
+    )
+
+    from src.policy import LocalPolicyEngine
+
     policy = LocalPolicyEngine()
 
     # Live path: install the governance hooks BEFORE init_assembly. The adapter
@@ -392,6 +512,11 @@ with no API keys and no outbound network.
 === "OpenAI Agents SDK"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.langchain import AssemblyCallbackHandler
+
+    from src.policy import LocalPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -410,6 +535,11 @@ with no API keys and no outbound network.
 === "Pydantic AI"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.pydantic_ai import PydanticAIAdapter
+
+    from src.policy import LocalPolicyEngine
+
     adapter = PydanticAIAdapter()
     adapter.set_process_agent_id("pydantic-ai-demo-agent")
     adapter.register_hooks(LocalPolicyEngine())
@@ -438,6 +568,11 @@ with no API keys and no outbound network.
 === "Semantic Kernel"
 
     ```python
+    from agent_assembly import init_assembly
+
+    from src.policy import LocalPolicyEngine
+    from src.tools import build_kernel
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
@@ -456,6 +591,11 @@ with no API keys and no outbound network.
 === "smolagents"
 
     ```python
+    from agent_assembly import init_assembly
+    from agent_assembly.adapters.smolagents import SmolagentsPatch
+
+    from src.policy import LocalPolicyEngine
+
     policy = LocalPolicyEngine()
     patch = SmolagentsPatch(policy)
     patch.apply()
@@ -470,9 +610,21 @@ with no API keys and no outbound network.
     ) as ctx:
     ```
 
+    !!! note "Version compatibility"
+        smolagents `v1.14.0` (April 2025) renamed `HfApiModel` to `InferenceClientModel` to reflect that it wraps any Hugging Face Inference Provider, not just the HF Hub; backward-compatible re-export was restored in `v1.24.0`.
+
+        - Before (`<1.14`): `from smolagents import HfApiModel`
+        - After (`>=1.14`): `from smolagents import InferenceClientModel`
+
+        Source: [smolagents releases](https://github.com/huggingface/smolagents/releases).
+
 === "Strands Agents"
 
     ```python
+    from agent_assembly import init_assembly
+
+    from src.policy import LocalPolicyEngine
+
     with init_assembly(
         gateway_url=gateway_url,
         api_key=api_key,
