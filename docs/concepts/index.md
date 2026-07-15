@@ -19,8 +19,8 @@ monkey-patch layer and the exact bootstrap/teardown order — see
 The SDK is the in-process (fastest) layer of a three-layer interception model. For how it
 fits alongside the sidecar proxy and eBPF layers, and the trust boundary the gateway
 enforces, see the core
-[Architecture](https://docs.agent-assembly.com/core/architecture/) and
-[Security Model](https://docs.agent-assembly.com/core/security/) docs.
+[Architecture](https://docs.agent-assembly.com/core/latest/architecture/system-architecture.html) and
+[Security Model](https://docs.agent-assembly.com/core/latest/security/overview.html) docs.
 
 ## The adapter pattern
 
