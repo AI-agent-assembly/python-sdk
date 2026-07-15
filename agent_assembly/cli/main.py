@@ -5,12 +5,19 @@ from __future__ import annotations
 import argparse
 import sys
 
+from agent_assembly import __version__
+
 
 def _build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with the adapter subcommand."""
     parser = argparse.ArgumentParser(
         prog="aasm",
         description="Agent Assembly SDK command-line tools.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 

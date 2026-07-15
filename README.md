@@ -213,7 +213,10 @@ from agent_assembly import init_assembly
 from agent_assembly.exceptions import ConfigurationError
 
 try:
-    context = init_assembly(gateway_url="", api_key="my-api-key", agent_id="my-agent-001")
+    # An invalid mode fails validation up front and raises ConfigurationError.
+    # (An empty/unset gateway_url is not an error — it triggers local
+    # auto-discovery; a gateway that can't be reached raises GatewayError.)
+    context = init_assembly(gateway_url="http://localhost:7391", mode="invalid-mode")
 except ConfigurationError as exc:
     print(f"Invalid configuration: {exc}")
 ```
