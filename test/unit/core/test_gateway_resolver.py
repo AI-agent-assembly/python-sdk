@@ -315,8 +315,13 @@ class TestResolveGatewayGrpcEndpoint:
     def test_derives_host_and_substitutes_grpc_port(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
         # The REST :7391 URL becomes the same host on the gRPC :50051 port — not
-        # the REST port, which exposes no AgentLifecycleService.
-        assert gateway_resolver.resolve_gateway_grpc_endpoint("http://gw.example:7391") == "http://gw.example:50051"
+        # the REST port, which exposes no AgentLifecycleService. A non-loopback
+        # plaintext http:// target now requires the allow_insecure opt-in
+        # (AAASM-4655); the port-substitution behaviour itself is unchanged.
+        assert (
+            gateway_resolver.resolve_gateway_grpc_endpoint("http://gw.example:7391", allow_insecure=True)
+            == "http://gw.example:50051"
+        )
 
     def test_preserves_non_loopback_host(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
