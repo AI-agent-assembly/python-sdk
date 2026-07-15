@@ -300,8 +300,9 @@ async def test_non_governance_error_propagates_fail_closed(
     assert patcher.apply() is True
 
     tool = function_tool_cls(name="fail_closed_tool")
+    ctx = SimpleNamespace(agent_id="agent-fail-closed")
     with pytest.raises(RuntimeError, match="gateway unavailable"):
-        await tool.on_invoke_tool(SimpleNamespace(agent_id="agent-fail-closed"), '{"x": 2}')
+        await tool.on_invoke_tool(ctx, '{"x": 2}')
 
 
 @pytest.mark.asyncio
@@ -349,8 +350,9 @@ async def test_value_error_propagates_fail_closed(
     assert patcher.apply() is True
 
     tool = function_tool_cls(name="strict_tool")
+    ctx = SimpleNamespace(agent_id="agent-strict")
     with pytest.raises(ValueError, match="unexpected"):
-        await tool.on_invoke_tool(SimpleNamespace(agent_id="agent-strict"), '{"x": 3}')
+        await tool.on_invoke_tool(ctx, '{"x": 3}')
 
 
 @pytest.mark.asyncio
