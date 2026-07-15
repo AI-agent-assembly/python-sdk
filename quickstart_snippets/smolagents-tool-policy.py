@@ -15,3 +15,12 @@ with init_assembly(
     agent_id="smolagents-demo-agent",
     mode="sdk-only",
 ) as ctx:
+    print(f"  Agent:    {ctx.client.agent_id}")
+    print(f"  Gateway:  {ctx.client.gateway_url}")
+    print(f"  Mode:     {ctx.network_mode} (offline demo)")
+    print()
+
+    print("Policy rules (local simulation of gateway policy):")
+    print("  DENY   — run_shell_command, delete_records  (destructive ops)")
+    print("  ALLOW  — everything else")
+    print()
