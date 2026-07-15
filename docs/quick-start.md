@@ -63,7 +63,7 @@ decisions. You have three options:
   provides it).
 - **Run one yourself** with `aasm start --mode local --foreground` in a separate terminal. For
   a full gateway walkthrough, see the core
-  [Run the gateway](https://docs.agent-assembly.com/core/getting-started/) guide.
+  [Run the gateway](https://docs.agent-assembly.com/core/latest/quick-start/first-run.html) guide.
 - **Pass an explicit URL**, as the example below does.
 
 See [Configuration](configuration.md) for the full URL/key resolution chain (`7391` is the
