@@ -84,6 +84,14 @@ local default port).
     connects and shows the agent in the dashboard. `:8080` is **not** the local gateway
     port; ignore older docs or examples that point registration there.
 
+    To confirm both surfaces are actually up rather than guessing from the SDK's
+    behavior, check them directly:
+
+    ```bash
+    curl http://localhost:7391/healthz   # REST — real JSON: mode, storage, version, uptime_secs
+    nc -z localhost 50051 && echo "gRPC port open"   # gRPC has no health endpoint yet; this only confirms the port accepts connections
+    ```
+
 ## 3. Govern your first agent
 
 Agent Assembly governs whichever agent framework you already use. Pick your framework below —
