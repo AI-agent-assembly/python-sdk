@@ -166,6 +166,7 @@ def init_assembly(
     spawned_by_tool: str | None = None,
     depth: int | None = None,
     enforcement_mode: EnforcementMode | None = None,
+    allow_insecure: bool = False,
 ) -> AssemblyContext:
     """Initialize the Agent Assembly SDK runtime for this process.
 
@@ -204,6 +205,15 @@ def init_assembly(
         the agent in dry-run / sandbox mode: every action proceeds (local checks
         fail open) and the gateway records would-be violations as shadow audit
         events.
+    :param allow_insecure: Opt into a plaintext (non-TLS) native ``register``
+        channel when the resolved gateway host is non-loopback (AAASM-4664).
+        Defaults to ``False`` — secure-by-default (AAASM-4655): a derived
+        plaintext ``http://`` register endpoint to a non-loopback host is
+        refused, since the ``Register`` call carries the agent identity and must
+        not travel unencrypted to a remote host. Set to ``True`` only on a
+        trusted network (loopback dev / private link), mirroring op-control's
+        ``connect(allow_insecure=...)`` semantics. Loopback and ``https://``
+        targets always pass regardless of this flag.
     """
     gateway_url = resolve_gateway_url(gateway_url)
     api_key = resolve_api_key(api_key)
@@ -267,7 +277,7 @@ def init_assembly(
                 runtime_client=runtime_client,
                 agent_id=resolved_agent_id,
                 enforcement_mode=enforcement_mode,
-                gateway_endpoint=resolve_gateway_grpc_endpoint(gateway_url),
+                gateway_endpoint=resolve_gateway_grpc_endpoint(gateway_url, allow_insecure=allow_insecure),
                 native_available=native_available,
                 team_id=team_id,
                 parent_agent_id=parent_agent_id,
