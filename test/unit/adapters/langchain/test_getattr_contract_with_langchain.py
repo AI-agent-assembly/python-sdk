@@ -87,9 +87,13 @@ _CONTRACT_FLAGS: tuple[str, ...] = (
     "run_inline",
 )
 
-# The four contract methods AssemblyCallbackHandler defines itself; the remaining
-# contract members must resolve to a ``langchain_core`` class.
-_OVERRIDDEN_METHODS: frozenset[str] = frozenset({"on_tool_start", "on_tool_end", "on_llm_start", "on_llm_end"})
+# Contract members AssemblyCallbackHandler defines itself; the remaining members
+# must resolve to a ``langchain_core`` class. The four tool/llm methods carry the
+# governance dispatch; ``raise_error`` is overridden to True so LangChain propagates
+# a DENY instead of swallowing it (AAASM-4658).
+_OVERRIDDEN_MEMBERS: frozenset[str] = frozenset(
+    {"on_tool_start", "on_tool_end", "on_llm_start", "on_llm_end", "raise_error"}
+)
 
 
 class _ExplodingInterceptor:
@@ -144,7 +148,7 @@ def test_contract_members_resolve_statically_not_via_getattr() -> None:
         assert static_value is not None
 
         owner = _defining_class(name)
-        if name in _OVERRIDDEN_METHODS:
+        if name in _OVERRIDDEN_MEMBERS:
             assert owner is AssemblyCallbackHandler
         else:
             assert owner.__module__.startswith(
@@ -156,7 +160,9 @@ def test_contract_members_resolve_statically_not_via_getattr() -> None:
     for name in _CONTRACT_EVENT_METHODS:
         assert callable(getattr(handler, name))
     for name in _CONTRACT_FLAGS:
-        assert getattr(handler, name) is False
+        # ``raise_error`` is intentionally True (AAASM-4658); the rest are False.
+        expected = name == "raise_error"
+        assert getattr(handler, name) is expected
 
     assert spy.accessed == [], f"__getattr__ delegated contract members it must not: {spy.accessed}"
 
