@@ -30,6 +30,16 @@ except ImportError:  # pragma: no cover - fallback keeps runtime import-safe.
 class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,misc]
     """Callback handler that delegates runtime events to governance interception."""
 
+    # LangChain's CallbackManager LOGS-AND-SWALLOWS an exception raised inside a
+    # callback when ``raise_error`` is False (its inherited default), then runs the
+    # tool anyway. When a user wires this handler the idiomatic way
+    # (``callbacks=[handler]``), that would let a policy DENY be silently bypassed —
+    # ``on_tool_start`` raises ``ToolExecutionBlockedError`` but the denied tool still
+    # executes, with only a log line as trace (AAASM-4658). Setting this True makes
+    # LangChain propagate the block instead of swallowing it, so a DENY aborts the
+    # tool call as governance requires.
+    raise_error: bool = True
+
     _UNKNOWN_DECISION_REASON = "Unrecognized governance decision; denied under enforce."
 
     def __init__(self, interceptor: Any) -> None:
