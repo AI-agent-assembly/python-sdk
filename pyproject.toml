@@ -17,7 +17,13 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    # AAASM-4648: this package ships platform-specific native (Rust-extension)
+    # wheels for macOS and Linux only — no Windows wheel is built. The prior
+    # "Operating System :: OS Independent" classifier was false and led Windows
+    # users to a from-source build that requires a Rust/maturin toolchain. List
+    # the OSes we actually publish wheels for instead.
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
