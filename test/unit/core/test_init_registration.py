@@ -513,6 +513,61 @@ def test_enforce_mode_propagates_register_failure(monkeypatch: pytest.MonkeyPatc
         )
 
 
+# A non-loopback gateway host reached over plaintext http:// — the register
+# endpoint TLS guard (AAASM-4655) fail-closes this by default, and the
+# allow_insecure opt-in (AAASM-4664) is what lets it through.
+_INSECURE_GW_URL = "http://gateway.test"
+_INSECURE_GRPC_ENDPOINT = "http://gateway.test:50051"
+
+
+def test_init_refuses_plaintext_nonloopback_register_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Omitting ``allow_insecure`` keeps init fail-closed: a plaintext http://
+    register channel to a non-loopback host is refused (AAASM-4664 preserves the
+    secure-by-default guard from AAASM-4655)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    with pytest.raises(ConfigurationError, match="Failed to initialize assembly runtime"):
+        init_assembly(
+            gateway_url=_INSECURE_GW_URL,
+            api_key=_API_KEY,
+            agent_id="agent-insecure-default",
+            mode="sdk-only",
+        )
+    # The guard fires before register is dialed, so no registration happened.
+    assert runtime_client.register_calls == []
+
+
+def test_init_allow_insecure_permits_plaintext_nonloopback_register(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``allow_insecure=True`` threads through to
+    ``resolve_gateway_grpc_endpoint`` and opts into a plaintext http:// register
+    channel to a non-loopback host (trusted-network only, AAASM-4664)."""
+    runtime_client = FakeRuntimeClient(decision="allow")
+    install_fake_core(monkeypatch, runtime_client)
+    _no_network(monkeypatch)
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+
+    context = init_assembly(
+        gateway_url=_INSECURE_GW_URL,
+        api_key=_API_KEY,
+        agent_id="agent-insecure-optin",
+        mode="sdk-only",
+        allow_insecure=True,
+    )
+    try:
+        assert runtime_client.register_calls == [
+            ("agent-insecure-optin", "agent-insecure-optin", "python", _INSECURE_GRPC_ENDPOINT, None, None)
+        ]
+    finally:
+        context.shutdown()
+
+
 def _patched_register_adapters(adapter: _CapturingAdapter) -> object:
     """Build a stand-in for ``_register_adapters`` that drives the real
     interceptor builder and registers the capturing adapter with it."""
