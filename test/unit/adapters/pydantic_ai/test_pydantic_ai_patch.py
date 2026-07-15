@@ -152,9 +152,10 @@ async def test_denied_tool_raises_policy_violation_error(monkeypatch: pytest.Mon
 
     tool = FakeTool()
     ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-a"), run_id="run-1")
+    args = _ArgsModel({"topic": "finance"})
 
     with pytest.raises(PolicyViolationError, match="blocked by governance policy: blocked for safety"):
-        await tool._run(ctx, _ArgsModel({"topic": "finance"}))
+        await tool._run(ctx, args)
 
 
 @pytest.mark.asyncio
@@ -214,9 +215,10 @@ async def test_pending_then_rejected_raises_policy_violation_error(
 
     tool = FakeTool()
     ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-c"), run_id="run-3")
+    args = _ArgsModel({"q": "secret"})
 
     with pytest.raises(PolicyViolationError, match="rejected during approval: approval rejected"):
-        await tool._run(ctx, _ArgsModel({"q": "secret"}))
+        await tool._run(ctx, args)
 
 
 @pytest.mark.asyncio
