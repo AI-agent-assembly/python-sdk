@@ -6,7 +6,19 @@ from unittest import mock
 
 import pytest
 
+from agent_assembly import __version__
 from agent_assembly.cli.main import main
+
+
+class TestCliMainVersion:
+    """Tests for the ``aasm --version`` flag."""
+
+    def test_version_prints_version_and_exits_zero(self, capsys: pytest.CaptureFixture[str]) -> None:
+        with mock.patch("sys.argv", ["aasm", "--version"]):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+            assert exc_info.value.code == 0
+            assert capsys.readouterr().out.strip() == f"aasm {__version__}"
 
 
 class TestCliMainExitCodeZero:
