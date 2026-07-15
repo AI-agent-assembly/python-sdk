@@ -173,7 +173,7 @@ What this does:
 
 ## Public API
 
-- `init_assembly(gateway_url, api_key, agent_id=None, mode="auto", *, control_plane_url=None) -> AssemblyContext`
+- `init_assembly(gateway_url, api_key, agent_id=None, mode="auto", *, control_plane_url=None, allow_insecure=False) -> AssemblyContext`
 - Exceptions: `AssemblyError`, `AgentError`, `PolicyError`, `GatewayError`, `ConfigurationError`
 - Data models: `AgentConfig`, `AgentState`, `PolicyEvaluation`
 
@@ -205,6 +205,25 @@ Resolution order is **explicit kwarg > env-var > unset**:
 |---|---|
 | `gateway_url` | `AA_GATEWAY_URL` |
 | `control_plane_url` | `AA_CONTROL_PLANE_URL` |
+
+### Insecure transport opt-in
+
+Agent registration dials the gateway's gRPC port over the native `register`
+call. By default a **plaintext `http://` register channel to a non-loopback
+host is refused** — the `Register` call carries the agent identity, so it must
+not travel unencrypted to a remote host. Loopback (local dev) and `https://`
+targets always pass.
+
+Pass `allow_insecure=True` to opt into plaintext to a non-loopback host, on a
+**trusted network only** (e.g. a private link where TLS terminates elsewhere).
+This mirrors the operator-control `connect(allow_insecure=...)` opt-in:
+
+```python
+init_assembly(
+    gateway_url="http://gateway.internal:7391",
+    allow_insecure=True,  # trusted-network only; leave False in production
+)
+```
 
 ## Error Handling
 
