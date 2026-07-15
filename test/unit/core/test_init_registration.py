@@ -25,12 +25,17 @@ from ._fake_core import (
     install_fake_core_with_connect,
 )
 
-_GW_URL = "http://gateway.test"
+# A non-loopback gateway host over TLS (https) — remote gateways must be
+# encrypted, since the register-endpoint TLS guard (AAASM-4655) fail-closes a
+# plaintext http:// register channel to a non-loopback host. https keeps this a
+# genuine non-loopback host (so the host→gRPC-port substitution below is still
+# exercised) while passing the guard as correct remote usage.
+_GW_URL = "https://gateway.test"
 _API_KEY = "test-key"
 # The gRPC register endpoint derived from _GW_URL's host with the gateway gRPC
 # port (:50051) substituted for the REST port — see resolve_gateway_grpc_endpoint
 # (AAASM-4547). register_agent forwards this as the 4th positional argument.
-_GRPC_ENDPOINT = "http://gateway.test:50051"
+_GRPC_ENDPOINT = "https://gateway.test:50051"
 
 
 class _CapturingAdapter(FrameworkAdapter):

@@ -83,7 +83,7 @@ class TestInitAssemblySpawnContextAutoRead:
             spawn_context_scope(spawn_ctx),
         ):
             ctx = assembly.init_assembly(
-                gateway_url="http://gw",
+                gateway_url="https://gw",
                 api_key="key",
                 agent_id="child-agent",
                 mode="sdk-only",
@@ -120,7 +120,7 @@ class TestInitAssemblySpawnContextAutoRead:
             spawn_context_scope(spawn_ctx),
         ):
             ctx = assembly.init_assembly(
-                gateway_url="http://gw",
+                gateway_url="https://gw",
                 api_key="key",
                 agent_id="child",
                 mode="sdk-only",
@@ -154,7 +154,7 @@ class TestInitAssemblySpawnContextAutoRead:
             patch("agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)),
         ):
             ctx = assembly.init_assembly(
-                gateway_url="http://gw",
+                gateway_url="https://gw",
                 api_key="key",
                 agent_id="solo-agent",
                 mode="sdk-only",

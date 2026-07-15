@@ -122,12 +122,12 @@ def test_init_assembly_explicit_args_bypass_resolver(
     )
 
     context = init_assembly(
-        gateway_url="http://explicit.gw:9999",
+        gateway_url="https://explicit.gw:9999",
         api_key="explicit-key",
         agent_id="agent-x",
     )
     try:
-        assert context.client.gateway_url == "http://explicit.gw:9999"
+        assert context.client.gateway_url == "https://explicit.gw:9999"
         assert context.client.api_key == "explicit-key"
         assert context.client.agent_id == "agent-x"
     finally:
@@ -503,7 +503,7 @@ def test_init_assembly_gateway_url_falls_back_to_env_var(
     monkeypatch.setattr(gateway_resolver, "_probe_healthz", lambda _url: False)
     monkeypatch.setattr(gateway_resolver, "resolve_gateway_url", lambda explicit=None: explicit or "")
     monkeypatch.setattr(core_assembly, "resolve_gateway_url", lambda explicit=None: explicit or "")
-    monkeypatch.setenv(core_assembly.ENV_GATEWAY_URL, "http://env-gateway:7000")
+    monkeypatch.setenv(core_assembly.ENV_GATEWAY_URL, "https://env-gateway:7000")
     monkeypatch.delenv(core_assembly.ENV_CONTROL_PLANE_URL, raising=False)
     monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
     monkeypatch.setattr(
@@ -515,7 +515,7 @@ def test_init_assembly_gateway_url_falls_back_to_env_var(
     context = init_assembly(api_key="test-api-key", agent_id="env-gw-agent")
 
     try:
-        assert context.client.gateway_url == "http://env-gateway:7000"
+        assert context.client.gateway_url == "https://env-gateway:7000"
     finally:
         context.shutdown()
 
@@ -660,7 +660,13 @@ def test_init_assembly_enforcement_mode_defaults_to_none_to_preserve_wire_shape(
 def test_init_assembly_warns_on_plaintext_http_with_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """AAASM-3725: a resolved non-loopback http:// gateway + API key warns."""
+    """AAASM-3725: a resolved non-loopback http:// gateway + API key warns.
+
+    The early AAASM-3725 warning still fires for the plaintext non-loopback
+    gateway, but the AAASM-4655 register-endpoint TLS guard now fail-closes on
+    that same plaintext non-loopback target, so ``init_assembly`` raises after
+    the warning is emitted.
+    """
     monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
     monkeypatch.setattr(
         core_assembly,
@@ -668,13 +674,12 @@ def test_init_assembly_warns_on_plaintext_http_with_api_key(
         lambda **kwargs: ("sdk-only", core_assembly._noop_shutdown),
     )
 
-    with pytest.warns(UserWarning, match="unencrypted"):
-        context = init_assembly(
+    with pytest.warns(UserWarning, match="unencrypted"), pytest.raises(ConfigurationError):
+        init_assembly(
             gateway_url="http://gw.remote:9999",
             api_key="explicit-key",
             agent_id="agent-warn",
         )
-    context.shutdown()
 
 
 def test_init_assembly_no_warning_for_loopback_http_with_api_key(

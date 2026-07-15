@@ -30,6 +30,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from agent_assembly.core.transport_security import require_secure_grpc_target
 from agent_assembly.exceptions import ConfigurationError, GatewayError
 
 logger = logging.getLogger(__name__)
@@ -235,7 +236,7 @@ def resolve_gateway_url(explicit: str | None = None) -> str:
     return DEFAULT_GATEWAY_URL
 
 
-def resolve_gateway_grpc_endpoint(gateway_url: str | None = None) -> str:
+def resolve_gateway_grpc_endpoint(gateway_url: str | None = None, *, allow_insecure: bool = False) -> str:
     """Resolve the gRPC endpoint the native ``register`` call should dial.
 
     Agent registration goes over the gateway's **gRPC** port (:50051), which is a
@@ -248,15 +249,30 @@ def resolve_gateway_grpc_endpoint(gateway_url: str | None = None) -> str:
 
         1. ``AA_GATEWAY_ENDPOINT`` — explicit operator override, honoured verbatim
            (the same env var the native ``aa-sdk-client`` resolver reads, so a
-           value set for one path applies to both).
+           value set for one path applies to both). As an explicit operator
+           escape hatch — the ``channel_factory`` analogue of the op-control path
+           (``op_control.py``) — it bypasses the TLS guard below; the operator has
+           taken responsibility for the transport they named.
         2. The resolved REST ``gateway_url``'s host with the gRPC port (:50051)
            substituted — so a non-loopback gateway host registers against *that*
            host's gRPC port rather than always ``127.0.0.1``.
         3. The loopback default ``http://127.0.0.1:50051``.
 
+    A **derived** (branch 2) plaintext ``http://`` endpoint to a non-loopback host
+    is refused, mirroring the op-control stream's non-loopback→TLS contract
+    (``require_secure_grpc_target``, AAASM-3685): the ``Register`` call carries the
+    agent identity, so it must not travel unencrypted to a remote host by default.
+    ``https://`` (TLS) and loopback targets always pass; pass ``allow_insecure`` to
+    opt into plaintext to a non-loopback host (loopback dev / trusted-network only),
+    exactly as op-control's ``connect`` does (AAASM-4655).
+
     :param gateway_url: The already-resolved REST gateway URL, used only for its
         host. When it carries no usable host the loopback default is returned.
+    :param allow_insecure: Opt into a plaintext (non-TLS) register channel to a
+        non-loopback host. Defaults to ``False`` (fail-closed).
     :returns: A gRPC endpoint URL (e.g. ``http://127.0.0.1:50051``).
+    :raises ValueError: When the derived endpoint is plaintext ``http://`` to a
+        non-loopback host and ``allow_insecure`` is not set.
     """
     env_value = os.environ.get(ENV_GATEWAY_ENDPOINT)
     if env_value:
@@ -266,7 +282,13 @@ def resolve_gateway_grpc_endpoint(gateway_url: str | None = None) -> str:
         parsed = urlparse(gateway_url)
         if parsed.hostname:
             scheme = parsed.scheme or "http"
-            return f"{scheme}://{parsed.hostname}:{DEFAULT_GRPC_PORT}"
+            endpoint = f"{scheme}://{parsed.hostname}:{DEFAULT_GRPC_PORT}"
+            # Only plaintext http:// needs the guard; https:// carries its own TLS
+            # and loopback is the documented dev default (both pass through
+            # require_secure_grpc_target unconditionally).
+            if scheme == "http":
+                require_secure_grpc_target(endpoint, allow_insecure=allow_insecure)
+            return endpoint
 
     return DEFAULT_GRPC_ENDPOINT
 
