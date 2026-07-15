@@ -335,3 +335,27 @@ class TestResolveGatewayGrpcEndpoint:
         monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
         assert gateway_resolver.resolve_gateway_grpc_endpoint(None) == gateway_resolver.DEFAULT_GRPC_ENDPOINT
         assert gateway_resolver.resolve_gateway_grpc_endpoint("") == gateway_resolver.DEFAULT_GRPC_ENDPOINT
+
+
+class TestResolveGatewayGrpcEndpointTlsGuard:
+    """The register endpoint mirrors op-control's non-loopback→TLS contract
+    (``require_secure_grpc_target``): a derived plaintext http:// target to a
+    non-loopback host is refused unless ``allow_insecure`` opts in (AAASM-4655)."""
+
+    def test_loopback_plaintext_allowed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
+        # Loopback is the documented dev default — plaintext stays allowed.
+        assert gateway_resolver.resolve_gateway_grpc_endpoint("http://localhost:7391") == "http://localhost:50051"
+
+    def test_non_loopback_plaintext_allowed_with_opt_in(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
+        assert (
+            gateway_resolver.resolve_gateway_grpc_endpoint("http://gw.prod.example:7391", allow_insecure=True)
+            == "http://gw.prod.example:50051"
+        )
+
+    def test_non_loopback_plaintext_rejected_without_opt_in(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_ENDPOINT, raising=False)
+        # Same secure-transport refusal op_control raises via require_secure_grpc_target.
+        with pytest.raises(ValueError, match="insecure"):
+            gateway_resolver.resolve_gateway_grpc_endpoint("http://gw.prod.example:7391")
