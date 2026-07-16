@@ -90,6 +90,12 @@ pip install --pre 'agent-assembly[runtime]' # SDK + bundled aasm runtime binary 
 `aasm` sidecar binary, so you don't need a separate runtime install. Plain `agent-assembly`
 is the pure-Python client and expects an `aasm` runtime to be reachable some other way.
 
+Confirm the `aasm` CLI is on your `PATH`:
+
+```bash
+aasm --version   # e.g. aasm 0.0.1rc5
+```
+
 > **Supply-chain verification.** The only official PyPI package is `agent-assembly`
 > (anything else is a typosquat). Every release ships PEP 740 attestations on its
 > [PyPI files page](https://pypi.org/project/agent-assembly/#files) and a CycloneDX
