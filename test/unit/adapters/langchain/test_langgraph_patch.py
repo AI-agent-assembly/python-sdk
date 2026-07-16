@@ -77,8 +77,9 @@ def test_invoke_hooks_reraise_internal_typeerror() -> None:
             del kwargs
             raise TypeError("internal callback failure")
 
+    recorder = InternalTypeErrorRecorder()
     with pytest.raises(TypeError, match="internal callback failure"):
-        langgraph_patch._invoke_pre_node_hook(InternalTypeErrorRecorder(), "n4", {"state": 4})
+        langgraph_patch._invoke_pre_node_hook(recorder, "n4", {"state": 4})
 
 
 @pytest.mark.asyncio

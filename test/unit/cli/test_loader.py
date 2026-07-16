@@ -65,8 +65,9 @@ class TestLoadAdapterClassFromPath:
         assert isinstance(tmp_path, pathlib.Path)
         empty_file = tmp_path / "empty.py"
         empty_file.write_text("x = 1\n")
+        path = str(empty_file)
         with pytest.raises(ValueError, match="No FrameworkAdapter subclass"):
-            load_adapter_class_from_path(str(empty_file))
+            load_adapter_class_from_path(path)
 
 
 class TestLoadAdapterClass:

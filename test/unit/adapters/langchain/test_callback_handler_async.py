@@ -35,12 +35,13 @@ class AsyncInterceptor:
 @pytest.mark.asyncio
 async def test_aon_tool_start_raises_when_governance_denies() -> None:
     handler = AssemblyCallbackHandler(AsyncInterceptor())
+    run_id = uuid4()
 
     with pytest.raises(ToolExecutionBlockedError):
         await handler.aon_tool_start(
             serialized={"name": "web_search"},
             input_str="query",
-            run_id=uuid4(),
+            run_id=run_id,
             decision={"status": "deny", "reason": "blocked"},
         )
 
@@ -108,12 +109,13 @@ class _EnforcingAsyncInterceptor(AsyncInterceptor):
 @pytest.mark.parametrize("decision", [None, "maybe", 12345, {"status": "garbage"}, {}])
 async def test_aon_tool_start_denies_unknown_under_enforce(decision: object) -> None:
     handler = AssemblyCallbackHandler(_EnforcingAsyncInterceptor())
+    run_id = uuid4()
 
     with pytest.raises(ToolExecutionBlockedError):
         await handler.aon_tool_start(
             serialized={"name": "web_search"},
             input_str="query",
-            run_id=uuid4(),
+            run_id=run_id,
             decision=decision,
         )
 

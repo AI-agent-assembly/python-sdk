@@ -103,8 +103,10 @@ class InvalidRegistrationAdapter(FrameworkAdapter):
 
 
 def test_register_raises_validation_error_for_invalid_contract() -> None:
+    adapter = InvalidRegistrationAdapter()
+    contract = object()
     with pytest.raises(AdapterValidationError):
-        InvalidRegistrationAdapter().register(object())
+        adapter.register(contract)
 
 
 class EmptyVersionsAdapter(FrameworkAdapter):
@@ -122,8 +124,9 @@ class EmptyVersionsAdapter(FrameworkAdapter):
 
 
 def test_validate_registration_rejects_empty_supported_versions() -> None:
+    adapter = EmptyVersionsAdapter()
     with pytest.raises(AdapterValidationError, match="supported versions must not be empty"):
-        EmptyVersionsAdapter().validate_registration()
+        adapter.validate_registration()
 
 
 class BlankVersionRangeAdapter(FrameworkAdapter):
@@ -141,8 +144,9 @@ class BlankVersionRangeAdapter(FrameworkAdapter):
 
 
 def test_validate_registration_rejects_blank_version_range() -> None:
+    adapter = BlankVersionRangeAdapter()
     with pytest.raises(AdapterValidationError, match="version ranges must be non-empty"):
-        BlankVersionRangeAdapter().validate_registration()
+        adapter.validate_registration()
 
 
 class AgentIdAwareAdapter(FrameworkAdapter):

@@ -96,8 +96,9 @@ class TestApplyRunnerRunPatch:
         FakeRunner.run = classmethod(failing_run)  # type: ignore[arg-type,assignment,method-assign]
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
 
+        agent = MagicMock()
         with pytest.raises(RuntimeError):
-            await FakeRunner.run(MagicMock(), input="x")
+            await FakeRunner.run(agent, input="x")
         assert _SPAWN_CTX.get() is None
 
     def test_idempotent_apply(self) -> None:
@@ -232,8 +233,9 @@ class TestApplyHandoffPatch:
         from agent_assembly.adapters.openai_agents.patch import _wrap_on_invoke_handoff
 
         _wrap_on_invoke_handoff(h, "process-agent-001")
+        ctx = MagicMock()
         with pytest.raises(RuntimeError, match="handoff failed"):
-            await h.on_invoke_handoff(MagicMock(), "{}")
+            await h.on_invoke_handoff(ctx, "{}")
         assert _SPAWN_CTX.get() is None
 
     def test_idempotent_apply(self) -> None:
