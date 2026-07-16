@@ -5,6 +5,28 @@ Release notes for the Agent Assembly Python SDK. Versions follow [SemVer](https:
 !!! info "0.x development"
     The SDK is in active 0.x development; per-release notes are minimal. Track full changes via [the commits to `master`](https://github.com/ai-agent-assembly/python-sdk/commits/master) and the [GitHub releases](https://github.com/ai-agent-assembly/python-sdk/releases) feed.
 
+## 0.0.1-rc.6
+
+Sixth **release candidate** on the `0.0.1` line. This release tracks the published
+`agent-assembly` core **`v0.0.1-rc.6`**: the bundled `aasm` runtime binary and the
+compiled `aa-ffi-python` extension are pinned to that core tag.
+
+This is a **security-hardening** candidate: the SDK now refuses to resolve a
+register endpoint that would send credentials over non-loopback plaintext, and a
+LangChain policy `deny` now actually blocks the tool call instead of being swallowed.
+
+- Enforce non-loopback TLS on register-endpoint resolution, so a register call can
+  no longer leak credentials over plaintext to a non-loopback host (AAASM-4655).
+- Set `raise_error` on the LangChain adapter so a policy `deny` is enforced and
+  blocks the tool call rather than being silently ignored (AAASM-4658).
+- Add an `allow_insecure` opt-in to `init_assembly()` for deliberately trusted
+  networks, gated and documented as a conscious escape hatch (AAASM-4664).
+- Add an `aasm --version` flag sourcing `__version__`, and correct the README error-
+  handling example to match the actual exception (AAASM-4656 / AAASM-4710).
+- Fix a misleading OS classifier on the platform wheels' packaging metadata
+  (AAASM-4648), and tidy dead LangChain async callbacks / test hygiene
+  (AAASM-4710 / AAASM-4691).
+
 ## 0.0.1-rc.5
 
 Fifth **release candidate** on the `0.0.1` line. This release tracks the published

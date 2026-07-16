@@ -19,7 +19,7 @@ Version pins (from `pyproject.toml`):
 | Dependency | Version |
 |---|---|
 | `llama-index-core` | `>=0.14.22` |
-| `agent-assembly` | `>=0.0.1rc5` (the release that ships the LlamaIndex adapter) |
+| `agent-assembly` | `>=0.0.1rc6` (the release that ships the LlamaIndex adapter) |
 | Python | `>=3.12` |
 
 ## How it works
