@@ -246,6 +246,12 @@ except ConfigurationError as exc:
     print(f"Invalid configuration: {exc}")
 ```
 
+> **Auto-discovery caveat.** Local auto-discovery tries to auto-start a gateway via
+> the `aasm` CLI. If `aasm` is **not** on your `PATH`, discovery can't start one and
+> raises `ConfigurationError` immediately (rather than the `GatewayError` you'd get
+> after the ~5 s health-check timeout when `aasm` is present but the gateway never
+> becomes ready). Install the runtime with `pip install --pre 'agent-assembly[runtime]'`.
+
 ## Development
 
 Run tests:
