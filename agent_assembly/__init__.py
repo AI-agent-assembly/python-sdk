@@ -8,7 +8,7 @@ import importlib.util
 import sys
 from typing import TYPE_CHECKING, Any
 
-__version__ = "0.0.1rc5"
+__version__ = "0.0.1rc6"
 
 _MODULE_CORE = "agent_assembly.core"
 _MODULE_ADAPTERS = "agent_assembly.adapters"
