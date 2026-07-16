@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import inspect
 from collections.abc import Mapping
 from typing import Any, Literal, cast
 from uuid import UUID
@@ -181,47 +180,6 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
             **kwargs,
         )
 
-    async def aon_tool_start(
-        self,
-        serialized: dict[str, Any],
-        input_str: str,
-        *,
-        run_id: UUID,
-        **kwargs: Any,
-    ) -> None:
-        method = getattr(self._interceptor, "check_tool_start", None)
-        if not callable(method):
-            return None
-
-        decision = method(
-            serialized=serialized,
-            input_str=input_str,
-            run_id=run_id,
-            **kwargs,
-        )
-        if inspect.isawaitable(decision):
-            decision = await decision
-
-        status, reason = self._normalize_decision(decision)
-        if status == "deny":
-            raise ToolExecutionBlockedError(reason or "Tool execution blocked by governance.")
-        if status == "pending":
-            approval = self._resolve_pending_approval(
-                serialized=serialized,
-                input_str=input_str,
-                run_id=run_id,
-                **kwargs,
-            )
-            if inspect.isawaitable(approval):
-                approval = await approval
-            approval_status, approval_reason = self._normalize_decision(approval)
-            if approval_status != "allow":
-                raise ToolExecutionBlockedError(
-                    approval_reason or reason or "Tool execution was not approved by governance."
-                )
-
-        return None
-
     def on_tool_end(
         self,
         output: Any,
@@ -238,26 +196,6 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
             run_id=run_id,
             **kwargs,
         )
-        return None
-
-    async def aon_tool_end(
-        self,
-        output: Any,
-        *,
-        run_id: UUID,
-        **kwargs: Any,
-    ) -> None:
-        method = getattr(self._interceptor, "on_tool_end", None)
-        if not callable(method):
-            return None
-
-        result = method(
-            output=output,
-            run_id=run_id,
-            **kwargs,
-        )
-        if inspect.isawaitable(result):
-            await result
         return None
 
     def on_llm_start(
@@ -280,28 +218,6 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
         )
         return None
 
-    async def aon_llm_start(
-        self,
-        serialized: dict[str, Any],
-        prompts: list[str],
-        *,
-        run_id: UUID,
-        **kwargs: Any,
-    ) -> None:
-        method = getattr(self._interceptor, "on_llm_start_scan", None)
-        if not callable(method):
-            return None
-
-        result = method(
-            serialized=serialized,
-            prompts=prompts,
-            run_id=run_id,
-            **kwargs,
-        )
-        if inspect.isawaitable(result):
-            await result
-        return None
-
     def on_llm_end(
         self,
         response: Any,
@@ -318,26 +234,6 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
             run_id=run_id,
             **kwargs,
         )
-        return None
-
-    async def aon_llm_end(
-        self,
-        response: Any,
-        *,
-        run_id: UUID,
-        **kwargs: Any,
-    ) -> None:
-        method = getattr(self._interceptor, "on_llm_end", None)
-        if not callable(method):
-            return None
-
-        result = method(
-            response=response,
-            run_id=run_id,
-            **kwargs,
-        )
-        if inspect.isawaitable(result):
-            await result
         return None
 
     def on_graph_node_start(
