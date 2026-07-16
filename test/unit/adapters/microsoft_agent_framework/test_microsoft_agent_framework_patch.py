@@ -130,8 +130,9 @@ async def test_deny_blocks_tool_and_prevents_side_effect(monkeypatch: pytest.Mon
     patcher = maf_patch.MicrosoftAgentFrameworkPatch(_DenyInterceptor())
     assert patcher.apply() is True
 
+    tool = FakeTool()
     with pytest.raises(PolicyViolationError, match="blocked by governance policy"):
-        await FakeTool().invoke(arguments={"city": "Seattle"})
+        await tool.invoke(arguments={"city": "Seattle"})
 
     # The wrapped function must NOT have run — a no-op patch would let it through.
     assert side_effects == []
@@ -147,8 +148,9 @@ async def test_pending_then_deny_rejects_at_approval(monkeypatch: pytest.MonkeyP
     patcher = maf_patch.MicrosoftAgentFrameworkPatch(_PendingThenDenyInterceptor())
     assert patcher.apply() is True
 
+    tool = FakeTool()
     with pytest.raises(PolicyViolationError, match="rejected during approval"):
-        await FakeTool().invoke(arguments={"x": 1})
+        await tool.invoke(arguments={"x": 1})
 
     assert side_effects == []
 
@@ -170,8 +172,9 @@ async def test_unknown_verdict_fails_closed_under_enforce(monkeypatch: pytest.Mo
     patcher = maf_patch.MicrosoftAgentFrameworkPatch(_MalformedInterceptor())
     assert patcher.apply() is True
 
+    tool = FakeTool()
     with pytest.raises(PolicyViolationError):
-        await FakeTool().invoke(arguments={"x": 1})
+        await tool.invoke(arguments={"x": 1})
     assert side_effects == []
 
     patcher.revert()

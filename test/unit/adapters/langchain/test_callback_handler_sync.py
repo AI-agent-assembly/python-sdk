@@ -38,12 +38,13 @@ class SyncInterceptor:
 
 def test_on_tool_start_raises_when_governance_denies() -> None:
     handler = AssemblyCallbackHandler(SyncInterceptor())
+    run_id = uuid4()
 
     with pytest.raises(ToolExecutionBlockedError):
         handler.on_tool_start(
             serialized={"name": "web_search"},
             input_str="query",
-            run_id=uuid4(),
+            run_id=run_id,
             decision={"status": "deny", "reason": "blocked"},
         )
 
@@ -79,12 +80,13 @@ def test_on_tool_start_waits_for_pending_approval() -> None:
 
 def test_on_tool_start_blocks_when_pending_never_approved() -> None:
     handler = AssemblyCallbackHandler(SyncInterceptor())
+    run_id = uuid4()
 
     with pytest.raises(ToolExecutionBlockedError):
         handler.on_tool_start(
             serialized={"name": "calendar_write"},
             input_str="create event",
-            run_id=uuid4(),
+            run_id=run_id,
             decision={"status": "pending"},
             approval_decision={"status": "deny"},
         )
@@ -145,12 +147,13 @@ class _EnforcingInterceptor(SyncInterceptor):
 )
 def test_unknown_decision_denies_under_enforce(decision: object) -> None:
     handler = AssemblyCallbackHandler(_EnforcingInterceptor())
+    run_id = uuid4()
 
     with pytest.raises(ToolExecutionBlockedError):
         handler.on_tool_start(
             serialized={"name": "web_search"},
             input_str="query",
-            run_id=uuid4(),
+            run_id=run_id,
             decision=decision,
         )
 

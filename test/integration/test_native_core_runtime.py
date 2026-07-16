@@ -275,11 +275,12 @@ def test_wired_check_blocks_on_runtime_deny(native_core: Any) -> None:
     try:
         interceptor = RuntimeQueryInterceptor(object(), client, "agent-001")
         handler = AssemblyCallbackHandler(interceptor)
+        run_id = uuid4()
         with pytest.raises(ToolExecutionBlockedError):
             handler.on_tool_start(
                 serialized={"name": "web_search"},
                 input_str="query",
-                run_id=uuid4(),
+                run_id=run_id,
                 tool_name="web_search",
                 args={"q": "x"},
             )

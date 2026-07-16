@@ -118,12 +118,13 @@ def test_callback_handler_blocks_on_runtime_deny() -> None:
     """End-to-end: a DENY runtime drives on_tool_start to raise."""
     interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _FakeRuntimeClient("deny", reason="nope"), "agent-001")
     handler = AssemblyCallbackHandler(interceptor)
+    run_id = uuid4()
 
     with pytest.raises(ToolExecutionBlockedError, match="nope"):
         handler.on_tool_start(
             serialized={"name": "web_search"},
             input_str="query",
-            run_id=uuid4(),
+            run_id=run_id,
             tool_name="web_search",
             args={"q": "x"},
         )
@@ -428,12 +429,13 @@ def test_callback_handler_blocks_on_enforce_fail_closed() -> None:
 
     interceptor = RuntimeQueryInterceptor(_FakeGatewayClient(), _Raising(), "agent-001", enforce=True)
     handler = AssemblyCallbackHandler(interceptor)
+    run_id = uuid4()
 
     with pytest.raises(ToolExecutionBlockedError):
         handler.on_tool_start(
             serialized={"name": "web_search"},
             input_str="query",
-            run_id=uuid4(),
+            run_id=run_id,
             tool_name="web_search",
             args={"q": "x"},
         )

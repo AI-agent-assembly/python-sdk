@@ -120,8 +120,9 @@ class TestApplyAgentRunPatch:
         FakeAgent.run = failing_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
+        agent = FakeAgent()
         with pytest.raises(RuntimeError):
-            await FakeAgent().run("x")
+            await agent.run("x")
         assert _SPAWN_CTX.get() is None
 
     def test_spawn_ctx_reset_on_exception_sync(self) -> None:
@@ -131,8 +132,9 @@ class TestApplyAgentRunPatch:
         FakeAgent.run_sync = failing_run_sync  # type: ignore[method-assign]  # fake method swap
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
+        agent = FakeAgent()
         with pytest.raises(RuntimeError):
-            FakeAgent().run_sync("x")
+            agent.run_sync("x")
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
@@ -287,8 +289,10 @@ class TestApplyToolRunPatch:
         FakeTool._run = failing_run  # type: ignore[assignment,method-assign]  # fake method swap
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
+        tool = FakeTool()
+        ctx = _FakeCtx()
         with pytest.raises(RuntimeError):
-            await FakeTool()._run(_FakeCtx(), {})
+            await tool._run(ctx, {})
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
@@ -304,8 +308,10 @@ class TestApplyToolRunPatch:
 
         from agent_assembly.exceptions import PolicyViolationError
 
+        tool = FakeTool()
+        ctx = _FakeCtx()
         with pytest.raises(PolicyViolationError):
-            await FakeTool()._run(_FakeCtx(), {})
+            await tool._run(ctx, {})
 
         assert called == []
         assert _SPAWN_CTX.get() is None

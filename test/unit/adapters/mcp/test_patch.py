@@ -277,8 +277,9 @@ async def test_unknown_verdict_blocks_tool_under_enforce(
     patcher = mcp_patch.MCPClientPatch(EnforcingUnknownInterceptor(), process_agent_id="agent-9")
     assert patcher.apply() is True
 
+    session = FakeClientSession()
     with pytest.raises(MCPToolBlockedError):
-        await FakeClientSession().call_tool("some_tool", {"q": "x"})
+        await session.call_tool("some_tool", {"q": "x"})
 
 
 @pytest.mark.asyncio

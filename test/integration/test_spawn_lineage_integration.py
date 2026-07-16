@@ -178,9 +178,16 @@ def test_exception_in_scope_still_resets_ctx() -> None:
     """_SPAWN_CTX is reset even when an exception is raised inside the scope."""
     ctx = SpawnContext(parent_agent_id="root", depth=0, spawned_by_tool=None)
 
-    with pytest.raises(RuntimeError, match="intentional"), spawn_context_scope(ctx):
-        assert _SPAWN_CTX.get() is not None
-        raise RuntimeError("intentional")
+    # The RuntimeError must propagate *through* spawn_context_scope.__exit__ so the
+    # test exercises the reset-on-exception path; the helper keeps that propagation
+    # while leaving pytest.raises wrapping a single call.
+    def _raise_inside_scope() -> None:
+        with spawn_context_scope(ctx):
+            assert _SPAWN_CTX.get() is not None
+            raise RuntimeError("intentional")
+
+    with pytest.raises(RuntimeError, match="intentional"):
+        _raise_inside_scope()
 
     assert _SPAWN_CTX.get() is None
 
