@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from test.unit.adapters.enforce_helpers import EnforcingHandlerWithoutCheck
 from types import SimpleNamespace
 from typing import Any
 
@@ -307,12 +308,9 @@ async def test_unknown_verdict_allows_tool_when_not_enforcing(
 async def test_missing_check_tool_start_blocks_tool_under_enforce(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Previously this path hardcoded allow; under enforce a handler exposing no
+    # check_tool_start must block instead.
     FakeClientSession = _install_fake_mcp_module(monkeypatch)
-
-    class EnforcingHandlerWithoutCheck:
-        # No check_tool_start: previously this path hardcoded allow; under
-        # enforce it must block instead.
-        _enforce = True
 
     patcher = mcp_patch.MCPClientPatch(EnforcingHandlerWithoutCheck(), process_agent_id="agent-9")
     assert patcher.apply() is True
