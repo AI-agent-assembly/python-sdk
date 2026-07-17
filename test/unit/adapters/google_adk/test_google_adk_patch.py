@@ -461,3 +461,28 @@ async def test_revert_restores_concrete_function_tool_override(
     assert FakeFunctionTool.run_async is original_function
     assert getattr(FakeBaseTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is False
     assert getattr(FakeFunctionTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is False
+
+
+# --- AAASM-4734: fail closed on unrecognized verdict / missing interceptor ---
+
+
+@pytest.mark.asyncio
+async def test_unknown_verdict_raises_policy_violation_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeBaseTool = _install_fake_google_adk_modules(monkeypatch)
+
+    class EnforcingUnknown:
+        _enforce = True
+
+        async def check_tool_start(self, **kwargs: object) -> object:
+            del kwargs
+            return None
+
+    patcher = google_adk_patch.GoogleADKPatch(EnforcingUnknown())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    tool_context = SimpleNamespace(invocation_context=None)
+    with pytest.raises(PolicyViolationError):
+        await tool.run_async(args={"step": 1}, tool_context=tool_context)
