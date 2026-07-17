@@ -35,6 +35,9 @@ from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
 from agent_assembly.adapters.crewai.patch import (
+    _interceptor_enforces,
+)
+from agent_assembly.adapters.crewai.patch import (
     _normalize_decision as _normalize_governance_decision,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
@@ -306,8 +309,10 @@ def _resolve_agent_id(ctx: Any) -> str | None:
 
 def _normalize_decision(
     decision: object,
+    *,
+    enforce: bool = False,
 ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
-    return _normalize_governance_decision(decision)
+    return _normalize_governance_decision(decision, enforce=enforce)
 
 
 def _resolve_governance_target(callback_handler: Any) -> Any:
@@ -477,6 +482,8 @@ def _wrap_on_invoke_tool(tool_obj: Any, callback_handler: Any) -> None:
     if getattr(original_invoke, _WRAPPED_INVOKE_FLAG, False):
         return None
 
+    enforce = _interceptor_enforces(callback_handler)
+
     @wraps(original_invoke)
     async def governed_invoke(ctx: Any, tool_input: Any) -> Any:
         tool_name = str(getattr(tool_obj, "name", tool_obj.__class__.__name__))
@@ -491,7 +498,7 @@ def _wrap_on_invoke_tool(tool_obj: Any, callback_handler: Any) -> None:
                 agent_id=agent_id,
                 ctx=ctx,
             )
-            status, reason = _normalize_decision(decision)
+            status, reason = _normalize_decision(decision, enforce=enforce)
             is_pending_flow = False
             if status == "pending":
                 is_pending_flow = True
@@ -504,7 +511,7 @@ def _wrap_on_invoke_tool(tool_obj: Any, callback_handler: Any) -> None:
                     agent_id=agent_id,
                     ctx=ctx,
                 )
-                status, reason = _normalize_decision(final_decision)
+                status, reason = _normalize_decision(final_decision, enforce=enforce)
 
             if status == "deny":
                 blocked_result = _build_tool_deny_error(
