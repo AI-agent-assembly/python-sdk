@@ -3,33 +3,43 @@
 from __future__ import annotations
 
 import importlib as importlib
-import inspect
-from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any
 
-if TYPE_CHECKING:
-    from agent_assembly.exceptions import PolicyViolationError
+from agent_assembly.adapters._shared.tool_governance import (
+    _current_spawn_depth,
+    _get_pending_tool_approval_timeout_seconds,
+    _invoke_async_tool_check,
+    _normalize_decision,
+    _record_async_tool_result,
+    _serialize_tool_args,
+    _wait_for_async_tool_approval,
+    run_governed_async_tool,
+)
+from agent_assembly.adapters.crewai.patch import _interceptor_enforces
+from agent_assembly.core.spawn import SpawnContext, spawn_context_scope
 
-from agent_assembly.adapters.crewai.patch import (
-    _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
-)
-from agent_assembly.adapters.crewai.patch import (
-    _interceptor_enforces,
-    _missing_interceptor_decision,
-)
-from agent_assembly.adapters.crewai.patch import (
-    _normalize_decision as _normalize_governance_decision,
-)
-from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
+# The shared governance helpers are imported here (not just used internally) so
+# the adapter's unit tests can reach them through this module — listing them in
+# __all__ marks the re-export as intentional. See AAASM-4746 (dedup).
+__all__ = [
+    "GoogleADKPatch",
+    "_current_spawn_depth",
+    "_get_pending_tool_approval_timeout_seconds",
+    "_invoke_async_tool_check",
+    "_normalize_decision",
+    "_record_async_tool_result",
+    "_serialize_tool_args",
+    "_wait_for_async_tool_approval",
+    "set_process_agent_id",
+]
 
 _ORIGINAL_TOOL_RUN_ASYNC = "_agent_assembly_original_google_adk_tool_run_async"
 _TOOLS_PATCHED_FLAG = "_agent_assembly_google_adk_tools_patched"
 _ORIGINAL_AGENT_RUN_ASYNC = "_agent_assembly_original_google_adk_agent_run_async"
 _AGENT_PATCHED_FLAG = "_agent_assembly_google_adk_agent_patched"
 _PROCESS_AGENT_ID: str | None = None
-_MAX_AUDIT_RESULT_CHARS = 2000
 
 
 @dataclass(slots=True)
@@ -122,11 +132,6 @@ def _load_google_adk_base_agent_class() -> type[Any] | None:
     return None
 
 
-def _current_spawn_depth() -> int:
-    current = _SPAWN_CTX.get()
-    return (current.depth + 1) if current is not None else 1
-
-
 def _apply_agent_run_async_patch(agent_cls: type[Any], process_agent_id: str | None) -> None:
     if getattr(agent_cls, _AGENT_PATCHED_FLAG, False):
         return None
@@ -181,52 +186,18 @@ def _apply_tool_run_async_patch(tool_cls: type[Any], callback_handler: Any) -> N
         agent_id = _resolve_agent_id(tool_context)
         run_id = _resolve_run_id(tool_context)
 
-        decision = await _invoke_async_tool_check(
+        def _invoke_original() -> Any:
+            return original_run_async(self, args=args, tool_context=tool_context, **kwargs)
+
+        return await run_governed_async_tool(
             callback_handler,
+            enforce=enforce,
             tool_name=tool_name,
             tool_args=tool_args,
             agent_id=agent_id,
             run_id=run_id,
+            invoke_original=_invoke_original,
         )
-        status, reason = _normalize_decision(decision, enforce=enforce)
-        is_pending_flow = False
-        if status == "pending":
-            is_pending_flow = True
-            timeout_seconds = _get_pending_tool_approval_timeout_seconds(callback_handler)
-            final_decision = await _wait_for_async_tool_approval(
-                callback_handler,
-                tool_name=tool_name,
-                timeout_seconds=timeout_seconds,
-                tool_args=tool_args,
-                agent_id=agent_id,
-                run_id=run_id,
-            )
-            status, reason = _normalize_decision(final_decision, enforce=enforce)
-
-        if status == "deny":
-            if is_pending_flow:
-                raise _build_pending_rejected_error(tool_name, reason)
-            raise _build_denied_error(tool_name, reason)
-
-        spawn_ctx = SpawnContext(
-            parent_agent_id=agent_id or "",
-            depth=_current_spawn_depth(),
-            spawned_by_tool=tool_name,
-            delegation_reason=f"tool:{tool_name}",
-        )
-        with spawn_context_scope(spawn_ctx):
-            result = original_run_async(self, args=args, tool_context=tool_context, **kwargs)
-            if inspect.isawaitable(result):
-                result = await result
-
-        await _record_async_tool_result(
-            callback_handler,
-            tool_name=tool_name,
-            result=result,
-            agent_id=agent_id,
-            run_id=run_id,
-        )
-        return result
 
     setattr(tool_cls, _ORIGINAL_TOOL_RUN_ASYNC, original_run_async)
     tool_cls.run_async = patched_run_async
@@ -275,131 +246,3 @@ def _resolve_run_id(tool_context: Any) -> str | None:
     if invocation_id is None:
         return None
     return str(invocation_id)
-
-
-def _serialize_tool_args(args: Any) -> dict[str, Any]:
-    if hasattr(args, "model_dump"):
-        model_dump = args.model_dump
-        if callable(model_dump):
-            dumped = model_dump()
-            if isinstance(dumped, dict):
-                return dict(dumped)
-
-    if isinstance(args, Mapping):
-        return dict(args)
-
-    return {"value": str(args)}
-
-
-def _normalize_decision(
-    decision: object,
-    *,
-    enforce: bool = False,
-) -> tuple[Literal["allow", "deny", "pending"], str | None]:
-    return _normalize_governance_decision(decision, enforce=enforce)
-
-
-async def _invoke_async_tool_check(
-    callback_handler: Any,
-    *,
-    tool_name: str,
-    tool_args: dict[str, Any],
-    agent_id: str | None,
-    run_id: str | None,
-) -> object:
-    method = getattr(callback_handler, "check_tool_start", None)
-    if not callable(method):
-        return _missing_interceptor_decision(callback_handler)
-
-    result = method(
-        serialized={"name": tool_name},
-        input_str=str(tool_args),
-        tool_name=tool_name,
-        args=tool_args,
-        agent_id=agent_id,
-        run_id=run_id,
-    )
-    if inspect.isawaitable(result):
-        return await result
-    return result
-
-
-async def _wait_for_async_tool_approval(
-    callback_handler: Any,
-    *,
-    tool_name: str,
-    timeout_seconds: int,
-    tool_args: dict[str, Any],
-    agent_id: str | None,
-    run_id: str | None,
-) -> object:
-    method = getattr(callback_handler, "wait_for_tool_approval", None)
-    if not callable(method):
-        return {"status": "deny", "reason": "Approval handler is unavailable."}
-
-    result = method(
-        serialized={"name": tool_name},
-        input_str=str(tool_args),
-        tool_name=tool_name,
-        timeout_seconds=timeout_seconds,
-        args=tool_args,
-        agent_id=agent_id,
-        run_id=run_id,
-    )
-    if inspect.isawaitable(result):
-        return await result
-    return result
-
-
-def _get_pending_tool_approval_timeout_seconds(callback_handler: Any) -> int:
-    return _resolve_pending_timeout_seconds(callback_handler)
-
-
-def _truncate_result_for_audit(result: object) -> str:
-    return str(result)[:_MAX_AUDIT_RESULT_CHARS]
-
-
-async def _record_async_tool_result(
-    callback_handler: Any,
-    *,
-    tool_name: str,
-    result: object,
-    agent_id: str | None,
-    run_id: str | None,
-) -> None:
-    record_method = getattr(callback_handler, "record_result", None)
-    if callable(record_method):
-        recorded = record_method(
-            tool_name=tool_name,
-            result=_truncate_result_for_audit(result),
-            agent_id=agent_id,
-            run_id=run_id,
-        )
-        if inspect.isawaitable(recorded):
-            await recorded
-        return None
-
-    tool_end_method = getattr(callback_handler, "on_tool_end", None)
-    if callable(tool_end_method):
-        recorded = tool_end_method(
-            output=_truncate_result_for_audit(result),
-            tool_name=tool_name,
-            agent_id=agent_id,
-            run_id=run_id,
-        )
-        if inspect.isawaitable(recorded):
-            await recorded
-
-
-def _build_denied_error(tool_name: str, reason: str | None) -> PolicyViolationError:
-    from agent_assembly.exceptions import PolicyViolationError
-
-    reason_text = reason or "No reason provided."
-    return PolicyViolationError(f"Tool '{tool_name}' blocked by governance policy: {reason_text}")
-
-
-def _build_pending_rejected_error(tool_name: str, reason: str | None) -> PolicyViolationError:
-    from agent_assembly.exceptions import PolicyViolationError
-
-    reason_text = reason or "No reason provided."
-    return PolicyViolationError(f"Tool '{tool_name}' rejected during approval: {reason_text}")
