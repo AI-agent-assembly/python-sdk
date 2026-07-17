@@ -188,6 +188,31 @@ def make_fake_interceptor(scenario: str, *, enforce: bool) -> object:
 Driver = Callable[[object, list[bool]], Awaitable[None]]
 
 
+def _assert_sync_and_async_agree(adapter: str, *, sync_ran: bool, async_ran: bool) -> bool:
+    """Require an adapter's sync and async tool wrappers to reach the same verdict.
+
+    Adapters that gate both a sync and an async chokepoint (agno
+    ``execute``/``aexecute``, llamaindex ``call``/``acall``) wrap the *same*
+    governance decision on both paths. A divergence means one path fails open (or
+    closed) where the other does not — precisely the bug class this matrix guards
+    against — so surface it loudly instead of letting a single shared ``ran`` flag
+    mask an async-only regression behind a passing sync path.
+
+    Args:
+        adapter: Adapter name, for the failure message.
+        sync_ran: Whether the sync wrapper let the tool body run.
+        async_ran: Whether the async wrapper let the tool body run.
+
+    Returns:
+        The agreed-upon tool-ran outcome (both paths concur).
+    """
+    assert sync_ran == async_ran, (
+        f"{adapter}: sync and async tool wrappers disagreed (sync ran={sync_ran}, "
+        f"async ran={async_ran}) — one path diverges from the other's governance verdict"
+    )
+    return async_ran
+
+
 async def _drive_crewai(interceptor: object, ran: list[bool]) -> None:
     from agent_assembly.adapters.crewai import patch as crewai_patch
 
@@ -205,17 +230,31 @@ async def _drive_crewai(interceptor: object, ran: list[bool]) -> None:
 async def _drive_agno(interceptor: object, ran: list[bool]) -> None:
     from agent_assembly.adapters.agno import patch as agno_patch
 
+    # ``_apply_execute_patch`` governs BOTH the sync ``execute`` and the async
+    # ``aexecute`` chokepoint (agno's primary async tool path). Drive each so the cell
+    # exercises the async wrapper, not just its sync sibling.
     class FakeFunctionCall:
         def __init__(self) -> None:
             self.function = SimpleNamespace(name="conformance_tool")
             self.arguments = {"amount": 1}
+            self.ran = False
 
         def execute(self, *_args: Any, **_kwargs: Any) -> str:
-            ran[0] = True
+            self.ran = True
+            return "ok"
+
+        async def aexecute(self, *_args: Any, **_kwargs: Any) -> str:
+            self.ran = True
             return "ok"
 
     agno_patch._apply_execute_patch(FakeFunctionCall, interceptor)
-    FakeFunctionCall().execute()
+
+    sync_call = FakeFunctionCall()
+    sync_call.execute()
+    async_call = FakeFunctionCall()
+    await async_call.aexecute()
+
+    ran[0] = _assert_sync_and_async_agree("agno", sync_ran=sync_call.ran, async_ran=async_call.ran)
 
 
 async def _drive_haystack(interceptor: object, ran: list[bool]) -> None:
