@@ -319,19 +319,27 @@ async def _drive_openai_agents(interceptor: object, ran: list[bool]) -> None:
 async def _drive_pydantic_ai(interceptor: object, ran: list[bool]) -> None:
     from agent_assembly.adapters.pydantic_ai import patch as pydantic_ai_patch
 
-    class FakeTool:
-        name = "conformance_tool"
-
-        async def _run(self, _ctx: Any, _args: Any, **_kwargs: Any) -> dict[str, object]:
+    # The pinned/shipped Pydantic AI line (>=0.3.0) routes tool execution through
+    # ``AbstractToolset.call_tool`` — the <0.3.0 ``Tool._run`` hook this cell used to
+    # drive does NOT exist there, so it exercised a wrapper the shipped framework never
+    # runs. Drive the toolset hook (``_apply_toolset_call_tool_patch``) with its real
+    # ``(self, name, tool_args, ctx, tool)`` signature so the cell tests what ships.
+    class FakeToolset:
+        async def call_tool(self, name: Any, tool_args: Any, ctx: Any, tool: Any, **_kwargs: Any) -> dict[str, object]:
             ran[0] = True
             return {"ok": True}
 
-    pydantic_ai_patch._apply_tool_run_patch(FakeTool, interceptor)
+    pydantic_ai_patch._apply_toolset_call_tool_patch(FakeToolset, interceptor)
     ctx = SimpleNamespace(
         deps=SimpleNamespace(assembly_agent_id="conformance-agent"),
         run_id="run-1",
     )
-    await FakeTool()._run(ctx, {"topic": "x"})
+    await FakeToolset().call_tool(
+        "conformance_tool",
+        {"topic": "x"},
+        ctx,
+        SimpleNamespace(name="conformance_tool"),
+    )
 
 
 async def _drive_google_adk(interceptor: object, ran: list[bool]) -> None:
