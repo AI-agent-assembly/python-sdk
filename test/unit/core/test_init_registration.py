@@ -628,6 +628,44 @@ def test_native_absent_warns_loudly_and_marks_unregistered(
         context.shutdown()
 
 
+def test_native_absent_under_enforce_wires_fail_closed_interceptor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-4760 regression: with the native extension absent under the default
+    (enforce) posture the SDK must never run ungoverned-but-looks-governed. Two
+    guarantees at once: the session is NOT reported registered/governed, and the
+    interceptor the adapters receive fails CLOSED — a governed tool call is denied,
+    not silently allowed."""
+    monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
+    _no_network(monkeypatch)
+    adapter = _CapturingAdapter()
+    monkeypatch.setattr(core_assembly, "_register_adapters", _patched_register_adapters(adapter))
+
+    with pytest.warns(UserWarning, match="native runtime extension"):
+        context = init_assembly(
+            gateway_url=_GW_URL,
+            api_key=_API_KEY,
+            agent_id="no-native-enforce",
+            mode="sdk-only",
+        )
+    try:
+        # Not a governed/registered session — the ``registered`` flag stays False.
+        assert context.registered is False
+        # And a governed tool call fails closed rather than proceeding ungoverned.
+        assert adapter.interceptor is not None
+        interceptor: Any = adapter.interceptor
+        verdict = interceptor.check_tool_start(
+            serialized={"name": "web_search"},
+            input_str="q",
+            tool_name="web_search",
+            args={"q": "x"},
+        )
+        assert verdict["status"] == "deny"
+        assert verdict["status"] != "allow"
+    finally:
+        context.shutdown()
+
+
 def test_native_present_but_no_runtime_client_warns_and_marks_unregistered(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
