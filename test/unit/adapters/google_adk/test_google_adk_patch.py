@@ -486,3 +486,23 @@ async def test_unknown_verdict_raises_policy_violation_under_enforce(
     tool_context = SimpleNamespace(invocation_context=None)
     with pytest.raises(PolicyViolationError):
         await tool.run_async(args={"step": 1}, tool_context=tool_context)
+
+
+@pytest.mark.asyncio
+async def test_missing_check_tool_start_raises_policy_violation_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeBaseTool = _install_fake_google_adk_modules(monkeypatch)
+
+    class EnforcingHandlerWithoutCheck:
+        # No check_tool_start: a handler that cannot govern tool starts must
+        # fail closed under enforce.
+        _enforce = True
+
+    patcher = google_adk_patch.GoogleADKPatch(EnforcingHandlerWithoutCheck())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    tool_context = SimpleNamespace(invocation_context=None)
+    with pytest.raises(PolicyViolationError):
+        await tool.run_async(args={"step": 1}, tool_context=tool_context)
