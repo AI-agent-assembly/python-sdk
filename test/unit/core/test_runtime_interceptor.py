@@ -143,11 +143,12 @@ def test_callback_handler_allows_on_runtime_allow() -> None:
     )
 
 
-def test_build_interceptor_without_native_core_returns_bare_client(
+def test_build_interceptor_without_native_core_fails_closed_under_enforce(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No native extension: the bare GatewayClient is returned unchanged so the
-    adapters have no check_tool_start and proceed (fail-open / no-core path)."""
+    """AAASM-4760: no native extension under the default (enforce) posture must fail
+    CLOSED — a deny-all interceptor, not the old bare-client fail-open that ran tool
+    calls ungoverned. The warning fires because no in-process decision is possible."""
     monkeypatch.delitem(sys.modules, "agent_assembly._core", raising=False)
 
     # Force the import inside build_governance_interceptor to fail.
@@ -163,10 +164,11 @@ def test_build_interceptor_without_native_core_returns_bare_client(
     monkeypatch.setattr(builtins, "__import__", _no_core_import)
 
     client = _FakeGatewayClient()
-    result = build_governance_interceptor(client, "agent-001")
+    with pytest.warns(UserWarning, match="native runtime extension"):
+        result = build_governance_interceptor(client, "agent-001")
 
-    assert result is client
-    assert not hasattr(result, "check_tool_start")
+    assert isinstance(result, _FailClosedInterceptor)
+    assert result.check_tool_start(serialized={"name": "t"}, input_str="i")["status"] == "deny"
 
 
 def test_build_interceptor_returns_bare_client_when_connect_fails(
@@ -240,9 +242,9 @@ def test_default_mode_unreachable_runtime_fails_closed(monkeypatch: pytest.Monke
 
 
 def test_default_mode_warns_when_native_core_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    """AAASM-4130: pure-Python install (native extension absent) under the default
-    ``enforce`` posture cannot run a local deny, so it must warn loudly rather than
-    fail open silently. The bare client is still returned (init stays graceful)."""
+    """AAASM-4130 / AAASM-4760: pure-Python install (native extension absent) under the
+    default ``enforce`` posture cannot run a local decision, so it warns loudly *and*
+    fails closed (deny-all) rather than proceeding ungoverned."""
     monkeypatch.delitem(sys.modules, "agent_assembly._core", raising=False)
 
     import builtins
@@ -260,8 +262,8 @@ def test_default_mode_warns_when_native_core_missing(monkeypatch: pytest.MonkeyP
     with pytest.warns(UserWarning, match="native runtime extension"):
         result = build_governance_interceptor(client, "agent-001")  # no mode -> default
 
-    assert result is client
-    assert not hasattr(result, "check_tool_start")
+    assert isinstance(result, _FailClosedInterceptor)
+    assert result.check_tool_start(serialized={"name": "t"}, input_str="i")["status"] == "deny"
 
 
 def test_observe_mode_does_not_warn_when_native_core_missing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -287,6 +289,33 @@ def test_observe_mode_does_not_warn_when_native_core_missing(monkeypatch: pytest
         result = build_governance_interceptor(client, "agent-001", "observe")
 
     assert result is client
+
+
+def test_native_missing_deny_reason_is_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4760 regression: the native-missing fail-closed deny carries a clear,
+    actionable reason so the developer knows *governance is unavailable* (install the
+    native extension / opt into observe) rather than mistaking it for a policy deny —
+    the loud, logged reason the ticket requires."""
+    monkeypatch.delitem(sys.modules, "agent_assembly._core", raising=False)
+
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _no_core_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "agent_assembly._core":
+            raise ImportError("native extension unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _no_core_import)
+
+    with pytest.warns(UserWarning, match="native runtime extension"):
+        result = build_governance_interceptor(_FakeGatewayClient(), "agent-001", "enforce")
+
+    verdict = result.check_tool_start(serialized={"name": "t"}, input_str="i")
+    assert verdict["status"] == "deny"
+    assert "governance unavailable" in verdict["reason"]
+    assert "ungoverned" in verdict["reason"]
 
 
 def test_enforce_query_raising_fails_closed() -> None:
