@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from test.unit.adapters.enforce_helpers import ENFORCE_DENY_CASES
 from types import SimpleNamespace
 from typing import Any
 
@@ -461,3 +462,23 @@ async def test_revert_restores_concrete_function_tool_override(
     assert FakeFunctionTool.run_async is original_function
     assert getattr(FakeBaseTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is False
     assert getattr(FakeFunctionTool, google_adk_patch._TOOLS_PATCHED_FLAG, False) is False
+
+
+# --- AAASM-4734: fail closed on unrecognized verdict / missing interceptor ---
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("interceptor_factory", ENFORCE_DENY_CASES)
+async def test_denies_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+    interceptor_factory: type,
+) -> None:
+    FakeBaseTool = _install_fake_google_adk_modules(monkeypatch)
+
+    patcher = google_adk_patch.GoogleADKPatch(interceptor_factory())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    tool_context = SimpleNamespace(invocation_context=None)
+    with pytest.raises(PolicyViolationError):
+        await tool.run_async(args={"step": 1}, tool_context=tool_context)

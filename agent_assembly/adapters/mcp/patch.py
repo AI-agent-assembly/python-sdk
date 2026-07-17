@@ -19,6 +19,9 @@ from agent_assembly.adapters.crewai.patch import (
     _interceptor_enforces as _resolve_interceptor_enforces,
 )
 from agent_assembly.adapters.crewai.patch import (
+    _missing_interceptor_decision,
+)
+from agent_assembly.adapters.crewai.patch import (
     _normalize_decision as _normalize_governance_decision,
 )
 
@@ -141,7 +144,7 @@ async def _invoke_async_tool_check(
     target = _resolve_governance_target(callback_handler)
     method = getattr(target, "check_tool_start", None)
     if not callable(method):
-        return {"status": "allow"}
+        return _missing_interceptor_decision(callback_handler)
 
     result = method(
         serialized={"name": tool_name},

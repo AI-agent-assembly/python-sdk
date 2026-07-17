@@ -16,6 +16,7 @@ from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
 from agent_assembly.adapters.crewai.patch import (
+    _interceptor_enforces,
     _missing_interceptor_decision,
 )
 from agent_assembly.adapters.crewai.patch import (
@@ -171,6 +172,7 @@ def _apply_tool_run_async_patch(tool_cls: type[Any], callback_handler: Any) -> N
         return None
 
     original_run_async = tool_cls.run_async
+    enforce = _interceptor_enforces(callback_handler)
 
     @wraps(original_run_async)
     async def patched_run_async(self: Any, *, args: Any, tool_context: Any, **kwargs: Any) -> Any:
@@ -186,7 +188,7 @@ def _apply_tool_run_async_patch(tool_cls: type[Any], callback_handler: Any) -> N
             agent_id=agent_id,
             run_id=run_id,
         )
-        status, reason = _normalize_decision(decision)
+        status, reason = _normalize_decision(decision, enforce=enforce)
         is_pending_flow = False
         if status == "pending":
             is_pending_flow = True
@@ -199,7 +201,7 @@ def _apply_tool_run_async_patch(tool_cls: type[Any], callback_handler: Any) -> N
                 agent_id=agent_id,
                 run_id=run_id,
             )
-            status, reason = _normalize_decision(final_decision)
+            status, reason = _normalize_decision(final_decision, enforce=enforce)
 
         if status == "deny":
             if is_pending_flow:
@@ -291,8 +293,10 @@ def _serialize_tool_args(args: Any) -> dict[str, Any]:
 
 def _normalize_decision(
     decision: object,
+    *,
+    enforce: bool = False,
 ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
-    return _normalize_governance_decision(decision)
+    return _normalize_governance_decision(decision, enforce=enforce)
 
 
 async def _invoke_async_tool_check(

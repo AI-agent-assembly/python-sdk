@@ -21,6 +21,7 @@ from agent_assembly.core.gateway_resolver import (
     resolve_gateway_url,
 )
 from agent_assembly.core.runtime_interceptor import (
+    _local_posture_is_enforce,
     _native_core_available,
     build_governance_interceptor,
     connect_runtime_client,
@@ -394,8 +395,8 @@ def _register_agent_with_gateway(
     ``register`` raises, the failure is no longer silent: a loud
     :func:`_warn_agent_unregistered` fires and ``False`` is returned (AAASM-4547).
     Init still proceeds so the proxy / eBPF layers stay authoritative — except
-    under ``enforce``, where a ``register`` failure propagates so a misconfigured
-    gateway fails init closed.
+    under an enforce posture (the ``None`` default or explicit ``enforce``), where a
+    ``register`` failure propagates so a misconfigured gateway fails init closed.
     """
     if runtime_client is None:
         if native_available:
@@ -418,7 +419,7 @@ def _register_agent_with_gateway(
             parent_agent_id=parent_agent_id,
         )
     except Exception as error:
-        if enforcement_mode == "enforce":
+        if _local_posture_is_enforce(enforcement_mode):
             raise
         _warn_agent_unregistered(f"registration failed: {error}")
         return False

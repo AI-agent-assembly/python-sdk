@@ -9,6 +9,7 @@ patch would FAIL — i.e. these assert governance actually fires.
 
 from __future__ import annotations
 
+from test.unit.adapters.enforce_helpers import ENFORCE_DENY_CASES
 from types import SimpleNamespace
 from typing import Any
 
@@ -514,3 +515,27 @@ async def test_record_result_fallback_awaits_async_on_tool_end() -> None:
     )
 
     assert observed
+
+
+# --- AAASM-4734: fail closed on unrecognized verdict / missing interceptor ---
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("interceptor_factory", ENFORCE_DENY_CASES)
+async def test_denies_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+    interceptor_factory: type,
+) -> None:
+    function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=interceptor_factory())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="governed_tool")
+    result = await tool.on_invoke_tool(SimpleNamespace(agent_id="a"), "{}")
+
+    # A fail-open patch would return the tool's real dict output; under enforce
+    # both an unrecognized verdict and a missing interceptor must be blocked
+    # (returned as a deny string).
+    assert isinstance(result, str)
+    assert "blocked by governance policy" in result
