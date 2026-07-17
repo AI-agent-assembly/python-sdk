@@ -542,3 +542,24 @@ async def test_unknown_verdict_returns_governance_error_under_enforce(
     # unrecognized verdict must instead be blocked (returned as a deny string).
     assert isinstance(result, str)
     assert "blocked by governance policy" in result
+
+
+@pytest.mark.asyncio
+async def test_missing_check_tool_start_returns_governance_error_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
+
+    class EnforcingHandlerWithoutCheck:
+        # No check_tool_start: a co-installed handler that cannot govern tool
+        # starts must fail closed under enforce, not silently allow.
+        _enforce = True
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=EnforcingHandlerWithoutCheck())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="ungoverned_tool")
+    result = await tool.on_invoke_tool(SimpleNamespace(agent_id="a"), "{}")
+
+    assert isinstance(result, str)
+    assert "blocked by governance policy" in result
