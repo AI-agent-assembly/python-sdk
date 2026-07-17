@@ -54,6 +54,10 @@ _PROCESS_AGENT_ID: str | None = None
 _EDGE_EMITTER: Any = None
 _MAX_AUDIT_RESULT_CHARS = 2000
 _MAX_DELEGATION_REASON_CHARS = 256
+# Deny reason when the pre-execution check itself faults (e.g. GatewayError)
+# under enforce: the SDK is a security control, so a governance-layer fault must
+# fail closed rather than run the tool ungoverned (AAASM-4782).
+_GOVERNANCE_FAULT_DENY_REASON = "Governance check failed; denied under enforce."
 # The shipped framework is the top-level ``agents`` package (openai-agents),
 # NOT ``openai.agents`` (which does not exist). See AAASM-3528.
 _OPENAI_AGENTS_MODULE = "agents"
@@ -440,6 +444,37 @@ async def _record_async_tool_result(
             await recorded
 
 
+async def _record_denied_tool_result(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    tool_input: Any,
+    result: object,
+    agent_id: str | None,
+    ctx: Any,
+) -> None:
+    """Record a denied tool result best-effort, never letting the audit re-enter the run path.
+
+    A decided deny is final and must be returned to the model regardless of
+    audit outcome. This audit runs *inside* ``governed_invoke``'s governance-error
+    handler scope, where a raised ``AssemblyError`` would be caught and fall
+    through to run the very tool that was just denied — silently downgrading the
+    deny to an allow. Swallow any failure here so the deny always stands
+    (AAASM-4782).
+    """
+    try:
+        await _record_async_tool_result(
+            callback_handler,
+            tool_name=tool_name,
+            tool_input=tool_input,
+            result=result,
+            agent_id=agent_id,
+            ctx=ctx,
+        )
+    except Exception:
+        return None
+
+
 def _is_governance_error(error: Exception) -> bool:
     """Check if error is a governance-specific error that should be handled.
 
@@ -520,7 +555,9 @@ def _wrap_on_invoke_tool(tool_obj: Any, callback_handler: Any) -> None:
                     reason=reason,
                     is_pending_rejection=is_pending_flow,
                 )
-                await _record_async_tool_result(
+                # Guard the audit so its failure cannot re-enter this handler and
+                # downgrade a decided deny to an allow (AAASM-4782).
+                await _record_denied_tool_result(
                     callback_handler,
                     tool_name=tool_name,
                     tool_input=tool_input,
@@ -533,6 +570,18 @@ def _wrap_on_invoke_tool(tool_obj: Any, callback_handler: Any) -> None:
             governance_failed = _is_governance_error(error)
             if not governance_failed:
                 raise
+            # A governance-layer fault during the pre-execution check. Under
+            # enforce the SDK is a security control: fail closed by denying the
+            # call rather than running the tool ungoverned — matching every other
+            # adapter, which never swallows a governance error into an allow.
+            # Under observe/disabled fall through to run the tool (fail-open by
+            # design), preserving the dry-run/hermetic posture (AAASM-4782).
+            if enforce:
+                return _build_tool_deny_error(
+                    tool_name=tool_name,
+                    reason=_GOVERNANCE_FAULT_DENY_REASON,
+                    is_pending_rejection=False,
+                )
 
         result = original_invoke(ctx, tool_input)
         if inspect.isawaitable(result):
