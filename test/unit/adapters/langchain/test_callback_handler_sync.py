@@ -238,3 +238,35 @@ def test_explicit_callback_methods_are_not_delegated() -> None:
     handler.on_tool_end(output="done", run_id=uuid4())
 
     assert interceptor.tool_end_calls == 1
+
+
+# --- AAASM-4790: a check_tool_start-less interceptor must fail closed under enforce ---
+
+
+class _NoCheckToolStartInterceptor:
+    """An interceptor that does not expose ``check_tool_start`` at all."""
+
+    def __init__(self, *, enforce: bool) -> None:
+        self._enforce = enforce
+
+
+def test_on_tool_start_blocks_when_check_tool_start_missing_under_enforce() -> None:
+    handler = AssemblyCallbackHandler(_NoCheckToolStartInterceptor(enforce=True))
+
+    with pytest.raises(ToolExecutionBlockedError):
+        handler.on_tool_start(
+            serialized={"name": "web_search"},
+            input_str="query",
+            run_id=uuid4(),
+        )
+
+
+def test_on_tool_start_allows_when_check_tool_start_missing_under_observe() -> None:
+    handler = AssemblyCallbackHandler(_NoCheckToolStartInterceptor(enforce=False))
+
+    # Must not raise: observe/disabled preserves the fail-open dry-run posture.
+    handler.on_tool_start(
+        serialized={"name": "web_search"},
+        input_str="query",
+        run_id=uuid4(),
+    )
