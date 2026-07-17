@@ -155,11 +155,25 @@ This requires `mypy >= 1.11` (PEP 695 support), pinned in `pyproject.toml`.
 
 ## Branch naming and commit style
 
-- **Branch**: `<release-or-phase>/<ticket>/<short_summary>` — e.g. `v0.0.0/AAASM-1122/author_readme_contributing`. Type slug optional but recommended (`feat`, `fix`, `refactor`, `test`, `docs`, `config`, `deps`, `remove`, `lint`).
+- **Branch**: `<release-or-phase>/<ticket>/<type>/<short_summary>` — a four-part scheme. `<type>` is the change category (see the table below), and `<short_summary>` is 2–4 words in `snake_case`. Example: `v0.0.1/AAASM-42/feat/add_registry`.
 - **Base branch**: always `master`. Never branch from another feature branch.
 - **Push remote**: `remote` (= `https://github.com/ai-agent-assembly/python-sdk`). Never push feature branches to `origin` (the personal fork).
 - **Commit message format**: `<gitemoji> (<scope>): <imperative summary under 72 chars>` — e.g. `📝 (readme): Add badge strip`. See [gitmoji.dev](https://gitmoji.dev/) for the full emoji table.
 - **One concern per commit.** Each commit must be bisectable: tests pass, build succeeds. Prefer many small commits over one large commit.
+
+`<type>` values:
+
+| `<type>` | When to use |
+|---|---|
+| `feat` | New feature or capability |
+| `fix` | Bug fix |
+| `refactor` | Refactor with no behavior change |
+| `test` | Test-only change |
+| `docs` | Documentation change |
+| `config` | Configuration change |
+| `deps` | Dependency upgrade |
+| `remove` | Deletion or removal |
+| `lint` | Lint or type-error fix |
 
 ## Pull request checklist
 
