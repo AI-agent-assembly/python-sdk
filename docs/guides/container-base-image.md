@@ -33,13 +33,13 @@ There are two families of tags: **immutable** (pinned, reproducible) and **movin
 
 | Tag | Example | Mutable? | Use it for |
 | --- | --- | --- | --- |
-| `python:<runtime>-<core-version>` | `python:3.14-slim-v0.0.1-rc.5` | **No** — immutable | **CI and production.** Reproducible, byte-for-byte stable. |
+| `python:<runtime>-<core-version>` | `python:3.14-slim-v0.0.1-rc.6` | **No** — immutable | **CI and production.** Reproducible, byte-for-byte stable. |
 | `python:<runtime>` | `python:3.14-slim` | Yes — moves per release | Local experiments on a fixed Python runtime. |
 | `python:latest` | `python:latest` | Yes — moves per release | Quick one-off tries only. |
 
 `<core-version>` is the **Agent Assembly core / `aa-runtime` release** baked into the
 image — it is also the version of the `aasm` CLI inside the image. Pinning
-`python:3.14-slim-v0.0.1-rc.5` therefore pins *both* the Python runtime and the exact
+`python:3.14-slim-v0.0.1-rc.6` therefore pins *both* the Python runtime and the exact
 governance core/CLI version, which is what makes the build reproducible.
 
 !!! warning "Pin the immutable tag in CI and production"
@@ -53,7 +53,7 @@ A minimal agent image that inherits governance from the base image:
 
 ```dockerfile
 # Pin the immutable tag — Python 3.14 runtime + a fixed governance core/CLI version.
-FROM ghcr.io/ai-agent-assembly/python:3.14-slim-v0.0.1-rc.5
+FROM ghcr.io/ai-agent-assembly/python:3.14-slim-v0.0.1-rc.6
 
 WORKDIR /app
 
@@ -123,7 +123,7 @@ which `agent-assembly` SDK release gets baked in.
 ## Best practices
 
 - **Pin the immutable tag in CI and production.** Use
-  `python:<runtime>-<core-version>` (e.g. `python:3.14-slim-v0.0.1-rc.5`); never `:latest`.
+  `python:<runtime>-<core-version>` (e.g. `python:3.14-slim-v0.0.1-rc.6`); never `:latest`.
 - **Pair the image with the `aa-runtime` sidecar.** The image makes your agent
   *governance-ready*, but the in-process SDK layer is **not a security boundary on its
   own** — point `init_assembly()` at an `aa-runtime` instance (sidecar or service) so policy

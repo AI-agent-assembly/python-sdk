@@ -93,7 +93,7 @@ is the pure-Python client and expects an `aasm` runtime to be reachable some oth
 Confirm the `aasm` CLI is on your `PATH`:
 
 ```bash
-aasm --version   # e.g. aasm 0.0.1rc5
+aasm --version   # e.g. aasm 0.0.1rc6
 ```
 
 > **Supply-chain verification.** The only official PyPI package is `agent-assembly`
