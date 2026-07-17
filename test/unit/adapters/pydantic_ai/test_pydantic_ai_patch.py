@@ -653,3 +653,23 @@ async def test_unknown_verdict_raises_policy_violation_under_enforce(
     ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-a"), run_id="run-1")
     with pytest.raises(PolicyViolationError):
         await tool._run(ctx, _ArgsModel({"topic": "finance"}))
+
+
+@pytest.mark.asyncio
+async def test_missing_check_tool_start_raises_policy_violation_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeTool = _install_fake_pydantic_ai_modules(monkeypatch)
+
+    class EnforcingHandlerWithoutCheck:
+        # No check_tool_start: a handler that cannot govern tool starts must
+        # fail closed under enforce.
+        _enforce = True
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(EnforcingHandlerWithoutCheck())
+    assert patcher.apply() is True
+
+    tool = FakeTool()
+    ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-a"), run_id="run-1")
+    with pytest.raises(PolicyViolationError):
+        await tool._run(ctx, _ArgsModel({"topic": "finance"}))
