@@ -16,6 +16,7 @@ from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
 from agent_assembly.adapters.crewai.patch import (
+    _interceptor_enforces,
     _missing_interceptor_decision,
 )
 from agent_assembly.adapters.crewai.patch import (
@@ -294,6 +295,8 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> bool:
     if not callable(original_run):
         return False
 
+    enforce = _interceptor_enforces(callback_handler)
+
     @wraps(original_run)
     async def patched_run(self: Any, ctx: Any, args: Any, **kwargs: Any) -> Any:
         tool_name = str(getattr(self, "name", self.__class__.__name__))
@@ -308,7 +311,7 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> bool:
             agent_id=agent_id,
             run_id=run_id,
         )
-        status, reason = _normalize_decision(decision)
+        status, reason = _normalize_decision(decision, enforce=enforce)
         is_pending_flow = False
         if status == "pending":
             is_pending_flow = True
@@ -321,7 +324,7 @@ def _apply_tool_run_patch(tool_cls: type[Any], callback_handler: Any) -> bool:
                 agent_id=agent_id,
                 run_id=run_id,
             )
-            status, reason = _normalize_decision(final_decision)
+            status, reason = _normalize_decision(final_decision, enforce=enforce)
 
         if status == "deny":
             if is_pending_flow:
@@ -384,6 +387,8 @@ def _apply_toolset_call_tool_patch(toolset_cls: type[Any], callback_handler: Any
     if not callable(original_call_tool):
         return False
 
+    enforce = _interceptor_enforces(callback_handler)
+
     @wraps(original_call_tool)
     async def patched_call_tool(self: Any, name: Any, tool_args: Any, ctx: Any, tool: Any, **kwargs: Any) -> Any:
         tool_name = str(name)
@@ -398,7 +403,7 @@ def _apply_toolset_call_tool_patch(toolset_cls: type[Any], callback_handler: Any
             agent_id=agent_id,
             run_id=run_id,
         )
-        status, reason = _normalize_decision(decision)
+        status, reason = _normalize_decision(decision, enforce=enforce)
         is_pending_flow = False
         if status == "pending":
             is_pending_flow = True
@@ -411,7 +416,7 @@ def _apply_toolset_call_tool_patch(toolset_cls: type[Any], callback_handler: Any
                 agent_id=agent_id,
                 run_id=run_id,
             )
-            status, reason = _normalize_decision(final_decision)
+            status, reason = _normalize_decision(final_decision, enforce=enforce)
 
         if status == "deny":
             if is_pending_flow:
@@ -503,8 +508,10 @@ def _serialize_tool_args(args: Any) -> dict[str, Any]:
 
 def _normalize_decision(
     decision: object,
+    *,
+    enforce: bool = False,
 ) -> tuple[Literal["allow", "deny", "pending"], str | None]:
-    return _normalize_governance_decision(decision)
+    return _normalize_governance_decision(decision, enforce=enforce)
 
 
 async def _invoke_async_tool_check(
