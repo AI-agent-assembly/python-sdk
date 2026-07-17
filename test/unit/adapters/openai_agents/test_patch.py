@@ -514,3 +514,31 @@ async def test_record_result_fallback_awaits_async_on_tool_end() -> None:
     )
 
     assert observed
+
+
+# --- AAASM-4734: fail closed on unrecognized verdict / missing interceptor ---
+
+
+@pytest.mark.asyncio
+async def test_unknown_verdict_returns_governance_error_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
+
+    class EnforcingUnknown:
+        _enforce = True
+
+        async def check_tool_start(self, **kwargs: object) -> object:
+            del kwargs
+            return None
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=EnforcingUnknown())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="unknown_tool")
+    result = await tool.on_invoke_tool(SimpleNamespace(agent_id="a"), "{}")
+
+    # A fail-open patch would return the tool's real dict output; under enforce an
+    # unrecognized verdict must instead be blocked (returned as a deny string).
+    assert isinstance(result, str)
+    assert "blocked by governance policy" in result
