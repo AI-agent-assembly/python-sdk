@@ -16,14 +16,15 @@ Failure posture is governed by ``enforcement_mode`` (AAASM-3106):
 
 * Under an **enforce** posture — explicit ``enforce`` *or* the ``None`` default,
   which is advertised as the gateway's live ``enforce`` (AAASM-4130) — the SDK is
-  a security control and **fails closed**. When the native extension is missing the
-  bare client is returned (no native authority exists to consult — see
-  :func:`build_governance_interceptor`) but a loud one-time warning is emitted so the
-  skipped in-process deny is not silent; once the native extension is present every
-  other failure denies: an unreachable runtime socket yields a deny-all interceptor,
-  a raising ``query_policy`` maps to ``deny``, and a native ``decision`` that is
-  itself an error sentinel (``query_failed`` / ``channel_closed``) maps to ``deny``
-  rather than allow.
+  a security control and **fails closed**. When the native extension is missing a
+  deny-all interceptor is returned (no native authority exists to consult, so no
+  tool call may be authoritatively allowed — AAASM-4760) alongside a loud one-time
+  warning; previously this case returned the bare client and ran every tool call
+  ungoverned while the session looked governed. Once the native extension is present
+  every other failure likewise denies: an unreachable runtime socket yields a
+  deny-all interceptor, a raising ``query_policy`` maps to ``deny``, and a native
+  ``decision`` that is itself an error sentinel (``query_failed`` /
+  ``channel_closed``) maps to ``deny`` rather than allow.
 * Under the explicit dry-run postures **observe** / **disabled**, the SDK is a
   dry-run / hermetic-test layer and **fails open**: an unreachable runtime
   returns the bare client unchanged, a raising or error ``query_policy``
@@ -61,6 +62,21 @@ _ERROR_DECISIONS = frozenset({"query_failed", "channel_closed", "shutdown", "err
 # Node SDK; the runtime remains the authority on redaction, so ``redact`` proceeds.
 _ALLOW_DECISIONS = frozenset({"allow", "redact"})
 
+# Deny reason surfaced when the native ``agent_assembly._core`` extension is absent
+# under an enforce posture (AAASM-4760). Previously this case returned the bare
+# client (fail open): a pure-Python / containerized install with no native wheel ran
+# every tool call UN-governed while the session looked governed. The SDK is the
+# in-process security control; with no native authority to consult it must fail
+# CLOSED — deny every governed tool call — rather than silently allow. The explicit
+# ``observe`` / ``disabled`` postures remain the opt-in advisory path (fail open).
+_NATIVE_MISSING_REASON = (
+    "governance unavailable: the native agent_assembly._core extension is not "
+    "installed, so the SDK cannot make an in-process policy decision — refusing to "
+    "run ungoverned under enforce. Install the native extension to enable the "
+    "in-process allow/deny fast path, or set enforcement_mode='observe' to run "
+    "advisory-only."
+)
+
 
 def _local_posture_is_enforce(enforcement_mode: str | None) -> bool:
     """Whether the SDK's *local* failure posture must fail closed (AAASM-4130).
@@ -81,17 +97,22 @@ def _warn_sdk_enforcement_unavailable() -> None:
     Under an enforce posture (the ``None`` default or explicit ``enforce``) a policy
     ``deny`` is advertised to block the tool before it runs, but that in-process fast
     path needs the native ``agent_assembly._core`` extension. On a pure-Python install
-    it is absent, so no local deny is possible. Rather than silently fail open (Python
-    diverging from go's fail-closed and node's ``ConfigurationError``), emit a warning
-    so the gap is visible; the gateway / proxy / eBPF layers remain authoritative, so
-    the SDK stays advisory and does not hard-fail on a missing runtime.
+    it is absent, so no local allow/deny decision is possible.
+
+    Rather than silently fail open (Python diverging from go's fail-closed and node's
+    ``ConfigurationError``), the SDK now fails **closed** under enforce: governed tool
+    calls are denied (see :func:`build_governance_interceptor` /
+    :data:`_NATIVE_MISSING_REASON`, AAASM-4760) instead of running ungoverned while the
+    session looks governed. This warning makes the missing extension visible so the
+    developer knows *why* their tools are being denied and how to restore the fast path.
     """
     warnings.warn(
         "Agent Assembly enforcement is active but the native runtime extension "
-        "(agent_assembly._core) is not installed, so the SDK cannot apply a local "
-        "pre-execution deny; tool calls proceed in-process and rely on the gateway / "
-        "proxy / eBPF layers for enforcement. Install the native extension to enable "
-        "the in-process deny fast path.",
+        "(agent_assembly._core) is not installed, so the SDK cannot make an "
+        "in-process policy decision. Under enforce the SDK now fails CLOSED: governed "
+        "tool calls are DENIED rather than proceeding ungoverned. Install the native "
+        "extension to enable the in-process allow/deny fast path, or set "
+        "enforcement_mode='observe' to run advisory-only.",
         stacklevel=2,
     )
 
@@ -497,6 +518,28 @@ def _native_core_available() -> bool:
     return True
 
 
+def _governance_unavailable(client: Any, enforce: bool, reason: str, *, warn: bool) -> Any:
+    """Resolve the interceptor when no authoritative runtime decision is possible.
+
+    Shared by every ``build_governance_interceptor`` path that ends up without a
+    connected runtime client — the native extension missing, or present but the
+    socket unreachable/distrusted. Under an enforce posture the SDK is the security
+    control and must fail **closed**: return a deny-all :class:`_FailClosedInterceptor`
+    so no governed tool call slips through ungoverned (AAASM-4760 / AAASM-3106). Under
+    the explicit ``observe`` / ``disabled`` dry-run postures the SDK is advisory and
+    fails open: return the bare ``client`` unchanged.
+
+    ``warn`` gates the one-time loud warning to the native-missing case (a
+    pure-Python install), matching the historical AAASM-4130 behavior; the
+    unreachable-socket case denies without an extra warning.
+    """
+    if not enforce:
+        return client
+    if warn:
+        _warn_sdk_enforcement_unavailable()
+    return _FailClosedInterceptor(client, reason)
+
+
 def build_governance_interceptor(
     client: Any,
     agent_id: str,
@@ -515,10 +558,11 @@ def build_governance_interceptor(
     the same *local* fail-closed posture as an explicit ``enforce`` (AAASM-4130);
     only ``observe`` / ``disabled`` fail open locally:
 
-    * The native extension is **missing**: return ``client`` unchanged in every
-      mode — there is no native authority to fail closed *to*. Under an enforce
-      posture this would silently skip the in-process deny, so a loud one-time
-      warning is emitted first (AAASM-4130) rather than failing open silently.
+    * The native extension is **missing**: under an enforce posture return a
+      deny-all :class:`_FailClosedInterceptor` (AAASM-4760) and emit a loud one-time
+      warning (AAASM-4130) — with no native authority there is no authoritative allow,
+      so governed tool calls must be denied rather than run ungoverned. Under
+      ``observe`` / ``disabled`` return ``client`` unchanged (advisory / fail open).
     * The native extension is **present** but the runtime socket is unreachable:
       under an enforce posture (``None`` default or explicit ``enforce``) return a
       deny-all :class:`_FailClosedInterceptor`; under ``observe`` / ``disabled``
@@ -538,22 +582,18 @@ def build_governance_interceptor(
     if runtime_client is None and native_available is None:
         # No caller-supplied client or hint: detect + connect ourselves.
         if not _native_core_available():
-            if enforce:
-                _warn_sdk_enforcement_unavailable()
-            return client
+            return _governance_unavailable(client, enforce, _NATIVE_MISSING_REASON, warn=True)
         runtime_client = connect_runtime_client(agent_id)
         native_available = True
 
     if runtime_client is None:
-        # Native missing → no authority to fail closed to, return bare client.
+        # Native missing → no in-process authority. Under enforce this is a
+        # fail-closed deny-all (never a silent allow, AAASM-4760); observe /
+        # disabled stay advisory (fail open).
         if not native_available:
-            if enforce:
-                _warn_sdk_enforcement_unavailable()
-            return client
+            return _governance_unavailable(client, enforce, _NATIVE_MISSING_REASON, warn=True)
         # Native present but runtime unreachable: deny everything under enforce
         # (fail closed); proceed under observe / disabled (fail open).
-        if enforce:
-            return _FailClosedInterceptor(client, "runtime unreachable")
-        return client
+        return _governance_unavailable(client, enforce, "runtime unreachable", warn=False)
 
     return RuntimeQueryInterceptor(client, runtime_client, agent_id, enforce=enforce, op_control=op_control)
