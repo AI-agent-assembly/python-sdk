@@ -40,6 +40,7 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
     raise_error: bool = True
 
     _UNKNOWN_DECISION_REASON = "Unrecognized governance decision; denied under enforce."
+    _MISSING_CHECK_TOOL_START_REASON = "Governance interceptor exposes no check_tool_start; denied under enforce."
 
     def __init__(self, interceptor: Any) -> None:
         self._interceptor = interceptor
@@ -135,6 +136,14 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
     ) -> None:
         method = getattr(self._interceptor, "check_tool_start", None)
         if not callable(method):
+            # Mirrors the other adapters' ``_missing_interceptor_decision``
+            # fallback (AAASM-4790): a co-installed adapter can hand this
+            # handler an interceptor that exposes no ``check_tool_start``.
+            # Silently allowing there skipped pre-execution governance under
+            # ``enforce``, so fail closed there and only fail open under
+            # observe / disabled, consistent with ``_unknown_decision``.
+            if self._enforce:
+                raise ToolExecutionBlockedError(self._MISSING_CHECK_TOOL_START_REASON)
             return None
 
         decision = method(

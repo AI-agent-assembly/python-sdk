@@ -426,6 +426,24 @@ def _register_agent_with_gateway(
     return True
 
 
+def _warn_adapter_registration_failed(adapter: FrameworkAdapter, error: Exception) -> None:
+    """Emit a loud, unconditional stderr warning that a framework adapter failed to attach.
+
+    ``register_hooks`` failing was previously swallowed with a bare ``continue``
+    (AAASM-4790), leaving a co-installed framework running fully ungoverned with
+    no trace. Mirrors :func:`_warn_agent_unregistered`'s unconditional
+    ``sys.stderr.write`` so ``logging`` configuration cannot silence it. Init
+    still proceeds — other adapters may register fine — matching the existing
+    fail-open-and-continue policy in :func:`_register_adapters`.
+    """
+    sys.stderr.write(
+        "[agent-assembly] WARNING: framework adapter "
+        f"{adapter.get_framework_name()!r} failed to register governance hooks "
+        f"({error}); this framework will run UNGOVERNED by the SDK layer. The "
+        "proxy / eBPF layers remain authoritative.\n"
+    )
+
+
 def _register_adapters(
     client: GatewayClient,
     process_agent_id: str,
@@ -462,7 +480,8 @@ def _register_adapters(
 
         try:
             adapter.register_hooks(interceptor)
-        except Exception:
+        except Exception as error:
+            _warn_adapter_registration_failed(adapter, error)
             continue
 
         registered.append(adapter)

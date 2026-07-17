@@ -8,6 +8,7 @@ import pytest
 
 from agent_assembly import init_assembly
 from agent_assembly.adapters.base import FrameworkAdapter, GovernanceInterceptor
+from agent_assembly.client.gateway import GatewayClient
 from agent_assembly.core import assembly as core_assembly
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
@@ -212,6 +213,48 @@ def test_context_manager_shutdown_calls_adapter_unregister_hooks(
 
     assert events == ["unregister:b", "unregister:a"]
     assert context.is_shutdown is True
+
+
+def test_register_adapters_warns_on_stderr_when_register_hooks_raises(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A framework adapter whose ``register_hooks`` raises must not fail
+    silently (AAASM-4790) — the operator gets a stderr warning naming the
+    framework, and other adapters still register (the ``continue`` is kept)."""
+
+    class _BrokenAdapter(_FakeAdapter):
+        def register_hooks(self, interceptor: GovernanceInterceptor) -> None:
+            raise RuntimeError("monkeypatch failed to apply")
+
+    broken = _BrokenAdapter("broken-framework")
+    healthy = _FakeAdapter("healthy-framework")
+
+    class _FakeRegistry:
+        def get_available_adapters_by_priority(self) -> list[FrameworkAdapter]:
+            return [broken, healthy]
+
+    monkeypatch.setattr(core_assembly, "AdapterRegistry", _FakeRegistry)
+    monkeypatch.setattr(
+        core_assembly,
+        "build_governance_interceptor",
+        lambda *args, **kwargs: object(),
+    )
+
+    client = GatewayClient(
+        gateway_url="http://localhost:8080",
+        agent_id="test-agent-001",
+        api_key="test-api-key",
+    )
+    registered = core_assembly._register_adapters(
+        client=client,
+        process_agent_id="test-agent-001",
+    )
+
+    assert registered == [healthy]
+    stderr = capsys.readouterr().err
+    assert "broken-framework" in stderr
+    assert "UNGOVERNED" in stderr
 
 
 def test_init_assembly_rejects_conflicting_reinit(
