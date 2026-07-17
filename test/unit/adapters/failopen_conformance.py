@@ -188,6 +188,31 @@ def make_fake_interceptor(scenario: str, *, enforce: bool) -> object:
 Driver = Callable[[object, list[bool]], Awaitable[None]]
 
 
+def _assert_sync_and_async_agree(adapter: str, *, sync_ran: bool, async_ran: bool) -> bool:
+    """Require an adapter's sync and async tool wrappers to reach the same verdict.
+
+    Adapters that gate both a sync and an async chokepoint (agno
+    ``execute``/``aexecute``, llamaindex ``call``/``acall``) wrap the *same*
+    governance decision on both paths. A divergence means one path fails open (or
+    closed) where the other does not — precisely the bug class this matrix guards
+    against — so surface it loudly instead of letting a single shared ``ran`` flag
+    mask an async-only regression behind a passing sync path.
+
+    Args:
+        adapter: Adapter name, for the failure message.
+        sync_ran: Whether the sync wrapper let the tool body run.
+        async_ran: Whether the async wrapper let the tool body run.
+
+    Returns:
+        The agreed-upon tool-ran outcome (both paths concur).
+    """
+    assert sync_ran == async_ran, (
+        f"{adapter}: sync and async tool wrappers disagreed (sync ran={sync_ran}, "
+        f"async ran={async_ran}) — one path diverges from the other's governance verdict"
+    )
+    return async_ran
+
+
 async def _drive_crewai(interceptor: object, ran: list[bool]) -> None:
     from agent_assembly.adapters.crewai import patch as crewai_patch
 
@@ -205,17 +230,31 @@ async def _drive_crewai(interceptor: object, ran: list[bool]) -> None:
 async def _drive_agno(interceptor: object, ran: list[bool]) -> None:
     from agent_assembly.adapters.agno import patch as agno_patch
 
+    # ``_apply_execute_patch`` governs BOTH the sync ``execute`` and the async
+    # ``aexecute`` chokepoint (agno's primary async tool path). Drive each so the cell
+    # exercises the async wrapper, not just its sync sibling.
     class FakeFunctionCall:
         def __init__(self) -> None:
             self.function = SimpleNamespace(name="conformance_tool")
             self.arguments = {"amount": 1}
+            self.ran = False
 
         def execute(self, *_args: Any, **_kwargs: Any) -> str:
-            ran[0] = True
+            self.ran = True
+            return "ok"
+
+        async def aexecute(self, *_args: Any, **_kwargs: Any) -> str:
+            self.ran = True
             return "ok"
 
     agno_patch._apply_execute_patch(FakeFunctionCall, interceptor)
-    FakeFunctionCall().execute()
+
+    sync_call = FakeFunctionCall()
+    sync_call.execute()
+    async_call = FakeFunctionCall()
+    await async_call.aexecute()
+
+    ran[0] = _assert_sync_and_async_agree("agno", sync_ran=sync_call.ran, async_ran=async_call.ran)
 
 
 async def _drive_haystack(interceptor: object, ran: list[bool]) -> None:
@@ -254,20 +293,31 @@ async def _drive_llamaindex(interceptor: object, ran: list[bool]) -> None:
         def get_name(self) -> str:
             return self._name
 
+    # ``acall`` is the primary modern path (FunctionAgent / ReActAgent via
+    # AgentWorkflow await ``tool.acall(...)``); ``call`` is the legacy/sync path. Both
+    # are governed by their own patch, so drive each rather than only the sync sibling.
     class FakeFunctionTool:
         def __init__(self) -> None:
             self.metadata = _Meta("conformance_tool")
+            self.ran = False
 
         def call(self, *_args: Any, **_kwargs: Any) -> dict[str, object]:
-            ran[0] = True
+            self.ran = True
             return {"ok": True}
 
         async def acall(self, *_args: Any, **_kwargs: Any) -> dict[str, object]:
-            ran[0] = True
+            self.ran = True
             return {"ok": True}
 
     llamaindex_patch._apply_tool_call_patch(FakeFunctionTool, interceptor)
-    FakeFunctionTool().call(param="x")
+    llamaindex_patch._apply_tool_acall_patch(FakeFunctionTool, interceptor)
+
+    sync_tool = FakeFunctionTool()
+    sync_tool.call(param="x")
+    async_tool = FakeFunctionTool()
+    await async_tool.acall(param="x")
+
+    ran[0] = _assert_sync_and_async_agree("llamaindex", sync_ran=sync_tool.ran, async_ran=async_tool.ran)
 
 
 async def _drive_smolagents(interceptor: object, ran: list[bool]) -> None:
@@ -319,19 +369,27 @@ async def _drive_openai_agents(interceptor: object, ran: list[bool]) -> None:
 async def _drive_pydantic_ai(interceptor: object, ran: list[bool]) -> None:
     from agent_assembly.adapters.pydantic_ai import patch as pydantic_ai_patch
 
-    class FakeTool:
-        name = "conformance_tool"
-
-        async def _run(self, _ctx: Any, _args: Any, **_kwargs: Any) -> dict[str, object]:
+    # The pinned/shipped Pydantic AI line (>=0.3.0) routes tool execution through
+    # ``AbstractToolset.call_tool`` — the <0.3.0 ``Tool._run`` hook this cell used to
+    # drive does NOT exist there, so it exercised a wrapper the shipped framework never
+    # runs. Drive the toolset hook (``_apply_toolset_call_tool_patch``) with its real
+    # ``(self, name, tool_args, ctx, tool)`` signature so the cell tests what ships.
+    class FakeToolset:
+        async def call_tool(self, name: Any, tool_args: Any, ctx: Any, tool: Any, **_kwargs: Any) -> dict[str, object]:
             ran[0] = True
             return {"ok": True}
 
-    pydantic_ai_patch._apply_tool_run_patch(FakeTool, interceptor)
+    pydantic_ai_patch._apply_toolset_call_tool_patch(FakeToolset, interceptor)
     ctx = SimpleNamespace(
         deps=SimpleNamespace(assembly_agent_id="conformance-agent"),
         run_id="run-1",
     )
-    await FakeTool()._run(ctx, {"topic": "x"})
+    await FakeToolset().call_tool(
+        "conformance_tool",
+        {"topic": "x"},
+        ctx,
+        SimpleNamespace(name="conformance_tool"),
+    )
 
 
 async def _drive_google_adk(interceptor: object, ran: list[bool]) -> None:
