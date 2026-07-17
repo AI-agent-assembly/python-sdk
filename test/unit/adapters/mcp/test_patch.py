@@ -298,3 +298,25 @@ async def test_unknown_verdict_allows_tool_when_not_enforcing(
 
     result = await FakeClientSession().call_tool(name="allowed_tool", arguments={"ok": True})
     assert result["name"] == "allowed_tool"
+
+
+# --- AAASM-4734: missing check_tool_start must fail closed under enforce ---
+
+
+@pytest.mark.asyncio
+async def test_missing_check_tool_start_blocks_tool_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeClientSession = _install_fake_mcp_module(monkeypatch)
+
+    class EnforcingHandlerWithoutCheck:
+        # No check_tool_start: previously this path hardcoded allow; under
+        # enforce it must block instead.
+        _enforce = True
+
+    patcher = mcp_patch.MCPClientPatch(EnforcingHandlerWithoutCheck(), process_agent_id="agent-9")
+    assert patcher.apply() is True
+
+    session = FakeClientSession()
+    with pytest.raises(MCPToolBlockedError):
+        await session.call_tool("some_tool", {"q": "x"})
