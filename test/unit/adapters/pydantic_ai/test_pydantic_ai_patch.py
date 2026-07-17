@@ -628,3 +628,28 @@ def test_apply_false_when_no_known_tool_hook_exists(monkeypatch: pytest.MonkeyPa
     patcher = pydantic_ai_patch.PydanticAIPatch(_RecordingInterceptor())
     assert patcher.apply() is False
     assert pydantic_ai_patch._get_process_agent_id() is None
+
+
+# --- AAASM-4734: fail closed on unrecognized verdict / missing interceptor ---
+
+
+@pytest.mark.asyncio
+async def test_unknown_verdict_raises_policy_violation_under_enforce(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeTool = _install_fake_pydantic_ai_modules(monkeypatch)
+
+    class EnforcingUnknown:
+        _enforce = True
+
+        async def check_tool_start(self, **kwargs: object) -> object:
+            del kwargs
+            return None
+
+    patcher = pydantic_ai_patch.PydanticAIPatch(EnforcingUnknown())
+    assert patcher.apply() is True
+
+    tool = FakeTool()
+    ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-a"), run_id="run-1")
+    with pytest.raises(PolicyViolationError):
+        await tool._run(ctx, _ArgsModel({"topic": "finance"}))
