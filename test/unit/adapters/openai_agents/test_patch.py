@@ -539,3 +539,107 @@ async def test_denies_under_enforce(
     # (returned as a deny string).
     assert isinstance(result, str)
     assert "blocked by governance policy" in result
+
+
+# --- AAASM-4782: fail closed on governance error under enforce; never downgrade a deny ---
+
+
+@pytest.mark.asyncio
+async def test_governance_error_under_enforce_blocks_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S1/S2: a governance error (e.g. GatewayError) from ``check_tool_start`` must
+    BLOCK the tool under enforce, not silently run it ungoverned.
+
+    The former handler swallowed any ``AssemblyError`` and fell through to the
+    original invoke, so a transient governance fault ran the tool with no policy
+    check — contradicting every other adapter. Under enforce the SDK is a
+    security control and must fail closed (AAASM-4782)."""
+    from agent_assembly.exceptions import GatewayError
+
+    function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
+
+    class EnforcingRaisingInterceptor:
+        _enforce = True
+
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            raise GatewayError("gateway unavailable")
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=EnforcingRaisingInterceptor())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="enforced_tool")
+    result = await tool.on_invoke_tool(SimpleNamespace(agent_id="agent-enforce"), '{"x": 1}')
+
+    # A fail-open patch would return the tool's real dict output; under enforce a
+    # governance fault must be blocked (returned as a deny string).
+    assert isinstance(result, str)
+    assert "blocked by governance policy" in result
+
+
+@pytest.mark.asyncio
+async def test_governance_error_under_observe_still_fails_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A governance error under observe/disabled (no enforce flag) keeps the
+    existing fail-open behavior: the tool runs. This is the negative control that
+    proves the enforce gate — not a blanket block — decides the fix (AAASM-4782)."""
+    from agent_assembly.exceptions import GatewayError
+
+    function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
+
+    class ObservingRaisingInterceptor:
+        _enforce = False
+
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            raise GatewayError("gateway temporarily unavailable")
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=ObservingRaisingInterceptor())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="observe_tool")
+    result = await tool.on_invoke_tool(SimpleNamespace(agent_id="agent-observe"), '{"x": 1}')
+
+    assert isinstance(result, dict)
+    assert result["name"] == "observe_tool"
+
+
+@pytest.mark.asyncio
+async def test_deny_is_not_downgraded_when_audit_raises_governance_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S6: a decided deny must stand even if recording the deny raises an
+    ``AssemblyError``.
+
+    The audit ran inside the governance-error handler's scope, so a raised
+    ``AssemblyError`` from ``record_result`` was caught and fell through to run
+    the very tool that was just denied — silently downgrading DENY to ALLOW. The
+    deny is final; the audit is guarded (AAASM-4782)."""
+    from agent_assembly.exceptions import GatewayError
+
+    function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
+
+    class DenyThenAuditFailsInterceptor:
+        _enforce = True
+
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "deny", "reason": "policy deny"}
+
+        async def record_result(self, **kwargs: object) -> None:
+            del kwargs
+            raise GatewayError("audit backend down")
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=DenyThenAuditFailsInterceptor())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="deny_audit_tool")
+    result = await tool.on_invoke_tool(SimpleNamespace(agent_id="agent-deny-audit"), '{"x": 1}')
+
+    # The deny must survive the audit fault: a downgrade would return the tool's
+    # real dict output.
+    assert isinstance(result, str)
+    assert "policy deny" in result
+    assert "blocked by governance policy" in result
