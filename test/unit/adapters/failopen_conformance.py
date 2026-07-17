@@ -293,20 +293,31 @@ async def _drive_llamaindex(interceptor: object, ran: list[bool]) -> None:
         def get_name(self) -> str:
             return self._name
 
+    # ``acall`` is the primary modern path (FunctionAgent / ReActAgent via
+    # AgentWorkflow await ``tool.acall(...)``); ``call`` is the legacy/sync path. Both
+    # are governed by their own patch, so drive each rather than only the sync sibling.
     class FakeFunctionTool:
         def __init__(self) -> None:
             self.metadata = _Meta("conformance_tool")
+            self.ran = False
 
         def call(self, *_args: Any, **_kwargs: Any) -> dict[str, object]:
-            ran[0] = True
+            self.ran = True
             return {"ok": True}
 
         async def acall(self, *_args: Any, **_kwargs: Any) -> dict[str, object]:
-            ran[0] = True
+            self.ran = True
             return {"ok": True}
 
     llamaindex_patch._apply_tool_call_patch(FakeFunctionTool, interceptor)
-    FakeFunctionTool().call(param="x")
+    llamaindex_patch._apply_tool_acall_patch(FakeFunctionTool, interceptor)
+
+    sync_tool = FakeFunctionTool()
+    sync_tool.call(param="x")
+    async_tool = FakeFunctionTool()
+    await async_tool.acall(param="x")
+
+    ran[0] = _assert_sync_and_async_agree("llamaindex", sync_ran=sync_tool.ran, async_ran=async_tool.ran)
 
 
 async def _drive_smolagents(interceptor: object, ran: list[bool]) -> None:
