@@ -27,6 +27,7 @@ from functools import wraps
 from threading import local
 from typing import Any
 
+from agent_assembly.adapters._shared.positional_args import merge_positional_tool_args
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
@@ -273,7 +274,9 @@ def _apply_tool_call_patch(tool_cls: type[Any], callback_handler: Any) -> bool:
     @wraps(original_call)
     def patched_call(self: Any, *args: Any, **kwargs: Any) -> Any:
         tool_name = _tool_name(self)
-        tool_args = dict(kwargs)
+        # Fold positional args in so content policy inspects their values; a
+        # positionally-invoked tool would otherwise present an empty mapping.
+        tool_args = merge_positional_tool_args(dict(kwargs), args)
         agent_id = _get_process_agent_id()
         status, reason, is_pending_flow = _resolve_governance_decision(
             callback_handler,
@@ -313,7 +316,9 @@ def _apply_tool_acall_patch(tool_cls: type[Any], callback_handler: Any) -> bool:
     @wraps(original_acall)
     async def patched_acall(self: Any, *args: Any, **kwargs: Any) -> Any:
         tool_name = _tool_name(self)
-        tool_args = dict(kwargs)
+        # Fold positional args in so content policy inspects their values; a
+        # positionally-invoked tool would otherwise present an empty mapping.
+        tool_args = merge_positional_tool_args(dict(kwargs), args)
         agent_id = _get_process_agent_id()
         status, reason, is_pending_flow = _resolve_governance_decision(
             callback_handler,

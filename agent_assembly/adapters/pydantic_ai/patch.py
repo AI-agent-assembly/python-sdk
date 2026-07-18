@@ -57,9 +57,15 @@ class PydanticAIPatch:
         """Apply patch wiring and return whether a tool hook was installed.
 
         Detects the tool-execution hook across Pydantic AI versions: the
-        ``Tool._run`` hook on <0.3.0 and the ``AbstractToolset.call_tool``
-        hook on >=0.3.0. When neither hook point exists, this is a no-op that
-        returns ``False`` instead of raising ``AttributeError``.
+        ``AbstractToolset.call_tool`` hook on >=0.3.0 and the ``Tool._run`` hook
+        on <0.3.0. When neither hook point exists, this is a no-op that returns
+        ``False`` instead of raising ``AttributeError``.
+
+        The modern ``call_tool`` hook is selected FIRST, with ``Tool._run`` used
+        only as the legacy fallback when no toolset hook point exists. Selecting
+        by precedence rather than by whichever attribute merely exists means a
+        future *vestigial* ``Tool._run`` — present but off the execution path —
+        can't shadow the live ``call_tool`` hook and leave tool calls ungoverned.
 
         On >=0.3.0 the abstract base patch is shadowed by concrete toolsets
         (e.g. ``FunctionToolset``) that override ``call_tool`` without calling
@@ -69,15 +75,16 @@ class PydanticAIPatch:
         set_process_agent_id(self.process_agent_id)
 
         tool_hooked = False
-        tool_cls = _load_pydantic_ai_tool_class()
-        if tool_cls is not None:
-            tool_hooked = _apply_tool_run_patch(tool_cls, self.callback_handler)
+        toolset_cls = _load_pydantic_ai_toolset_class()
+        if toolset_cls is not None:
+            tool_hooked = _apply_toolset_call_tool_patch(toolset_cls, self.callback_handler)
+            for concrete_cls in _load_pydantic_ai_concrete_toolset_classes(toolset_cls):
+                if _apply_toolset_call_tool_patch(concrete_cls, self.callback_handler):
+                    tool_hooked = True
         if not tool_hooked:
-            toolset_cls = _load_pydantic_ai_toolset_class()
-            if toolset_cls is not None:
-                tool_hooked = _apply_toolset_call_tool_patch(toolset_cls, self.callback_handler)
-                for concrete_cls in _load_pydantic_ai_concrete_toolset_classes(toolset_cls):
-                    _apply_toolset_call_tool_patch(concrete_cls, self.callback_handler)
+            tool_cls = _load_pydantic_ai_tool_class()
+            if tool_cls is not None:
+                tool_hooked = _apply_tool_run_patch(tool_cls, self.callback_handler)
 
         if not tool_hooked:
             set_process_agent_id(None)
