@@ -45,13 +45,23 @@ EnforcementMode = Literal["enforce", "observe", "disabled"]
 Mirrors ``aa_core::EnforcementMode`` on the wire; uses the same snake_case
 tokens the gateway expects in the registration body."""
 
+ENFORCEMENT_MODES: tuple[EnforcementMode, ...] = ("enforce", "observe", "disabled")
+"""Canonical, ordered enforcement-mode tokens — the public parity surface.
+
+Single source of truth for the enforcement-mode set: the private
+``_VALID_ENFORCEMENT_MODES`` membership validator is derived from this tuple
+(``frozenset(ENFORCEMENT_MODES)``) so the two can never drift. Ordering is
+significant — the cross-SDK conformance cross-check (AAASM-4856) asserts the
+Python/Node/Go SDKs each expose this exact sequence, matching the canonical
+``aa_core::EnforcementMode`` order on the wire."""
+
 ENV_GATEWAY_URL = "AA_GATEWAY_URL"
 ENV_CONTROL_PLANE_URL = "AA_CONTROL_PLANE_URL"
 
 _DEFAULT_AGENT_ID = "agent-assembly-default"
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 _VALID_RUNTIME_MODES = {"auto", "ebpf", "proxy", "sdk-only"}
-_VALID_ENFORCEMENT_MODES: frozenset[EnforcementMode] = frozenset({"enforce", "observe", "disabled"})
+_VALID_ENFORCEMENT_MODES: frozenset[EnforcementMode] = frozenset(ENFORCEMENT_MODES)
 _INIT_LOCK = Lock()
 _ACTIVE_CONTEXT: AssemblyContext | None = None
 

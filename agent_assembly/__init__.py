@@ -23,6 +23,7 @@ _MODULE_NATIVE_CORE = "agent_assembly._core"
 _LAZY_EXPORTS: dict[str, str] = {
     "init_assembly": _MODULE_CORE,
     "AssemblyContext": _MODULE_CORE,
+    "ENFORCEMENT_MODES": _MODULE_CORE,
     "GovernanceInterceptor": _MODULE_ADAPTERS,
     "FrameworkAdapter": _MODULE_ADAPTERS,
     "AssemblyError": _MODULE_EXCEPTIONS,
@@ -44,6 +45,7 @@ _ALWAYS_EXPORTED: list[str] = [
     "__version__",
     "init_assembly",
     "AssemblyContext",
+    "ENFORCEMENT_MODES",
     "GovernanceInterceptor",
     "FrameworkAdapter",
     "AssemblyError",
@@ -103,6 +105,7 @@ def __dir__() -> list[str]:
 if TYPE_CHECKING:
     from agent_assembly.adapters import FrameworkAdapter as FrameworkAdapter
     from agent_assembly.adapters import GovernanceInterceptor as GovernanceInterceptor
+    from agent_assembly.core import ENFORCEMENT_MODES as ENFORCEMENT_MODES
     from agent_assembly.core import AssemblyContext as AssemblyContext
     from agent_assembly.core import init_assembly as init_assembly
     from agent_assembly.exceptions import (
