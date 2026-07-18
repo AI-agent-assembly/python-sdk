@@ -134,8 +134,9 @@ async def test_microsoft_agent_framework_positional_arguments_reach_content_poli
     maf_patch._apply_function_tool_invoke_patch(FakeFunctionTool, interceptor)
 
     # ``invoke`` called positionally: the first positional slot is ``arguments``.
+    tool = FakeFunctionTool()
     with pytest.raises(AssemblyError):
-        await FakeFunctionTool().invoke({"api_key": _SECRET})
+        await tool.invoke({"api_key": _SECRET})
 
     assert interceptor.seen_args == {"api_key": _SECRET}
     assert ran[0] is False
