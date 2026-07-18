@@ -23,11 +23,26 @@ def test_auto_inject_callback_handler_is_idempotent() -> None:
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
 
-    first = auto_inject_callback_handler(interceptor=object())
-    second = auto_inject_callback_handler(interceptor=object())
+    interceptor = object()
+    first = auto_inject_callback_handler(interceptor=interceptor)
+    second = auto_inject_callback_handler(interceptor=interceptor)
 
     assert first is second
     assert get_active_callback_handler() is first
+
+
+def test_reinject_different_interceptor_warns_and_replaces() -> None:
+    _reset_runtime_state_for_tests()
+    _reset_assembly_state()
+
+    first = auto_inject_callback_handler(interceptor=object())
+
+    with pytest.warns(RuntimeWarning):
+        second = auto_inject_callback_handler(interceptor=object())
+
+    # The stale handler must not be silently kept when the config differs.
+    assert second is not first
+    assert get_active_callback_handler() is second
 
 
 def test_init_assembly_auto_injects_callback_handler(monkeypatch: pytest.MonkeyPatch) -> None:
