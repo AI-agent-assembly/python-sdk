@@ -45,6 +45,16 @@ EnforcementMode = Literal["enforce", "observe", "disabled"]
 Mirrors ``aa_core::EnforcementMode`` on the wire; uses the same snake_case
 tokens the gateway expects in the registration body."""
 
+ENFORCEMENT_MODES: tuple[EnforcementMode, ...] = ("enforce", "observe", "disabled")
+"""Canonical, ordered enforcement-mode tokens — the public parity surface.
+
+Single source of truth for the enforcement-mode set: the private
+``_VALID_ENFORCEMENT_MODES`` membership validator is derived from this tuple
+(``frozenset(ENFORCEMENT_MODES)``) so the two can never drift. Ordering is
+significant — the cross-SDK conformance cross-check (AAASM-4856) asserts the
+Python/Node/Go SDKs each expose this exact sequence, matching the canonical
+``aa_core::EnforcementMode`` order on the wire."""
+
 ENV_GATEWAY_URL = "AA_GATEWAY_URL"
 ENV_CONTROL_PLANE_URL = "AA_CONTROL_PLANE_URL"
 
