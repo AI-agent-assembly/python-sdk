@@ -142,6 +142,75 @@ def test_allowed_tool_runs_and_records_result(monkeypatch: pytest.MonkeyPatch) -
     assert observed == [result]
 
 
+def test_positional_arg_is_governed_and_forwarded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A positional ``Tool.invoke(x)`` must be governed and forwarded, not TypeError."""
+    received: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+    class FakeTool:
+        name = "positional_tool"
+
+        def invoke(self, *args: Any, **kwargs: Any) -> dict[str, object]:
+            received.append((args, kwargs))
+            return {"args": args, "kwargs": kwargs}
+
+    monkeypatch.setattr(
+        haystack_patch.importlib,
+        "import_module",
+        lambda name: (
+            SimpleNamespace(Tool=FakeTool) if name == "haystack.tools" else (_ for _ in ()).throw(ImportError(name))
+        ),
+    )
+
+    checked: list[str] = []
+
+    class RecordingInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            checked.append(str(kwargs.get("tool_name")))
+            return {"status": "allow"}
+
+    patcher = haystack_patch.HaystackPatch(RecordingInterceptor())
+    assert patcher.apply() is True
+
+    result = FakeTool().invoke("hello")
+
+    assert result == {"args": ("hello",), "kwargs": {}}
+    assert received == [(("hello",), {})]
+    assert checked == ["positional_tool"]  # governance fired on the positional call
+
+
+def test_positional_arg_denied_blocks_function(monkeypatch: pytest.MonkeyPatch) -> None:
+    ran: list[bool] = []
+
+    class FakeTool:
+        name = "positional_danger"
+
+        def invoke(self, *args: Any, **kwargs: Any) -> object:
+            ran.append(True)
+            return {"args": args, "kwargs": kwargs}
+
+    monkeypatch.setattr(
+        haystack_patch.importlib,
+        "import_module",
+        lambda name: (
+            SimpleNamespace(Tool=FakeTool) if name == "haystack.tools" else (_ for _ in ()).throw(ImportError(name))
+        ),
+    )
+
+    class BlockInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "deny", "reason": "no positional tools"}
+
+    patcher = haystack_patch.HaystackPatch(BlockInterceptor())
+    assert patcher.apply() is True
+
+    result = FakeTool().invoke("payload")
+
+    assert isinstance(result, str)
+    assert "[BLOCKED by governance policy]" in result
+    assert ran == []  # the real tool function must NOT have executed
+
+
 def test_pending_tool_waits_and_allows_when_approved(monkeypatch: pytest.MonkeyPatch) -> None:
     FakeTool = _install_fake_haystack_module(monkeypatch)
     wait_calls: list[dict[str, object]] = []

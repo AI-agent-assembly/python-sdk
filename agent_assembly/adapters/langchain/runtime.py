@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from threading import Lock
 from typing import Any
 
@@ -17,15 +18,34 @@ def auto_inject_callback_handler(
     *,
     process_agent_id: str | None = None,
 ) -> AssemblyCallbackHandler:
-    """Create and register the active callback handler instance."""
+    """Create and register the active callback handler instance.
+
+    The active handler is a module-level singleton. Re-injecting with the *same*
+    interceptor returns the existing handler unchanged (the matching-params
+    re-init path, which ``init_assembly`` guards today). If a *different*
+    interceptor is injected while one is already active, the stale handler is
+    replaced rather than silently kept: today ``init_assembly`` blocks a
+    mismatched re-init before reaching here, so this is defensive hardening for
+    future refactors that might inject a differently-postured interceptor
+    without a prior ``shutdown()`` clearing the singleton (AAASM-4831).
+    """
     global _ACTIVE_CALLBACK_HANDLER
 
     with _RUNTIME_LOCK:
         if process_agent_id is not None:
             set_process_agent_id(process_agent_id)
 
-        if _ACTIVE_CALLBACK_HANDLER is not None:
-            return _ACTIVE_CALLBACK_HANDLER
+        active = _ACTIVE_CALLBACK_HANDLER
+        if active is not None:
+            if active._interceptor is interceptor:
+                return active
+            warnings.warn(
+                "auto_inject_callback_handler called with a different interceptor "
+                "while a callback handler is already active; replacing the stale "
+                "handler. Call the assembly context's shutdown() before re-initializing.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
         handler = AssemblyCallbackHandler(interceptor)
         _ACTIVE_CALLBACK_HANDLER = handler
