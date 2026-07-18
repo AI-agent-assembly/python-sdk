@@ -232,8 +232,12 @@ def _apply_tool_invoke_patch(tool_cls: type[Any], callback_handler: Any) -> None
     enforce = _interceptor_enforces(callback_handler)
 
     @wraps(original_invoke)
-    def patched_invoke(self: Any, **kwargs: Any) -> Any:
+    def patched_invoke(self: Any, *args: Any, **kwargs: Any) -> Any:
         tool_name = str(getattr(self, "name", self.__class__.__name__))
+        # Haystack's ToolInvoker calls ``invoke(**final_args)`` (keyword-only), but
+        # a direct ``Tool.invoke(x)`` positional call must be governed and forwarded
+        # too rather than raising TypeError; positional args are opaque to the
+        # governance check, so only keyword args populate the inspected tool_args.
         tool_args = dict(kwargs)
         decision = _invoke_tool_check(
             callback_handler,
@@ -258,7 +262,7 @@ def _apply_tool_invoke_patch(tool_cls: type[Any], callback_handler: Any) -> None
                 return _format_approval_rejected_message(reason)
             return _format_blocked_message(reason)
 
-        result = original_invoke(self, **kwargs)
+        result = original_invoke(self, *args, **kwargs)
         _record_tool_result(callback_handler, tool_name=tool_name, result=result)
         return result
 
