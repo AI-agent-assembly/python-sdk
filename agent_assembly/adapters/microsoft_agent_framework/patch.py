@@ -281,8 +281,15 @@ def _apply_function_tool_invoke_patch(function_tool_cls: type[Any], callback_han
     @wraps(original_invoke)
     async def patched_invoke(self: Any, *args: Any, **kwargs: Any) -> Any:
         tool_name = str(getattr(self, "name", self.__class__.__name__))
+        # ``invoke`` may be called positionally (arguments, then context); fall
+        # back to the positional slots so content policy still inspects the
+        # argument values instead of an empty mapping.
         arguments = kwargs.get("arguments")
+        if arguments is None and args:
+            arguments = args[0]
         context = kwargs.get("context")
+        if context is None and len(args) >= 2:
+            context = args[1]
         # Direct argument kwargs are any extras the framework forwards straight
         # to the wrapped function (i.e. not the reserved invoke parameters).
         direct_kwargs = {

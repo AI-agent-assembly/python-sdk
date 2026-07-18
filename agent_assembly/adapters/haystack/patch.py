@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Literal, cast
 
+from agent_assembly.adapters._shared.positional_args import merge_positional_tool_args
+
 _TOOL_PATCHED_FLAG = "_agent_assembly_haystack_tool_patched"
 _ORIGINAL_TOOL_INVOKE = "_agent_assembly_original_haystack_tool_invoke"
 _DEFAULT_PENDING_APPROVAL_TIMEOUT_SECONDS = 300
@@ -236,9 +238,9 @@ def _apply_tool_invoke_patch(tool_cls: type[Any], callback_handler: Any) -> None
         tool_name = str(getattr(self, "name", self.__class__.__name__))
         # Haystack's ToolInvoker calls ``invoke(**final_args)`` (keyword-only), but
         # a direct ``Tool.invoke(x)`` positional call must be governed and forwarded
-        # too rather than raising TypeError; positional args are opaque to the
-        # governance check, so only keyword args populate the inspected tool_args.
-        tool_args = dict(kwargs)
+        # too. Fold any positional args into tool_args so content policy inspects
+        # their values rather than seeing an empty mapping.
+        tool_args = merge_positional_tool_args(dict(kwargs), args)
         decision = _invoke_tool_check(
             callback_handler,
             tool_name=tool_name,

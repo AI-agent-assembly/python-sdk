@@ -9,6 +9,7 @@ from functools import wraps
 from threading import local
 from typing import Any, Literal, cast
 
+from agent_assembly.adapters._shared.positional_args import merge_positional_tool_args
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 _TOOLS_PATCHED_FLAG = "_agent_assembly_crewai_tools_patched"
@@ -183,9 +184,7 @@ def _current_spawn_depth() -> int:
 
 def _format_blocked_message(reason: str | None) -> str:
     reason_text = reason or "No reason provided."
-    return (
-        f"[BLOCKED by governance policy] {reason_text}. " "Please choose a different approach to accomplish this task."
-    )
+    return f"[BLOCKED by governance policy] {reason_text}. Please choose a different approach to accomplish this task."
 
 
 def _format_approval_rejected_message(reason: str | None) -> str:
@@ -369,7 +368,9 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
     @wraps(original_run)
     def patched_run(self: Any, *args: Any, **kwargs: Any) -> Any:
         tool_name = getattr(self, "name", self.__class__.__name__)
-        tool_args = dict(kwargs)
+        # Fold positional args in so content policy inspects their values; a
+        # positionally-invoked tool would otherwise present an empty mapping.
+        tool_args = merge_positional_tool_args(dict(kwargs), args)
         agent_id = _get_thread_local_agent_id()
         decision = _invoke_sync_tool_check(
             callback_handler,
