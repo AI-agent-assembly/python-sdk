@@ -19,6 +19,12 @@ def test_lazy_getattr_resolves_init_assembly_and_assembly_context() -> None:
     assert core.AssemblyContext is AssemblyContext
 
 
+def test_lazy_getattr_resolves_enforcement_modes() -> None:
+    from agent_assembly.core.assembly import ENFORCEMENT_MODES
+
+    assert core.ENFORCEMENT_MODES is ENFORCEMENT_MODES
+
+
 def test_lazy_getattr_resolves_lineage_registry() -> None:
     from agent_assembly.core.lineage import LineageRegistry
 
@@ -32,4 +38,9 @@ def test_lazy_getattr_raises_attribute_error_for_unknown_symbol() -> None:
 
 
 def test_all_lists_the_public_lazy_exports() -> None:
-    assert set(core.__all__) == {"init_assembly", "AssemblyContext", "LineageRegistry"}
+    assert set(core.__all__) == {
+        "init_assembly",
+        "AssemblyContext",
+        "ENFORCEMENT_MODES",
+        "LineageRegistry",
+    }
