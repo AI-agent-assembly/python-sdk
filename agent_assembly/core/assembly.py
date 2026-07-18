@@ -61,7 +61,7 @@ ENV_CONTROL_PLANE_URL = "AA_CONTROL_PLANE_URL"
 _DEFAULT_AGENT_ID = "agent-assembly-default"
 _AGENT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 _VALID_RUNTIME_MODES = {"auto", "ebpf", "proxy", "sdk-only"}
-_VALID_ENFORCEMENT_MODES: frozenset[EnforcementMode] = frozenset({"enforce", "observe", "disabled"})
+_VALID_ENFORCEMENT_MODES: frozenset[EnforcementMode] = frozenset(ENFORCEMENT_MODES)
 _INIT_LOCK = Lock()
 _ACTIVE_CONTEXT: AssemblyContext | None = None
 
