@@ -2589,8 +2589,8 @@ safe.</p>
 <tbody>
 <tr>
 <td><code>gateway_url is required</code></td>
-<td>No gateway URL could be resolved (no argument, no <code>AAASM_GATEWAY_URL</code>, no config file, no local gateway).</td>
-<td>Pass <code>gateway_url=...</code>, set <code>AAASM_GATEWAY_URL</code>, or start a local gateway. See <a href="../configuration/#resolution-order">Configuration</a>.</td>
+<td>No gateway URL could be resolved (no argument, no <code>AA_GATEWAY_URL</code>, no config file, no local gateway).</td>
+<td>Pass <code>gateway_url=...</code>, set <code>AA_GATEWAY_URL</code>, or start a local gateway. See <a href="../configuration/#resolution-order">Configuration</a>.</td>
 </tr>
 <tr>
 <td><code>mode must be one of: auto, ebpf, proxy, sdk-only</code></td>
@@ -2620,7 +2620,7 @@ network layer but the gateway didn't answer.</p>
 <ul>
 <li>Confirm the gateway is running and the URL is correct — by default the SDK probes
   <code>http://localhost:7391/healthz</code>.</li>
-<li>Check <code>AAASM_GATEWAY_URL</code> / <code>AAASM_API_KEY</code> aren't pointing somewhere stale.</li>
+<li>Check <code>AA_GATEWAY_URL</code> / <code>AA_API_KEY</code> (or the deprecated <code>AAASM_*</code> aliases) aren't pointing somewhere stale.</li>
 <li>For a quick local loop, run an <code>aasm</code> gateway yourself, or let the SDK auto-start one
   (<code>aasm start --mode local --foreground</code>). If auto-start fails, ensure the <code>aasm</code> binary is
   on <code>PATH</code> — install it via the <code>agent-assembly[runtime]</code> extra or the Homebrew tap.</li>
@@ -2675,7 +2675,7 @@ traceback and your <code>init_assembly()</code> call (redact secrets).</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="July 13, 2026 19:38:38 CST"><span class="timeago" datetime="2026-07-13T19:38:38+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="July 13, 2026 19:38:38 CST">2026-07-13</span> by Chisanan232</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="July 19, 2026 11:05:17 CST"><span class="timeago" datetime="2026-07-19T11:05:17+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="July 19, 2026 11:05:17 CST">2026-07-19</span> by Chisanan232</span>
 
     
     
