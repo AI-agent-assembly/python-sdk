@@ -36,12 +36,27 @@
    this gutter as `margin`, which our `margin-inline: auto` overrode. */
 .md-content__inner { max-width: 50rem; margin-inline: auto; padding-inline: 0.8rem; }   /* ~72ch */
 
-/* AAASM-4319: constrain mike's version-selector dropdown at mobile viewports so
-   its intrinsic width (~338px for long semver tags) can't push scrollWidth past
-   the viewport. Scoped to <=76.1875em, matching mkdocs-material's drawer breakpoint. */
+/* AAASM-4883 (regression of AAASM-4319): the earlier `max-width` cap on the
+   dropdown alone never held. `.md-version` is a header flex item with
+   `white-space: nowrap`, so a long mike title ("pre-release (v0.0.1-rc.4)")
+   forced the *current* label past the viewport, and `.md-version__list` is
+   absolutely positioned from a far-left anchor (~72px in) — so even a width cap
+   left the dropdown running off the right edge (measured right: 423px @ 375px).
+   Two-part fix, scoped to mkdocs-material's drawer breakpoint (<=76.1875em):
+     1. Cap and clip the widget so the current label truncates instead of
+        widening the header (and page) past the viewport.
+     2. Take the dropdown out of flow with viewport-gutter `position: fixed`, so
+        it can't reach either edge and never contributes to page scrollWidth. */
 @media (max-width: 76.1875em) {
+  .md-version { max-width: calc(100vw - 4rem); overflow: hidden; }
+  .md-version__current { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .md-version__list {
-    max-width: calc(100vw - 2rem);
+    position: fixed;
+    top: 2.4rem;               /* just below the 48px mobile header */
+    left: 0.8rem;
+    right: 0.8rem;
+    max-width: none;
+    width: auto;
     overflow-x: auto;
   }
 }
