@@ -45,7 +45,9 @@ When `gateway_url` / `api_key` are not passed explicitly, the SDK resolves each 
 fallback chain (see `agent_assembly.core.gateway_resolver`):
 
 1. **Explicit argument** — the value you pass to `init_assembly()`.
-2. **Environment variable** — `AAASM_GATEWAY_URL` / `AAASM_API_KEY`.
+2. **Environment variable** — `AA_GATEWAY_URL` / `AA_API_KEY`. (The legacy
+   `AAASM_GATEWAY_URL` / `AAASM_API_KEY` names still resolve but emit a
+   `DeprecationWarning` — prefer the `AA_*` names.)
 3. **Config file** — `~/.aasm/config.yaml`.
 4. **Local default** — probe `http://localhost:7391/healthz`; if no gateway is running, the
    SDK attempts to **auto-start** a local one (`aasm start --mode local --foreground`).
@@ -71,8 +73,8 @@ For the full gateway configuration surface (policy files, budgets, mTLS) and the
 [CLI reference](https://docs.agent-assembly.com/core/latest/cli/overview.html) docs.
 
 ```bash
-export AAASM_GATEWAY_URL="https://gateway.example.com"
-export AAASM_API_KEY="…"
+export AA_GATEWAY_URL="https://gateway.example.com"
+export AA_API_KEY="…"
 ```
 
 ### Config file format
