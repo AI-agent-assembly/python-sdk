@@ -124,7 +124,7 @@ uv run python src/main.py
     The examples pass `gateway_url` / `api_key` **explicitly** to `init_assembly()`, reading
     them from the `AGENT_ASSEMBLY_*` variables shown above and defaulting to
     `http://localhost:8080`. The SDK *itself* has a separate built-in resolver chain that,
-    when you **omit** those arguments, reads `AASM_GATEWAY_URL` / `AASM_API_KEY`, then
+    when you **omit** those arguments, reads `AA_GATEWAY_URL` / `AA_API_KEY`, then
     `~/.aasm/config.yaml`, then probes a local gateway on `http://localhost:7391`. See
     [Configuration](../configuration.md#resolution-order) for that resolver. The examples use
     explicit arguments, so they use the `AGENT_ASSEMBLY_*` names and the `:8080` default —
