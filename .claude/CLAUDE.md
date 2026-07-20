@@ -119,7 +119,7 @@ this order: explicit args → env (`AAASM_GATEWAY_URL` / `AAASM_API_KEY`) →
 
 ## Project policy
 
-- **JIRA:** project AAASM; set **Component** (`customfield_10041`) to
+- **JIRA:** project AAASM; set the native **Components** field to
   `ai-agent-assembly/python-sdk`; Team (`customfield_10001`) = Pioneer.
   Epic → Story → Subtask (one Subtask ≈ one commit) + a `Verify …` subtask per Story.
 - **Self-hosted deployment is out of scope** product-wide — don't propose
