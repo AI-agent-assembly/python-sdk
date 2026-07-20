@@ -184,3 +184,34 @@ def test_apply_false_when_smolagents_unavailable(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(smol_patch.importlib, "import_module", raise_import_error)
     assert smol_patch._load_smolagents_tool_class() is None
     assert smol_patch.SmolagentsPatch(_RecordingInterceptor()).apply() is False
+
+
+class _TerminalPendingInterceptor:
+    """Returns "pending" at check AND again at approval — a terminal non-decision."""
+
+    def check_tool_start(self, **kwargs: Any) -> dict[str, str]:
+        del kwargs
+        return {"status": "pending", "reason": "needs approval"}
+
+    def wait_for_tool_approval(self, **kwargs: Any) -> dict[str, str]:
+        del kwargs
+        return {"status": "pending", "reason": "still pending"}
+
+
+def test_terminal_pending_blocks_tool_and_does_not_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4906: a still-"pending" verdict after the approval round-trip must
+    fail closed — only an explicit allow may run the tool, matching LangChain."""
+    FakeTool = _install_fake_smolagents(monkeypatch)
+
+    patcher = smol_patch.SmolagentsPatch(_TerminalPendingInterceptor())
+    assert patcher.apply() is True
+    try:
+        tool = FakeTool()
+        result = tool(text="hello")
+    finally:
+        patcher.revert()
+
+    assert isinstance(result, str)
+    assert result.startswith("[APPROVAL REJECTED]")
+    # The body returns a dict on success; a string proves it never executed.
+    assert not isinstance(result, dict)

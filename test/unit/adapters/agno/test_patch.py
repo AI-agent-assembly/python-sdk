@@ -297,3 +297,48 @@ def test_resolve_tool_name_falls_back_to_class_name() -> None:
 def test_resolve_tool_args_handles_non_dict() -> None:
     assert agno_patch._resolve_tool_args(SimpleNamespace(arguments=None)) == {}
     assert agno_patch._resolve_tool_args(SimpleNamespace(arguments={"a": 1})) == {"a": 1}
+
+
+class _TerminalPendingInterceptor:
+    """Returns "pending" at check AND again at approval — a terminal non-decision."""
+
+    def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+        del kwargs
+        return {"status": "pending", "reason": "needs approval"}
+
+    def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+        del kwargs
+        return {"status": "pending", "reason": "still pending"}
+
+
+def test_terminal_pending_blocks_sync_body(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4906: a still-"pending" verdict after the approval round-trip must
+    fail closed on ``execute`` — only an explicit allow may run the tool."""
+    ran: list[object] = []
+    cls = _make_fake_function_call_cls(_recording_body(ran, "ran"))
+    _install_fake_agno(monkeypatch, cls)
+
+    patcher = agno_patch.AgnoPatch(_TerminalPendingInterceptor())
+    assert patcher.apply() is True
+
+    result = cls("deploy", {}).execute()
+
+    assert ran == []
+    assert result.status == "failure"
+    assert result.error.startswith("[APPROVAL REJECTED]")
+
+
+def test_terminal_pending_blocks_async_body(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4906: the same fail-closed guarantee on the ``aexecute`` gate."""
+    ran: list[object] = []
+    cls = _make_fake_function_call_cls(_recording_body(ran, "ran"))
+    _install_fake_agno(monkeypatch, cls)
+
+    patcher = agno_patch.AgnoPatch(_TerminalPendingInterceptor())
+    assert patcher.apply() is True
+
+    result = asyncio.run(cls("deploy", {}).aexecute())
+
+    assert ran == []
+    assert result.status == "failure"
+    assert result.error.startswith("[APPROVAL REJECTED]")

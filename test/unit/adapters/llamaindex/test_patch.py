@@ -261,3 +261,49 @@ def test_negative_control_noop_patch_would_pass_through(monkeypatch: pytest.Monk
     result = tool_cls().call(param="value")
     assert body == ["call"]
     assert result == {"args": (), "kwargs": {"param": "value"}}
+
+
+class _TerminalPendingInterceptor:
+    """Returns "pending" at check AND again at approval — a terminal non-decision."""
+
+    def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+        del kwargs
+        return {"status": "pending", "reason": "needs review"}
+
+    def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+        del kwargs
+        return {"status": "pending", "reason": "still pending"}
+
+
+def test_terminal_pending_blocks_sync_body(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4906: a still-"pending" verdict after the approval round-trip must
+    fail closed on ``call`` — only an explicit allow may run the tool."""
+    body: list[str] = []
+    tool_cls = _make_fake_function_tool_class(body)
+    _install_fake_llamaindex(monkeypatch, tool_cls)
+
+    patcher = li_patch.LlamaIndexPatch(_TerminalPendingInterceptor())
+    assert patcher.apply() is True
+
+    result = tool_cls().call(param="value")
+
+    assert body == []
+    assert isinstance(result, _FakeToolOutput)
+    assert "[APPROVAL REJECTED]" in result.content
+
+
+@pytest.mark.asyncio
+async def test_terminal_pending_blocks_async_body(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4906: the same fail-closed guarantee on the ``acall`` gate."""
+    body: list[str] = []
+    tool_cls = _make_fake_function_tool_class(body)
+    _install_fake_llamaindex(monkeypatch, tool_cls)
+
+    patcher = li_patch.LlamaIndexPatch(_TerminalPendingInterceptor())
+    assert patcher.apply() is True
+
+    result = await tool_cls().acall(param="value")
+
+    assert body == []
+    assert isinstance(result, _FakeToolOutput)
+    assert "[APPROVAL REJECTED]" in result.content

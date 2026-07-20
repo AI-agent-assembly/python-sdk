@@ -292,3 +292,34 @@ async def test_real_agent_framework_function_tool_is_governed() -> None:
         assert interceptor.recorded  # and recorded the result
     finally:
         adapter.unregister_hooks()
+
+
+class _TerminalPendingInterceptor:
+    _enforce = True
+
+    def check_tool_start(self, **kwargs: Any) -> dict[str, str]:
+        del kwargs
+        return {"status": "pending"}
+
+    def wait_for_tool_approval(self, **kwargs: Any) -> dict[str, str]:
+        del kwargs
+        return {"status": "pending", "reason": "still pending"}
+
+
+@pytest.mark.asyncio
+async def test_terminal_pending_blocks_tool_and_does_not_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AAASM-4906: a still-"pending" verdict after the approval round-trip must
+    fail closed — only an explicit allow may run the tool, matching LangChain."""
+    side_effects: list[Any] = []
+    FakeTool = _install_fake_agent_framework(monkeypatch, side_effects)
+
+    patcher = maf_patch.MicrosoftAgentFrameworkPatch(_TerminalPendingInterceptor())
+    assert patcher.apply() is True
+
+    tool = FakeTool()
+    with pytest.raises(PolicyViolationError, match="rejected during approval"):
+        await tool.invoke(arguments={"x": 1})
+
+    assert side_effects == []
+
+    patcher.revert()
