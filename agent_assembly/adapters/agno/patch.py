@@ -194,7 +194,11 @@ def _apply_execute_patch(function_call_cls: type[Any], callback_handler: Any) ->
             tool_args=tool_args,
             enforce=enforce,
         )
-        if status == "deny":
+        # Fail closed: only an explicit "allow" may proceed. A terminal "pending"
+        # (approval timed out or the resolver returned pending again) is a
+        # non-decision, not a grant — blocking it here stops it from falling
+        # through and running the tool, matching the LangChain handler.
+        if status != "allow":
             message = _format_approval_rejected(reason) if is_pending_flow else _format_blocked(reason)
             return _build_denied_result(message)
 
@@ -217,7 +221,11 @@ def _apply_execute_patch(function_call_cls: type[Any], callback_handler: Any) ->
                 tool_args=tool_args,
                 enforce=enforce,
             )
-            if status == "deny":
+            # Fail closed: only an explicit "allow" may proceed. A terminal
+            # "pending" (approval timed out or the resolver returned pending
+            # again) is a non-decision, not a grant — blocking it here stops it
+            # from falling through and running the tool, matching LangChain.
+            if status != "allow":
                 message = _format_approval_rejected(reason) if is_pending_flow else _format_blocked(reason)
                 return _build_denied_result(message)
 

@@ -329,7 +329,11 @@ def _apply_function_tool_invoke_patch(function_tool_cls: type[Any], callback_han
             )
             status, reason = _normalize_decision(final_decision, enforce=enforce)
 
-        if status == "deny":
+        # Fail closed: only an explicit "allow" may proceed. A terminal "pending"
+        # (approval timed out or the resolver returned pending again) is a
+        # non-decision, not a grant — blocking it here stops it from falling
+        # through and running the tool, matching the LangChain handler.
+        if status != "allow":
             if is_pending_flow:
                 raise _build_pending_rejected_error(tool_name, reason)
             raise _build_denied_error(tool_name, reason)

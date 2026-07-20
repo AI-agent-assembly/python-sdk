@@ -643,3 +643,33 @@ async def test_deny_is_not_downgraded_when_audit_raises_governance_error(
     assert isinstance(result, str)
     assert "policy deny" in result
     assert "blocked by governance policy" in result
+
+
+@pytest.mark.asyncio
+async def test_terminal_pending_blocks_tool_and_does_not_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-4906: a still-"pending" verdict after the approval round-trip must
+    fail closed — only an explicit allow may run the tool, matching LangChain."""
+    function_tool_cls = _install_fake_openai_agents_module(monkeypatch)
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "needs approval"}
+
+        async def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "still pending"}
+
+    patcher = openai_patch.OpenAIAgentsPatch(callback_handler=Interceptor())
+    assert patcher.apply() is True
+
+    tool = function_tool_cls(name="terminal_pending_tool")
+    ctx = SimpleNamespace(agent_id="agent-terminal-pending")
+    result = await tool.on_invoke_tool(ctx, '{"q": "secret"}')
+
+    # A string governance error (not the tool's real dict output) proves the
+    # body never executed under a terminal "pending".
+    assert isinstance(result, str)
+    assert "Approval denied for tool 'terminal_pending_tool'" in result

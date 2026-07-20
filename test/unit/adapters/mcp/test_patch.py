@@ -318,3 +318,29 @@ async def test_missing_check_tool_start_blocks_tool_under_enforce(
     session = FakeClientSession()
     with pytest.raises(MCPToolBlockedError):
         await session.call_tool("some_tool", {"q": "x"})
+
+
+@pytest.mark.asyncio
+async def test_terminal_pending_blocks_tool_and_does_not_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-4906: a still-"pending" verdict after the approval round-trip must
+    fail closed — only an explicit allow may run the tool, matching LangChain."""
+    FakeClientSession = _install_fake_mcp_module(monkeypatch)
+
+    class Interceptor:
+        async def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "approval required"}
+
+        async def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "still pending"}
+
+    patcher = mcp_patch.MCPClientPatch(Interceptor())
+    assert patcher.apply() is True
+
+    session = FakeClientSession()
+    session._ws_url = "wss://tools.mcp.test"
+    with pytest.raises(MCPToolBlockedError, match="rejected during approval"):
+        await session.call_tool("deploy", {"service": "api"})
