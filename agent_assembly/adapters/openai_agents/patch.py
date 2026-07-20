@@ -549,7 +549,11 @@ def _wrap_on_invoke_tool(tool_obj: Any, callback_handler: Any) -> None:
                 )
                 status, reason = _normalize_decision(final_decision, enforce=enforce)
 
-            if status == "deny":
+            # Fail closed: only an explicit "allow" may proceed. A terminal
+            # "pending" (approval timed out or the resolver returned pending
+            # again) is a non-decision, not a grant — blocking it here stops it
+            # from falling through and running the tool, matching LangChain.
+            if status != "allow":
                 blocked_result = _build_tool_deny_error(
                     tool_name=tool_name,
                     reason=reason,
