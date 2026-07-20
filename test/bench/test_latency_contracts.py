@@ -20,6 +20,8 @@ from test.bench.conftest import MAX_DETECTION_NS, MAX_PER_CALL_NS
 from typing import Any
 from uuid import uuid4
 
+import pytest
+
 import agent_assembly.core.assembly as assembly_mod
 from agent_assembly.adapters.crewai.patch import (
     _apply_basetool_run_patch,
@@ -47,6 +49,20 @@ from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.core.assembly import init_assembly
 
 _ITERATIONS = 100
+
+
+@pytest.fixture(autouse=True)
+def _force_pure_python_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep init_assembly() hermetic whether or not the native ``_core`` extension
+    is built (AAASM-4906, sibling of AAASM-4898).
+
+    With a native ``.so`` present, ``_native_core_available()`` returns True and
+    init dials a real gateway over gRPC (``connect_runtime_client`` /
+    ``register_agent``); the cold-start contract stubs neither, so it would
+    hang/fail. Forcing the pure-Python path (the CI default) keeps the latency
+    measurement deterministic in both build modes.
+    """
+    monkeypatch.setattr(assembly_mod, "_native_core_available", lambda: False)
 
 
 def _percentiles(samples: list[int]) -> tuple[float, float, float]:

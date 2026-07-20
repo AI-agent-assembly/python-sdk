@@ -8,7 +8,22 @@ These tests require a running gateway instance.
 import pytest
 
 from agent_assembly import init_assembly
+from agent_assembly.core import assembly as core_assembly
 from agent_assembly.exceptions import ConfigurationError
+
+
+@pytest.fixture(autouse=True)
+def _force_pure_python_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep init_assembly() hermetic whether or not the native ``_core`` extension
+    is built (AAASM-4906, sibling of AAASM-4898).
+
+    With a native ``.so`` present, ``_native_core_available()`` returns True and
+    init dials a real gateway over gRPC (``connect_runtime_client`` /
+    ``register_agent``). These tests exercise SDK wiring without a live gateway,
+    so forcing the pure-Python path (the CI default) keeps them deterministic in
+    both build modes.
+    """
+    monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
 
 
 @pytest.mark.integration

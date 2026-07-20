@@ -19,6 +19,20 @@ def _reset_assembly_state() -> None:
     core_assembly._ACTIVE_CONTEXT = None
 
 
+@pytest.fixture(autouse=True)
+def _force_pure_python_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep init_assembly() hermetic whether or not the native ``_core`` extension
+    is built (AAASM-4906, sibling of AAASM-4898).
+
+    The init_assembly tests below stub ``_register_adapters`` / ``_start_network_layer``
+    but not the native gRPC registration path (``connect_runtime_client`` /
+    ``register_agent``), so a stray native ``.so`` made init dial a real gateway.
+    Forcing the pure-Python path (the CI default) keeps them deterministic in both
+    build modes.
+    """
+    monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
+
+
 def test_auto_inject_callback_handler_is_idempotent() -> None:
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
