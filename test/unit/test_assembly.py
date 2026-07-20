@@ -34,6 +34,21 @@ class _FakeAdapter(FrameworkAdapter):
 
 
 @pytest.fixture(autouse=True)
+def force_pure_python_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep init_assembly() hermetic regardless of whether the native ``_core``
+    extension is built (AAASM-4898).
+
+    When the native extension is present, ``_native_core_available()`` returns
+    True and init dials the gateway over gRPC (``connect_runtime_client`` /
+    ``register_agent``). These plumbing tests stub the adapter and network layers
+    but not that registration path, so a stray native ``.so`` made them hit a real
+    gateway and fail. Forcing the pure-Python path (the CI default) makes every
+    init_assembly() call here deterministic in both build modes.
+    """
+    monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
+
+
+@pytest.fixture(autouse=True)
 def cleanup_active_context() -> None:
     active_context = core_assembly._ACTIVE_CONTEXT
     if active_context is not None and not active_context.is_shutdown:
