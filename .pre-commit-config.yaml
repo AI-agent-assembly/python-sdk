@@ -16,39 +16,16 @@ repos:
       - id: trailing-whitespace
       - id: detect-private-key
 
-  - repo: https://github.com/PyCQA/isort
-    rev: 6.0.1
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Single Python formatter/linter (AAASM-4915): replaces the former
+    # isort + autoflake + black trio. `ruff-check --fix` folds in isort (rule
+    # `I`) and autoflake's unused-import/var removal (`F401`/`F841`); the shared
+    # ruff.toml is the source of truth for select/ignore/format config.
+    rev: v0.15.21
     hooks:
-      - id: isort
-        args: # arguments to configure black
-          - --profile=black
-
-  - repo: https://github.com/PyCQA/autoflake
-    rev: v2.3.1
-    hooks:
-      - id: autoflake
-        args:
-          - --remove-all-unused-imports
-          - --ignore-init-module-imports
-          - --in-place
-
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
-    hooks:
-      - id: black
-        args: # arguments to configure black
-          - --line-length=120
-          # these folders won't be formatted by black
-          - --exclude="""\.git |
-            \.__pycache__|
-            \**.egg-info|
-            \.mypy_cache|
-            \.pytest_cache|
-            \.tox|
-            \.venv|
-            _build|
-            build|
-            dist"""
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
 
   - repo: local
     hooks:

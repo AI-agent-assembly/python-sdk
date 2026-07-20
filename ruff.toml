@@ -14,6 +14,15 @@ exclude = [
     "dist",
     "docs_with_docusarus",
     "docs",
+    # AAASM-4915: vendored, verbatim quick-start excerpts (copied from
+    # ai-agent-assembly/examples; regenerated into docs/quick-start.md by the
+    # quickstart-tabs-check). Several are partial governance slices that are
+    # valid as doc excerpts but not standalone modules, so ruff can't lint or
+    # format them. The former black/isort/autoflake trio excluded this dir via
+    # the .pre-commit top-level `exclude`; keep that parity now that ruff is the
+    # single formatter/linter so the bare-CLI gates stay clean and the vendored
+    # copies are never rewritten.
+    "quickstart_snippets/",
     # AAASM-4434: generated gRPC/protobuf stubs (scripts/gen_proto.py), committed
     # verbatim; a CI drift check regenerates them and asserts no diff, so they
     # must not be hand-edited to satisfy lint (mirrors the mypy.ini ignore for the

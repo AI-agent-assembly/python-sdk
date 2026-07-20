@@ -130,9 +130,9 @@ cargo test --manifest-path native/aa-ffi-python/Cargo.toml
 
 ```bash
 uv run ruff check .                  # lint (config: ruff.toml; line length 120, target py312)
-uv run black .                       # auto-format (formatter gate; see .pre-commit-config.yaml)
+uv run ruff format .                 # auto-format (formatter gate; see .pre-commit-config.yaml)
 uv run mypy agent_assembly           # type check (mypy.ini; strict on adapters.base/registry)
-uv run pre-commit run --all-files    # full pre-commit suite (isort + black + autoflake + mypy)
+uv run pre-commit run --all-files    # full pre-commit suite (ruff check + ruff format + mypy)
 ```
 
 Pre-commit hooks block commits that fail any of the above. Do not bypass with `--no-verify`; fix the underlying issue.

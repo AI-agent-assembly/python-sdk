@@ -212,7 +212,7 @@ def _check_entry_point_metadata(cls: type, path_or_module: str) -> AdapterValida
         return AdapterValidationResult(
             check_name="entry_point_metadata",
             passed=False,
-            message=('pyproject.toml missing [project.entry-points."agent_assembly.adapters"] ' "section."),
+            message=('pyproject.toml missing [project.entry-points."agent_assembly.adapters"] section.'),
         )
 
     class_qualname = f"{cls.__module__}:{cls.__qualname__}"

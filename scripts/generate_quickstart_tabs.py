@@ -101,7 +101,7 @@ def build_block(vendor_dir: Path) -> str:
         framework_id = entry["framework_id"]
         snippet_path = vendor_dir / f"{framework_id}.py"
         if not snippet_path.is_file():
-            raise GenerateError(f"manifest lists '{framework_id}' but its snippet is missing: " f"{snippet_path}")
+            raise GenerateError(f"manifest lists '{framework_id}' but its snippet is missing: {snippet_path}")
         code = snippet_path.read_text(encoding="utf-8").rstrip("\n")
         tabs.append(render_tab(entry["label"], code, entry.get("version_compat_note")))
 
@@ -115,8 +115,7 @@ def apply_block(doc_text: str, block: str) -> str:
     end = doc_text.find(END_MARKER)
     if start == -1 or end == -1:
         raise GenerateError(
-            f"markers not found in doc — expected both {BEGIN_MARKER!r} and "
-            f"{END_MARKER!r}. Add them to the doc first."
+            f"markers not found in doc — expected both {BEGIN_MARKER!r} and {END_MARKER!r}. Add them to the doc first."
         )
     if end < start:
         raise GenerateError("END marker precedes BEGIN marker in the doc")
