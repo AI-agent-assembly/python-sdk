@@ -153,6 +153,22 @@ The SDK targets Python ≥ 3.12, so use **[PEP 695](https://peps.python.org/pep-
 
 This requires `mypy >= 1.11` (PEP 695 support), pinned in `pyproject.toml`.
 
+### README version drift check
+
+The `aasm --version` sample output in `README.md` is a hand-typed version literal.
+Per [ADR 0013](https://github.com/ai-agent-assembly/agent-assembly/blob/master/docs/src/adr/0013-version-metadata-source-of-truth-and-drift-gate.md)
+the package version anchor in `pyproject.toml` (`[project].version`) is the single
+source of truth; the README sample must never restate a different value. A blocking
+CI job (`.github/workflows/readme-version-check.yml`) audits this on every PR:
+
+```bash
+python scripts/check_readme_version.py --check   # exit 0 = in sync, 1 = drift
+```
+
+If it fails, the sample output drifted from the anchor. Fix it by editing the
+**anchor** (the release tooling normally owns this) and updating the README sample
+to match — never leave the two out of sync.
+
 ## Branch naming and commit style
 
 - **Branch**: `<release-or-phase>/<ticket>/<type>/<short_summary>` — a four-part scheme. `<type>` is the change category (see the table below), and `<short_summary>` is 2–4 words in `snake_case`. Example: `v0.0.1/AAASM-42/feat/add_registry`.
@@ -188,6 +204,7 @@ Before requesting review, confirm every item below.
 - [ ] If adapters or runtime changed: added/updated tests under `test/unit/` and `test/integration/`
 - [ ] If public API changed: docstrings updated (mkdocstrings will pick them up automatically)
 - [ ] If user-facing behaviour changed: README.md / docs/ updated
+- [ ] If the README `aasm --version` sample or `pyproject.toml` version changed: `python scripts/check_readme_version.py --check` is green
 - [ ] No `print()` / `breakpoint()` / commented-out dead code left in the diff
 - [ ] No `.env`, secrets, or large binaries staged
 

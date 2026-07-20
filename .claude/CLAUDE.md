@@ -100,7 +100,14 @@ this order: explicit args → env (`AAASM_GATEWAY_URL` / `AAASM_API_KEY`) →
   only `agent_assembly/**/*.py`, `test/**/*.py`, and specific config files — it
   **excludes** `docs/**`, `*.md`, and `examples/**`. A docs-only PR with no CI is
   *review-required*, not a failure. (`pre-commit` also excludes `.github/` and
-  `docs/`.)
+  `docs/`.) Exception: `README.md` / `pyproject.toml` edits trigger the
+  `readme-version-check.yml` gate below.
+- **README version literal is SoT-gated.** The `aasm --version` sample output in
+  `README.md` must equal the `pyproject.toml` version anchor (`[project].version`) —
+  the single source of truth per [ADR 0013](https://github.com/ai-agent-assembly/agent-assembly/blob/master/docs/src/adr/0013-version-metadata-source-of-truth-and-drift-gate.md).
+  `scripts/check_readme_version.py --check` (blocking CI: `readme-version-check.yml`)
+  fails the build on drift. Don't retype the README literal on a bump without
+  matching the anchor.
 - **macOS native build:** building the PyO3 `cdylib` via a plain `cargo build`
   link-fails (unresolved Python symbols). Use **maturin**, or
   `cargo rustc -- -Clink-arg=-undefined -Clink-arg=dynamic_lookup`.
