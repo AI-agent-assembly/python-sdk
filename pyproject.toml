@@ -78,8 +78,8 @@ all = ["agent-assembly[runtime]"]
 aasm = "agent_assembly.cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/AI-agent-assembly/python-sdk"
-Repository = "https://github.com/AI-agent-assembly/python-sdk"
+Homepage = "https://github.com/ai-agent-assembly/python-sdk"
+Repository = "https://github.com/ai-agent-assembly/python-sdk"
 
 [dependency-groups]
 dev = [
