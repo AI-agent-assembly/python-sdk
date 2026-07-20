@@ -151,9 +151,9 @@ def test_contract_members_resolve_statically_not_via_getattr() -> None:
         if name in _OVERRIDDEN_MEMBERS:
             assert owner is AssemblyCallbackHandler
         else:
-            assert owner.__module__.startswith(
-                "langchain_core"
-            ), f"{name!r} resolved to {owner!r}, not the LangChain base contract"
+            assert owner.__module__.startswith("langchain_core"), (
+                f"{name!r} resolved to {owner!r}, not the LangChain base contract"
+            )
 
     # Live attribute access (bound methods + evaluated flag properties) also
     # resolves without ever delegating to the interceptor.

@@ -162,7 +162,7 @@ class TestCheckEntryPointMetadata:
         assert isinstance(tmp_path, pathlib.Path)
         pyproject = tmp_path / "pyproject.toml"
         qualname = f"{valid_adapter_cls.__module__}:{valid_adapter_cls.__qualname__}"
-        pyproject.write_text(f'[project.entry-points."agent_assembly.adapters"]\n' f'test_framework = "{qualname}"\n')
+        pyproject.write_text(f'[project.entry-points."agent_assembly.adapters"]\ntest_framework = "{qualname}"\n')
         result = _check_entry_point_metadata(valid_adapter_cls, str(tmp_path))
         assert result.passed is True
 
@@ -193,7 +193,7 @@ class TestCheckEntryPointMetadata:
         adapter_dir.mkdir()
         pyproject = adapter_dir / "pyproject.toml"
         qualname = f"{valid_adapter_cls.__module__}:{valid_adapter_cls.__qualname__}"
-        pyproject.write_text(f'[project.entry-points."agent_assembly.adapters"]\n' f'test_framework = "{qualname}"\n')
+        pyproject.write_text(f'[project.entry-points."agent_assembly.adapters"]\ntest_framework = "{qualname}"\n')
         # "<tmp>/adapter/../adapter" canonicalizes back to "<tmp>/adapter".
         traversal = str(adapter_dir / ".." / "adapter")
         result = _check_entry_point_metadata(valid_adapter_cls, traversal)

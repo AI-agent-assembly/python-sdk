@@ -53,9 +53,9 @@ async def test_failopen_conformance(
 
     posture = "enforce" if is_enforce else "fail-open"
     verb = "run" if want else "be blocked"
-    assert (
-        ran is want
-    ), f"{adapter_name} under {mode_id} ({posture}) on {scenario}: tool expected to {verb}, but ran={ran}"
+    assert ran is want, (
+        f"{adapter_name} under {mode_id} ({posture}) on {scenario}: tool expected to {verb}, but ran={ran}"
+    )
 
 
 def test_every_adapter_has_a_driver() -> None:
