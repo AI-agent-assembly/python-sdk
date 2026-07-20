@@ -51,7 +51,7 @@ uv sync                                # create .venv + install runtime + dev de
 .venv/bin/python -m pytest test/unit/cli/test_loader.py            # one file
 .venv/bin/python -m pytest test/unit/cli/test_loader.py::TestLoadAdapterClass  # one class
 .venv/bin/ruff check .
-.venv/bin/black .                      # formatter gate (see .pre-commit-config.yaml)
+.venv/bin/ruff format .                # formatter gate (see .pre-commit-config.yaml)
 .venv/bin/mypy agent_assembly          # strict; type-check the package, not test/
 .venv/bin/pre-commit run --all-files
 ```

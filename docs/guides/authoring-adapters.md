@@ -327,7 +327,7 @@ repos but should still meet this bar), confirm:
       lifecycle (framework mocked).
 - [ ] Integration test under `test/integration/adapters/<framework_name>/` exercises a minimal
       real flow.
-- [ ] `uv run ruff check .`, `uv run black --check .`, and `uv run mypy agent_assembly`
+- [ ] `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy agent_assembly`
       are clean.
 - [ ] Entry point declared in `pyproject.toml` under
       `[project.entry-points."agent_assembly.adapters"]` (for standalone packages).
