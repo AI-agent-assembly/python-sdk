@@ -4,7 +4,22 @@ from typing import Any
 
 import pytest
 
+from agent_assembly.core import assembly as core_assembly
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
+
+
+@pytest.fixture(autouse=True)
+def force_pure_python_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep init_assembly() hermetic regardless of whether the native ``_core``
+    extension is built (AAASM-4898).
+
+    These spawn-context tests stub GatewayClient / adapter / network layers but
+    not the native gRPC registration path (``connect_runtime_client`` /
+    ``register_agent``), so a stray native ``.so`` made init dial a real gateway.
+    Forcing the pure-Python path (the CI default) keeps them deterministic in
+    both build modes.
+    """
+    monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
 
 
 class TestSpawnContext:

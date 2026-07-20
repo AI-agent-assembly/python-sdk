@@ -391,6 +391,39 @@ def test_pending_timeout_returns_denied_string(monkeypatch: pytest.MonkeyPatch) 
     assert "approval timeout" in result
 
 
+def test_terminal_pending_blocks_tool_and_does_not_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AAASM-4898: a still-"pending" verdict after the approval round-trip must
+    block, not fall through and run the tool. "pending" is a terminal
+    non-decision here, so it fails closed like the LangChain handler."""
+    FakeBaseTool, _ = _install_fake_crewai_modules(monkeypatch)
+    recorded_results: list[object] = []
+
+    class TerminalPendingInterceptor:
+        def check_tool_start(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "awaiting approval"}
+
+        def wait_for_tool_approval(self, **kwargs: object) -> dict[str, str]:
+            del kwargs
+            return {"status": "pending", "reason": "still pending"}
+
+        def record_result(self, **kwargs: object) -> None:
+            recorded_results.append(kwargs.get("result"))
+
+    patcher = crewai_patch.CrewAIPatch(TerminalPendingInterceptor())
+    assert patcher.apply() is True
+
+    tool = FakeBaseTool()
+    result = tool.run(param="value")
+
+    assert isinstance(result, str)
+    assert result.startswith("[APPROVAL REJECTED]")
+    # The original tool never executed, so its result was never recorded.
+    assert recorded_results == []
+
+
 def test_task_start_and_complete_events_are_recorded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
