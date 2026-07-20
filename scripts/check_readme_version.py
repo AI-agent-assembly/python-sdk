@@ -69,9 +69,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Audit only and exit non-zero on drift (the CI-gate mode).",
+        help=(
+            "Exit non-zero on drift (the CI-gate mode). Without it, drift is "
+            "reported but the exit code stays 0 for informational, non-gating runs."
+        ),
     )
-    parser.parse_args(argv)
+    args = parser.parse_args(argv)
 
     root = _repo_root()
     drift = audit(root / "pyproject.toml", root / "README.md")
@@ -84,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
             "the README sample to match. See ADR 0013.",
             file=sys.stderr,
         )
-        return 1
+        return 1 if args.check else 0
     print("README sample-output version is in sync with the pyproject.toml anchor.")
     return 0
 
