@@ -14,7 +14,7 @@ prior coordinated release.
 ```bash
 gh workflow run release-python.yml \
   --repo ai-agent-assembly/python-sdk \
-  --ref master \
+  --ref main \
   -f pypi_version=0.0.1a9.post1 \
   -f binary_source_tag=v0.0.1-alpha.9 \
   -f dry-run=true
@@ -46,7 +46,7 @@ filenames + sizes, and authorises the real publish.
 ```bash
 gh workflow run release-python.yml \
   --repo ai-agent-assembly/python-sdk \
-  --ref master \
+  --ref main \
   -f pypi_version=0.0.1a9.post1 \
   -f binary_source_tag=v0.0.1-alpha.9 \
   -f dry-run=false
@@ -109,7 +109,7 @@ If no PR is listed, the upstream `update-python-sdk-ffi-pin` job (AAASM-2883) ha
 ```bash
 gh workflow run release-python.yml \
   --repo ai-agent-assembly/python-sdk \
-  --ref master \
+  --ref main \
   -f pypi_version=0.0.1b3 \
   -f binary_source_tag=v0.0.1-beta.3 \
   -f dry-run=true

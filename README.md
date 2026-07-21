@@ -1,7 +1,7 @@
 # Agent Assembly Python SDK
 
-[![CI](https://img.shields.io/github/actions/workflow/status/ai-agent-assembly/python-sdk/ci.yaml?branch=master&logo=githubactions&logoColor=white&label=CI)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/ci.yaml)
-[![Docs](https://img.shields.io/github/actions/workflow/status/ai-agent-assembly/python-sdk/documentation.yaml?branch=master&logo=readthedocs&logoColor=white&label=docs)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/documentation.yaml)
+[![CI](https://img.shields.io/github/actions/workflow/status/ai-agent-assembly/python-sdk/ci.yaml?branch=main&logo=githubactions&logoColor=white&label=CI)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/ci.yaml)
+[![Docs](https://img.shields.io/github/actions/workflow/status/ai-agent-assembly/python-sdk/documentation.yaml?branch=main&logo=readthedocs&logoColor=white&label=docs)](https://github.com/ai-agent-assembly/python-sdk/actions/workflows/documentation.yaml)
 [![PyPI version](https://img.shields.io/pypi/v/agent-assembly?logo=pypi&logoColor=white)](https://pypi.org/project/agent-assembly/)
 [![GitHub release](https://img.shields.io/github/v/release/ai-agent-assembly/python-sdk?include_prereleases&sort=semver&label=release&logo=github)](https://github.com/ai-agent-assembly/python-sdk/releases)
 [![Python versions](https://img.shields.io/pypi/pyversions/agent-assembly?logo=python&logoColor=white)](https://pypi.org/project/agent-assembly/)
@@ -113,7 +113,7 @@ uv add --prerelease=allow agent-assembly
 > as a pre-release on PyPI, so `uv add agent-assembly` fails to resolve without it.
 > Drop the flag once a stable (non-pre-release) version is published.
 
-To track unreleased changes, install from the `master` branch:
+To track unreleased changes, install from the `main` branch:
 
 ```bash
 pip install git+https://github.com/ai-agent-assembly/python-sdk.git

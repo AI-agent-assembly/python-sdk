@@ -10,7 +10,7 @@ site_description: >-
 # Repository
 repo_name: ai-agent-assembly/python-sdk
 repo_url: https://github.com/ai-agent-assembly/python-sdk
-edit_uri: edit/master/docs/
+edit_uri: edit/main/docs/
 
 # Copyright
 copyright: Copyright &copy; 2026 Agent Assembly Team

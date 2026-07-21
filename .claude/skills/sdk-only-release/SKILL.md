@@ -91,13 +91,13 @@ metadata only. Always `grep -rn` the outgoing version across `agent_assembly/**`
 
 ## How to use
 
-Invoke `release-python.yml` via `workflow_dispatch` against `master`, three
+Invoke `release-python.yml` via `workflow_dispatch` against `main`, three
 input axes:
 
 ```bash
 gh workflow run release-python.yml \
   --repo ai-agent-assembly/python-sdk \
-  --ref master \
+  --ref main \
   -f pypi_version=<X> \
   -f binary_source_tag=<Y> \
   -f dry-run=true
@@ -125,7 +125,7 @@ semantics, the strict regex, and Trusted-Publisher auth are in
    `aasm-*.tar.gz` assets for all four platforms
    (`gh release view <tag> --repo ai-agent-assembly/agent-assembly`).
 3. The operator ran `dry-run=true` first and reviewed resolve output + wheels.
-4. The `--ref` dispatched against is `master`.
+4. The `--ref` dispatched against is `main`.
 
 ## Executable plan
 
