@@ -6,7 +6,7 @@ on:
     # so benchmarks stay off the default per-PR path (noisy on shared runners).
     types: [labeled]
     branches:
-      - "master"
+      - "main"
     paths:
       - "agent_assembly/**/*.py"
       - "test/bench/**/*.py"

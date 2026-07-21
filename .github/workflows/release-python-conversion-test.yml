@@ -11,7 +11,7 @@ name: Release-Python conversion tests
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - ".github/scripts/tag-to-pep440.sh"
       - ".github/scripts/test_tag_to_pep440.sh"
@@ -21,7 +21,7 @@ on:
       - ".github/workflows/release-python-conversion-test.yml"
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - ".github/scripts/tag-to-pep440.sh"
       - ".github/scripts/test_tag_to_pep440.sh"

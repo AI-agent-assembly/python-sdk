@@ -15,7 +15,7 @@ name: Wheel Python matrix drift guard
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - "pyproject.toml"
       - ".github/workflows/release-python.yml"
@@ -24,7 +24,7 @@ on:
       - ".github/workflows/wheel-python-matrix.yml"
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - "pyproject.toml"
       - ".github/workflows/release-python.yml"
