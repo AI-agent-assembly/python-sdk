@@ -168,6 +168,13 @@ client = RuntimeClient.connect(
 client.register(agent_id="quickstart-agent", name="Quick Start Agent", framework="custom")
 ```
 
+Your agent appears in the dashboard the moment it registers — the operator **Overview** picks it
+up right away, the fleet count ticks up, and its three-layer posture goes live. *(Real dashboard
+UI, rendered with sample fixture data — see the honest-status note in step 6.)*
+
+![Operator dashboard Overview (light theme): three-layer posture rings and a fleet snapshot showing six registered agents — verified, enforcing, and healthy.](images/dashboard/overview-light.png#only-light)
+![Operator dashboard Overview (dark theme): the same posture rings and fleet snapshot, re-themed to the dark palette.](images/dashboard/overview-dark.png#only-dark)
+
 ## 4. Govern a tool call — allow, deny, approval
 
 `query_policy()` is the pre-execution check. It returns a decision dict whose `"decision"` is one
