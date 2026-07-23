@@ -229,7 +229,6 @@ nav:
   - Node SDK: https://docs.agent-assembly.com/node-sdk/
   - Go SDK: https://docs.agent-assembly.com/go-sdk/
   - Introduction: index.md
-  - Start Here — The Golden Path: golden-path.md
   - Quick Start: quick-start.md
   - Core Concepts:
       - concepts/index.md
