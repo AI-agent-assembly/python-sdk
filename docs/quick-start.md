@@ -252,6 +252,11 @@ The Fleet view — registered agents, their teams, and status at a glance:
 ![Operator dashboard Fleet view (light theme): a table of registered agents with team, status, and last-seen columns.](images/dashboard/fleet-light.png#only-light)
 ![Operator dashboard Fleet view (dark theme): a table of registered agents with team, status, and last-seen columns.](images/dashboard/fleet-dark.png#only-dark)
 
+The Topology view — the same agents laid out as a graph, grouped into team clusters, each with a per-team budget bar:
+
+![Operator dashboard Topology view (light theme): agent cards grouped into two team clusters (support, analytics), each cluster labelled with a budget bar; cards show name, framework, and spend.](images/dashboard/topology-light.png#only-light)
+![Operator dashboard Topology view (dark theme): the same team-clustered agent graph, with one card outlined in red for an errored agent.](images/dashboard/topology-dark.png#only-dark)
+
 The Audit Log view — one row per governed action; the highlighted row is a policy **`deny`**:
 
 ![Operator dashboard Audit Log view (light theme): a chronological list of governed actions, one row showing a policy deny decision.](images/dashboard/audit-light.png#only-light)
