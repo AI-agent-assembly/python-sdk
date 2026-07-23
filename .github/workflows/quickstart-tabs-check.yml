@@ -15,7 +15,7 @@ on:
       - ".github/workflows/quickstart-tabs-check.yml"
   push:
     branches:
-      - master
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

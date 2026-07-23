@@ -222,7 +222,7 @@ authoritative checker.)
 
 ## Pre-conditions
 
-- Canonical remote is `remote` (not `origin`); dispatch against `--ref master`.
+- Canonical remote is `remote` (not `origin`); dispatch against `--ref main`.
 - For Path B, `pypi_version` must be a **higher** PEP 440 version than the latest
   on PyPI, and `binary_source_tag` must be an existing `agent-assembly` tag with
   published `aasm-*` assets for all four platforms.

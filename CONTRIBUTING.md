@@ -41,8 +41,8 @@ After this, `from agent_assembly._core import RuntimeClient` should succeed insi
 For isolated feature work, create a `git worktree` so multiple branches can be developed in parallel without context-switching the main checkout:
 
 ```bash
-git fetch remote && git checkout master && git pull --ff-only remote master
-git worktree add -b v0.0.0/AAASM-XXXX/short_summary ../python-sdk-AAASM-XXXX-short_summary master
+git fetch remote && git checkout main && git pull --ff-only remote main
+git worktree add -b v0.0.0/AAASM-XXXX/short_summary ../python-sdk-AAASM-XXXX-short_summary main
 ```
 
 Each worktree gets its own `.venv` — re-run `uv sync` inside the worktree before running tests.
@@ -172,7 +172,7 @@ to match — never leave the two out of sync.
 ## Branch naming and commit style
 
 - **Branch**: `<release-or-phase>/<ticket>/<type>/<short_summary>` — a four-part scheme. `<type>` is the change category (see the table below), and `<short_summary>` is 2–4 words in `snake_case`. Example: `v0.0.1/AAASM-42/feat/add_registry`.
-- **Base branch**: always `master`. Never branch from another feature branch.
+- **Base branch**: always `main`. Never branch from another feature branch.
 - **Push remote**: `remote` (= `https://github.com/ai-agent-assembly/python-sdk`). Never push feature branches to `origin` (the personal fork).
 - **Commit message format**: `<gitemoji> (<scope>): <imperative summary under 72 chars>` — e.g. `📝 (readme): Add badge strip`. See [gitmoji.dev](https://gitmoji.dev/) for the full emoji table.
 - **One concern per commit.** Each commit must be bisectable: tests pass, build succeeds. Prefer many small commits over one large commit.
@@ -197,7 +197,7 @@ Before requesting review, confirm every item below.
 
 - [ ] PR title is `[AAASM-XXXX] <emoji> (<scope>): <imperative summary>` (matches the commit style)
 - [ ] PR body filled in from `.github/PULL_REQUEST_TEMPLATE.md` (Description, Type of Change, Breaking Changes, Related Issues, Testing, Checklist)
-- [ ] Branch is up to date with `master` (rebased, not merged)
+- [ ] Branch is up to date with `main` (rebased, not merged)
 - [ ] `uv run pytest` is green locally (full suite, not just impacted tests)
 - [ ] `uv run pre-commit run --all-files` is green
 - [ ] `uv run mypy agent_assembly` is green

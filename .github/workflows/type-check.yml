@@ -1,10 +1,10 @@
 name: PEP 561 Type Distribution
 
 on:
-  # Run on push to master and pull requests
+  # Run on push to main and pull requests
   push:
     branches:
-      - "master"
+      - "main"
     paths:
       # GitHub Action workflow files
       - ".github/workflows/type-check.yml"
@@ -18,7 +18,7 @@ on:
 
   pull_request:
     branches:
-      - "master"
+      - "main"
     paths:
       # GitHub Action workflow files
       - ".github/workflows/type-check.yml"

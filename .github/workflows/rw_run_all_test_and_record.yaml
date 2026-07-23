@@ -54,7 +54,7 @@ jobs:
         !contains(github.event.pull_request.labels.*.name, 'dependencies') && 
         (
             contains(fromJSON('["pull_request","workflow_dispatch","schedule"]'), github.event_name) || 
-            (github.event_name == 'push' && github.ref_name == 'master')
+            (github.event_name == 'push' && github.ref_name == 'main')
         ) 
       }}
     needs: build-and-test
@@ -75,7 +75,7 @@ jobs:
         !contains(github.event.pull_request.labels.*.name, 'dependencies') &&
         (
             contains(fromJSON('["pull_request","workflow_dispatch","schedule"]'), github.event_name) ||
-            (github.event_name == 'push' && github.ref_name == 'master')
+            (github.event_name == 'push' && github.ref_name == 'main')
         )
       }}
     needs: build-and-test
@@ -96,7 +96,7 @@ jobs:
         !contains(github.event.pull_request.labels.*.name, 'dependencies') &&
         (
             (contains(fromJSON('["pull_request","workflow_dispatch","schedule"]'), github.event_name) ||
-            (github.event_name == 'push' && github.ref_name == 'master')
+            (github.event_name == 'push' && github.ref_name == 'main')
         )) &&
         inputs.run_e2e == true
       }}
@@ -118,7 +118,7 @@ jobs:
         !contains(github.event.pull_request.labels.*.name, 'dependencies') &&
         (
             contains(fromJSON('["pull_request","workflow_dispatch","schedule"]'), github.event_name) ||
-            (github.event_name == 'push' && github.ref_name == 'master')
+            (github.event_name == 'push' && github.ref_name == 'main')
         )
       }}
     needs: build-and-test
@@ -139,7 +139,7 @@ jobs:
         !contains(github.event.pull_request.labels.*.name, 'dependencies') &&
         (
             contains(fromJSON('["pull_request","workflow_dispatch","schedule"]'), github.event_name) ||
-            (github.event_name == 'push' && github.ref_name == 'master')
+            (github.event_name == 'push' && github.ref_name == 'main')
         )
       }}
     needs: build-and-test
@@ -160,7 +160,7 @@ jobs:
         !contains(github.event.pull_request.labels.*.name, 'dependencies') &&
         (
             contains(fromJSON('["pull_request","workflow_dispatch","schedule"]'), github.event_name) ||
-            (github.event_name == 'push' && github.ref_name == 'master')
+            (github.event_name == 'push' && github.ref_name == 'main')
         )
       }}
     needs: build-and-test

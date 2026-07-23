@@ -84,7 +84,7 @@ this order: explicit args → env (`AAASM_GATEWAY_URL` / `AAASM_API_KEY`) →
 - **Branch:** `<release-or-phase>/<ticket>/<type>/<short_summary>`
   (e.g. `v0.0.1/AAASM-42/feat/add_langchain_adapter`).
 - **PR title:** `[<ticket>] <emoji> (<scope>): <summary>`; base branch **always
-  `master`**; body follows `.github/pull_request_template.md`; ≥1 Pioneer-team
+  `main`**; body follows `.github/pull_request_template.md`; ≥1 Pioneer-team
   approval.
 
 ## Repo-specific gotchas
@@ -93,7 +93,7 @@ this order: explicit args → env (`AAASM_GATEWAY_URL` / `AAASM_API_KEY`) →
   has confirmed MIT for this SDK twice. The `LICENSE`, the PyPI classifier, and the
   README badge are all intentionally MIT — **do not "fix" it** to Apache.
 - **Push remote is `remote`** (→ `ai-agent-assembly/python-sdk`, canonical), not
-  `origin` (a personal fork). Scope changes against `remote/master`, which is often
+  `origin` (a personal fork). Scope changes against `remote/main`, which is often
   ahead of a fork checkout. The "This repository moved"
   (old-uppercase→`ai-agent-assembly`) redirect notice on push is harmless.
 - **Docs-only PRs run NO CI.** `ci.yaml`'s `pull_request.paths` allow-list covers

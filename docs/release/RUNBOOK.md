@@ -34,7 +34,7 @@ after a tag push — see `agent-assembly/docs/release/RUNBOOK.md` section
 ```bash
 gh workflow run release-python.yml \
   --repo ai-agent-assembly/python-sdk \
-  --ref master \
+  --ref main \
   -f pypi_version=0.0.1a9 \
   -f binary_source_tag=v0.0.1-alpha.9 \
   -f dry-run=false
@@ -42,7 +42,7 @@ gh workflow run release-python.yml \
 
 What happens:
 
-1. The workflow checks out master.
+1. The workflow checks out main.
 2. `pypi_version` (PEP 440, e.g. `0.0.1a9`) is stamped on
    `pyproject.toml`'s `project.version`.
 3. For each of the 4 wheel jobs, the matching `aasm-*.tar.gz` from the
@@ -74,7 +74,7 @@ new PyPI version **without** cutting a new agent-assembly tag.
 ```bash
 gh workflow run release-python.yml \
   --repo ai-agent-assembly/python-sdk \
-  --ref master \
+  --ref main \
   -f pypi_version=0.0.1a8.post1 \
   -f binary_source_tag=v0.0.1-alpha.8 \
   -f dry-run=false
@@ -82,7 +82,7 @@ gh workflow run release-python.yml \
 
 What happens:
 
-1. The workflow runs against master.
+1. The workflow runs against main.
 2. `pypi_version` (e.g. `0.0.1a8.post1`) is stamped on
    `pyproject.toml`'s `project.version`.
 3. `binary_source_tag` (e.g. `v0.0.1-alpha.8`) is the agent-assembly
