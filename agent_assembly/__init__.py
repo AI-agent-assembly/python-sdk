@@ -34,6 +34,8 @@ _LAZY_EXPORTS: dict[str, str] = {
     "AdapterValidationError": _MODULE_EXCEPTIONS,
     "ToolExecutionBlockedError": _MODULE_EXCEPTIONS,
     "MCPToolBlockedError": _MODULE_EXCEPTIONS,
+    "PolicyViolationError": _MODULE_EXCEPTIONS,
+    "OpTerminatedError": _MODULE_EXCEPTIONS,
     "AuditEvent": _MODULE_TYPES,
     "CallStackNode": _MODULE_TYPES,
     "CallStackNodeKind": _MODULE_TYPES,
@@ -56,6 +58,8 @@ _ALWAYS_EXPORTED: list[str] = [
     "AdapterValidationError",
     "ToolExecutionBlockedError",
     "MCPToolBlockedError",
+    "PolicyViolationError",
+    "OpTerminatedError",
     "AuditEvent",
     "CallStackNode",
     "CallStackNodeKind",
@@ -116,7 +120,11 @@ if TYPE_CHECKING:
     from agent_assembly.exceptions import ConfigurationError as ConfigurationError
     from agent_assembly.exceptions import GatewayError as GatewayError
     from agent_assembly.exceptions import MCPToolBlockedError as MCPToolBlockedError
+    from agent_assembly.exceptions import OpTerminatedError as OpTerminatedError
     from agent_assembly.exceptions import PolicyError as PolicyError
+    from agent_assembly.exceptions import (
+        PolicyViolationError as PolicyViolationError,
+    )
     from agent_assembly.exceptions import (
         ToolExecutionBlockedError as ToolExecutionBlockedError,
     )
