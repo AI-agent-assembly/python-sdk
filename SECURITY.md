@@ -2,7 +2,17 @@
 
 ## Reporting a vulnerability
 
-Report suspected vulnerabilities privately to **security@agent-assembly.dev**.
+<!-- BEGIN GENERATED: security_contact -->
+Report security vulnerabilities privately to **security@agent-assembly.com**. Do not open a public issue or discussion for a security report.
+
+| Response stage | Target |
+| --- | --- |
+| Acknowledgement | Within 2 business days |
+| Initial assessment | Within 5 business days |
+
+> **Legacy address.** `security@agent-assembly.dev` remains a legacy compatibility alias. During the in-progress migration to the canonical `security@agent-assembly.com` identity, the legacy address continues to receive mail via Cloudflare Email Routing, so a report sent there still reaches us. The canonical mailbox is not yet live-sending.
+<!-- END GENERATED: security_contact -->
+
 Please do not open public issues for security reports.
 
 ## Canonical package name
