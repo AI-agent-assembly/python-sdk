@@ -58,14 +58,14 @@ class TestApplyRunnerRunPatch:
                 delattr(FakeRunner, attr)
 
     @pytest.mark.asyncio
-    async def test_patched_run_sets_spawn_ctx(self) -> None:
+    async def test_patched_run_sets_spawn_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         async def capturing_run(agent: object, *, input: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeRunner.run = classmethod(capturing_run)  # type: ignore[arg-type,assignment,method-assign]
+        monkeypatch.setattr(FakeRunner, "run", classmethod(capturing_run))
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
 
         await FakeRunner.run(MagicMock(), input="hello")
@@ -78,22 +78,22 @@ class TestApplyRunnerRunPatch:
         assert sc.spawned_by_tool == "openai_agents_runner"
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_is_reset_after_run(self) -> None:
+    async def test_spawn_ctx_is_reset_after_run(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def passthrough_run(agent: object, *, input: object, **kwargs: object) -> str:
             return "ok"
 
-        FakeRunner.run = classmethod(passthrough_run)  # type: ignore[arg-type,assignment,method-assign]
+        monkeypatch.setattr(FakeRunner, "run", classmethod(passthrough_run))
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
 
         await FakeRunner.run(MagicMock(), input="x")
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_reset_on_exception(self) -> None:
+    async def test_spawn_ctx_reset_on_exception(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def failing_run(agent: object, *, input: object, **kwargs: object) -> str:
             raise RuntimeError("runner failed")
 
-        FakeRunner.run = classmethod(failing_run)  # type: ignore[arg-type,assignment,method-assign]
+        monkeypatch.setattr(FakeRunner, "run", classmethod(failing_run))
         _apply_runner_run_patch(FakeRunner, "process-agent-001")
 
         agent = MagicMock()
