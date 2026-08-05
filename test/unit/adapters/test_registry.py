@@ -218,7 +218,7 @@ def test_auto_detect_is_idempotent_for_entry_point_adapters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry = AdapterRegistry()
-    CountingEntryPointAdapter.register_calls = 0
+    monkeypatch.setattr(CountingEntryPointAdapter, "register_calls", 0)
 
     class FakeEntryPoints(list[FakeEntryPoint]):
         def select(self, *, group: str) -> list[FakeEntryPoint]:
