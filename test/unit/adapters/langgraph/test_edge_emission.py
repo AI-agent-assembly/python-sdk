@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from agent_assembly.adapters.langgraph import patch as lg_patch
 
 
@@ -88,51 +90,43 @@ def test_transition_input_keys_contains_state_keys() -> None:
     assert set(meta["transition_input_keys"]) >= {"msg", "count"}
 
 
-def test_no_edge_emitted_for_first_node_in_graph() -> None:
+def test_no_edge_emitted_for_first_node_in_graph(monkeypatch: pytest.MonkeyPatch) -> None:
     """The very first node has no predecessor so no edge should be emitted."""
     emitter = RecordingEdgeEmitter()
-    lg_patch.set_edge_emitter(emitter)
-    try:
-        handler = _NullCallbackHandler()
-        node_map = _make_node_map("only_node", handler=handler)
-        lg_patch._wrap_node_map(node_map, handler)
-        node_map["only_node"]({})
-    finally:
-        lg_patch.set_edge_emitter(None)
-        lg_patch._NODE_TRANSITION.name = None
+    monkeypatch.setattr(lg_patch, "_EDGE_EMITTER", emitter)
+    monkeypatch.setattr(lg_patch._NODE_TRANSITION, "name", None, raising=False)
+    handler = _NullCallbackHandler()
+    node_map = _make_node_map("only_node", handler=handler)
+    lg_patch._wrap_node_map(node_map, handler)
+    node_map["only_node"]({})
 
     assert emitter.edges == []
 
 
-def test_three_node_graph_emits_two_edges() -> None:
+def test_three_node_graph_emits_two_edges(monkeypatch: pytest.MonkeyPatch) -> None:
     emitter = RecordingEdgeEmitter()
-    lg_patch.set_edge_emitter(emitter)
-    try:
-        handler = _NullCallbackHandler()
-        node_map = _make_node_map("a", "b", "c", handler=handler)
-        lg_patch._wrap_node_map(node_map, handler)
-        state: dict[str, Any] = {}
-        state = node_map["a"](state)
-        state = node_map["b"](state)
-        node_map["c"](state)
-    finally:
-        lg_patch.set_edge_emitter(None)
-        lg_patch._NODE_TRANSITION.name = None
+    monkeypatch.setattr(lg_patch, "_EDGE_EMITTER", emitter)
+    monkeypatch.setattr(lg_patch._NODE_TRANSITION, "name", None, raising=False)
+    handler = _NullCallbackHandler()
+    node_map = _make_node_map("a", "b", "c", handler=handler)
+    lg_patch._wrap_node_map(node_map, handler)
+    state: dict[str, Any] = {}
+    state = node_map["a"](state)
+    state = node_map["b"](state)
+    node_map["c"](state)
 
     assert len(emitter.edges) == 2
     assert emitter.edges[0][:3] == ("a", "b", "messages")
     assert emitter.edges[1][:3] == ("b", "c", "messages")
 
 
-def test_no_edge_emitted_when_emitter_is_none() -> None:
+def test_no_edge_emitted_when_emitter_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
     """When no emitter is registered, transitions must not raise."""
-    lg_patch.set_edge_emitter(None)
-    try:
-        handler = _NullCallbackHandler()
-        node_map = _make_node_map("x", "y", handler=handler)
-        lg_patch._wrap_node_map(node_map, handler)
-        state: dict[str, Any] = {}
-        state = node_map["x"](state)
-        node_map["y"](state)  # Should not raise
-    finally:
-        lg_patch._NODE_TRANSITION.name = None
+    monkeypatch.setattr(lg_patch, "_EDGE_EMITTER", None)
+    monkeypatch.setattr(lg_patch._NODE_TRANSITION, "name", None, raising=False)
+    handler = _NullCallbackHandler()
+    node_map = _make_node_map("x", "y", handler=handler)
+    lg_patch._wrap_node_map(node_map, handler)
+    state: dict[str, Any] = {}
+    state = node_map["x"](state)
+    node_map["y"](state)  # Should not raise
