@@ -115,7 +115,8 @@ class TestApplyRunnerRunPatch:
         import asyncio as _asyncio
 
         result = _asyncio.run(FakeRunner.run(MagicMock(), input="x"))
-        assert isinstance(result, str) and result.startswith("ran:")
+        assert isinstance(result, str)
+        assert result.startswith("ran:")
 
 
 class TestLoadHandoffClass:
