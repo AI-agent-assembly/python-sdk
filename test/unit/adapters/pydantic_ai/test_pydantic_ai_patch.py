@@ -647,5 +647,6 @@ async def test_denies_under_enforce(
 
     tool = FakeTool()
     ctx = SimpleNamespace(deps=SimpleNamespace(assembly_agent_id="agent-a"), run_id="run-1")
+    args = _ArgsModel({"topic": "finance"})
     with pytest.raises(PolicyViolationError):
-        await tool._run(ctx, _ArgsModel({"topic": "finance"}))
+        await tool._run(ctx, args)
