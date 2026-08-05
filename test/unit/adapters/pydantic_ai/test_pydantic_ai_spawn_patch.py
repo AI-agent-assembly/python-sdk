@@ -65,14 +65,14 @@ class TestApplyAgentRunPatch:
                 delattr(FakeAgent, attr)
 
     @pytest.mark.asyncio
-    async def test_async_run_sets_spawn_ctx(self) -> None:
+    async def test_async_run_sets_spawn_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         async def capturing_run(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeAgent.run = capturing_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
+        monkeypatch.setattr(FakeAgent, "run", capturing_run)
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
         agent = FakeAgent()
@@ -83,14 +83,14 @@ class TestApplyAgentRunPatch:
         assert captured[0].depth == 1
         assert captured[0].spawned_by_tool == "pydantic_ai_agent"
 
-    def test_sync_run_sets_spawn_ctx(self) -> None:
+    def test_sync_run_sets_spawn_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         def capturing_run_sync(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "sync-ok"
 
-        FakeAgent.run_sync = capturing_run_sync  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeAgent, "run_sync", capturing_run_sync)
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
         agent = FakeAgent()
@@ -113,11 +113,11 @@ class TestApplyAgentRunPatch:
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_reset_on_exception_async(self) -> None:
+    async def test_spawn_ctx_reset_on_exception_async(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def failing_run(self: object, *args: object, **kwargs: object) -> str:
             raise RuntimeError("agent error")
 
-        FakeAgent.run = failing_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
+        monkeypatch.setattr(FakeAgent, "run", failing_run)
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
         agent = FakeAgent()
@@ -125,11 +125,11 @@ class TestApplyAgentRunPatch:
             await agent.run("x")
         assert _SPAWN_CTX.get() is None
 
-    def test_spawn_ctx_reset_on_exception_sync(self) -> None:
+    def test_spawn_ctx_reset_on_exception_sync(self, monkeypatch: pytest.MonkeyPatch) -> None:
         def failing_run_sync(self: object, *args: object, **kwargs: object) -> str:
             raise RuntimeError("sync agent error")
 
-        FakeAgent.run_sync = failing_run_sync  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeAgent, "run_sync", failing_run_sync)
         _apply_agent_run_patch(FakeAgent, "pydantic-parent")
 
         agent = FakeAgent()
@@ -138,14 +138,14 @@ class TestApplyAgentRunPatch:
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_nested_depth_propagation(self) -> None:
+    async def test_nested_depth_propagation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         async def capturing_run(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeAgent.run = capturing_run  # type: ignore[method-assign]  # reassign fake method to install/restore stub
+        monkeypatch.setattr(FakeAgent, "run", capturing_run)
         _apply_agent_run_patch(FakeAgent, "process-agent")
 
         outer_ctx = SpawnContext(parent_agent_id="grandparent", depth=2, spawned_by_tool="outer")
@@ -228,14 +228,14 @@ class TestApplyToolRunPatch:
                 delattr(FakeTool, attr)
 
     @pytest.mark.asyncio
-    async def test_tool_run_sets_spawned_by_tool(self) -> None:
+    async def test_tool_run_sets_spawned_by_tool(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         async def capturing_run(self: object, ctx: object, args: object, **kw: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeTool._run = capturing_run  # type: ignore[assignment,method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTool, "_run", capturing_run)
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         await FakeTool()._run(_FakeCtx(), {})
@@ -244,14 +244,14 @@ class TestApplyToolRunPatch:
         assert captured[0].spawned_by_tool == "search"
 
     @pytest.mark.asyncio
-    async def test_tool_run_sets_delegation_reason(self) -> None:
+    async def test_tool_run_sets_delegation_reason(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         async def capturing_run(self: object, ctx: object, args: object, **kw: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeTool._run = capturing_run  # type: ignore[assignment,method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTool, "_run", capturing_run)
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         await FakeTool()._run(_FakeCtx(), {})
@@ -260,14 +260,14 @@ class TestApplyToolRunPatch:
         assert captured[0].delegation_reason == "tool:search"
 
     @pytest.mark.asyncio
-    async def test_tool_run_sets_parent_agent_id_from_ctx(self) -> None:
+    async def test_tool_run_sets_parent_agent_id_from_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         async def capturing_run(self: object, ctx: object, args: object, **kw: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeTool._run = capturing_run  # type: ignore[assignment,method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTool, "_run", capturing_run)
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         await FakeTool()._run(_FakeCtx(), {})
@@ -282,11 +282,11 @@ class TestApplyToolRunPatch:
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_spawn_ctx_reset_on_tool_exception(self) -> None:
+    async def test_spawn_ctx_reset_on_tool_exception(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def failing_run(self: object, ctx: object, args: object, **kw: object) -> str:
             raise RuntimeError("tool broke")
 
-        FakeTool._run = failing_run  # type: ignore[assignment,method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTool, "_run", failing_run)
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         tool = FakeTool()
@@ -296,14 +296,14 @@ class TestApplyToolRunPatch:
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_denied_tool_does_not_set_spawn_ctx(self) -> None:
+    async def test_denied_tool_does_not_set_spawn_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         called = []
 
         async def should_not_be_called(self: object, ctx: object, args: object, **kw: object) -> str:
             called.append(True)
             return "should-not-run"
 
-        FakeTool._run = should_not_be_called  # type: ignore[assignment,method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTool, "_run", should_not_be_called)
         _apply_tool_run_patch(FakeTool, _FakeDenyHandler())
 
         from agent_assembly.exceptions import PolicyViolationError
@@ -317,14 +317,14 @@ class TestApplyToolRunPatch:
         assert _SPAWN_CTX.get() is None
 
     @pytest.mark.asyncio
-    async def test_tool_run_depth_increments_with_outer_ctx(self) -> None:
+    async def test_tool_run_depth_increments_with_outer_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         async def capturing_run(self: object, ctx: object, args: object, **kw: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "ok"
 
-        FakeTool._run = capturing_run  # type: ignore[assignment,method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTool, "_run", capturing_run)
         _apply_tool_run_patch(FakeTool, _FakeAllowHandler())
 
         outer = SpawnContext(parent_agent_id="parent", depth=3, spawned_by_tool="outer")
