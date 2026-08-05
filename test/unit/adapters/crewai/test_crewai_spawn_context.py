@@ -65,14 +65,14 @@ class TestTaskExecuteSyncSpawnContext:
     def teardown_method(self) -> None:
         _revert_task_execute_sync_patch(FakeTask)
 
-    def test_spawn_ctx_set_during_execute_sync(self) -> None:
+    def test_spawn_ctx_set_during_execute_sync(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         def capturing_execute(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeTask.execute_sync = capturing_execute  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTask, "execute_sync", capturing_execute)
         _apply_task_execute_sync_patch(FakeTask, MagicMock())
         task = FakeTask(agent_id="worker-x")
         task.execute_sync()
@@ -87,11 +87,11 @@ class TestTaskExecuteSyncSpawnContext:
         task.execute_sync()
         assert _SPAWN_CTX.get() is None
 
-    def test_spawn_ctx_reset_on_exception(self) -> None:
+    def test_spawn_ctx_reset_on_exception(self, monkeypatch: pytest.MonkeyPatch) -> None:
         def failing_execute(self: object, *args: object, **kwargs: object) -> str:
             raise RuntimeError("task failed")
 
-        FakeTask.execute_sync = failing_execute  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTask, "execute_sync", failing_execute)
         _apply_task_execute_sync_patch(FakeTask, MagicMock())
         task = FakeTask(agent_id="worker-z")
 
@@ -99,28 +99,28 @@ class TestTaskExecuteSyncSpawnContext:
             task.execute_sync()
         assert _SPAWN_CTX.get() is None
 
-    def test_no_spawn_ctx_when_no_agent_id(self) -> None:
+    def test_no_spawn_ctx_when_no_agent_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         def capturing_execute(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeTask.execute_sync = capturing_execute  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTask, "execute_sync", capturing_execute)
         _apply_task_execute_sync_patch(FakeTask, MagicMock())
         task = FakeTask(agent_id=None)
         task.execute_sync()
 
         assert captured[0] is None
 
-    def test_team_id_extracted_from_agent_crew(self) -> None:
+    def test_team_id_extracted_from_agent_crew(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         def capturing_execute(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeTask.execute_sync = capturing_execute  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTask, "execute_sync", capturing_execute)
         _apply_task_execute_sync_patch(FakeTask, MagicMock())
         task = FakeTask(agent_id="worker-a")
         crew = MagicMock()
@@ -131,14 +131,14 @@ class TestTaskExecuteSyncSpawnContext:
         assert captured[0] is not None
         assert captured[0].team_id == "crew-uuid-123"
 
-    def test_team_id_none_when_no_crew(self) -> None:
+    def test_team_id_none_when_no_crew(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         def capturing_execute(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeTask.execute_sync = capturing_execute  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTask, "execute_sync", capturing_execute)
         _apply_task_execute_sync_patch(FakeTask, MagicMock())
         task = FakeTask(agent_id="worker-b")
         task.agent = MagicMock(spec=["id"])
@@ -148,14 +148,14 @@ class TestTaskExecuteSyncSpawnContext:
         assert captured[0] is not None
         assert captured[0].team_id is None
 
-    def test_delegation_reason_from_task_description(self) -> None:
+    def test_delegation_reason_from_task_description(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         def capturing_execute(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeTask.execute_sync = capturing_execute  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTask, "execute_sync", capturing_execute)
         _apply_task_execute_sync_patch(FakeTask, MagicMock())
         task = FakeTask(agent_id="worker-c")
         task.description = "Analyze quarterly reports"
@@ -164,14 +164,14 @@ class TestTaskExecuteSyncSpawnContext:
         assert captured[0] is not None
         assert captured[0].delegation_reason == "Analyze quarterly reports"
 
-    def test_delegation_reason_truncated_to_256_chars(self) -> None:
+    def test_delegation_reason_truncated_to_256_chars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         def capturing_execute(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeTask.execute_sync = capturing_execute  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTask, "execute_sync", capturing_execute)
         _apply_task_execute_sync_patch(FakeTask, MagicMock())
         task = FakeTask(agent_id="worker-d")
         task.description = "x" * 300
@@ -180,14 +180,14 @@ class TestTaskExecuteSyncSpawnContext:
         assert captured[0] is not None
         assert len(captured[0].delegation_reason) == 256  # type: ignore[arg-type]
 
-    def test_delegation_reason_none_when_description_empty(self) -> None:
+    def test_delegation_reason_none_when_description_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
         def capturing_execute(self: object, *args: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeTask.execute_sync = capturing_execute  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeTask, "execute_sync", capturing_execute)
         _apply_task_execute_sync_patch(FakeTask, MagicMock())
         task = FakeTask(agent_id="worker-e")
         task.description = ""
@@ -280,17 +280,16 @@ class TestApplyCrewKickoffPatch:
             if hasattr(FakeCrew, attr):
                 delattr(FakeCrew, attr)
 
-    def test_non_hierarchical_kickoff_bypasses_spawn_ctx(self) -> None:
+    def test_non_hierarchical_kickoff_bypasses_spawn_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from unittest.mock import patch
 
         captured: list[SpawnContext | None] = []
-        original = FakeCrew.kickoff
 
         def capturing_kickoff(self: object, *_args: object, **_kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeCrew.kickoff = capturing_kickoff  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeCrew, "kickoff", capturing_kickoff)
         _apply_crew_kickoff_patch(FakeCrew)
 
         crew = FakeCrew(hierarchical=False)
@@ -301,19 +300,17 @@ class TestApplyCrewKickoffPatch:
             crew.kickoff()
 
         assert captured[0] is None
-        FakeCrew.kickoff = original  # type: ignore[method-assign]  # reassign fake method to install/restore stub
 
-    def test_hierarchical_kickoff_sets_spawn_ctx(self) -> None:
+    def test_hierarchical_kickoff_sets_spawn_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from unittest.mock import patch
 
         captured: list[SpawnContext | None] = []
-        original = FakeCrew.kickoff
 
         def capturing_kickoff(self: object, *_args: object, **_kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
-        FakeCrew.kickoff = capturing_kickoff  # type: ignore[method-assign]  # fake method swap
+        monkeypatch.setattr(FakeCrew, "kickoff", capturing_kickoff)
         _apply_crew_kickoff_patch(FakeCrew)
 
         crew = FakeCrew(hierarchical=True, manager_id="mgr-42", crew_id="crew-99")
@@ -329,7 +326,6 @@ class TestApplyCrewKickoffPatch:
         assert sc.team_id == "crew-99"
         assert sc.spawned_by_tool == "crewai_kickoff_hierarchical"
         assert sc.depth == 1
-        FakeCrew.kickoff = original  # type: ignore[method-assign]  # reassign fake method to install/restore stub
 
     def test_spawn_ctx_reset_after_hierarchical_kickoff(self) -> None:
         from unittest.mock import patch

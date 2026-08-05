@@ -80,26 +80,26 @@ class NotAnAdapter:
     """A class that does not inherit from FrameworkAdapter."""
 
 
-@pytest.fixture()
+@pytest.fixture
 def valid_adapter_cls() -> type:
     return ValidAdapter
 
 
-@pytest.fixture()
+@pytest.fixture
 def empty_name_adapter_cls() -> type:
     return EmptyNameAdapter
 
 
-@pytest.fixture()
+@pytest.fixture
 def empty_versions_adapter_cls() -> type:
     return EmptyVersionsAdapter
 
 
-@pytest.fixture()
+@pytest.fixture
 def non_idempotent_adapter_cls() -> type:
     return NonIdempotentAdapter
 
 
-@pytest.fixture()
+@pytest.fixture
 def not_an_adapter_cls() -> type:
     return NotAnAdapter

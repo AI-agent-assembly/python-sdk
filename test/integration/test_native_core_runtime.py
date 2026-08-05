@@ -148,7 +148,7 @@ def make_audit_entry_payload(index: int, *, worker_id: int = 0) -> str:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def native_core() -> Any:
     if os.getenv("AAASM_RUN_NATIVE_CORE_TESTS") != "1":
         pytest.skip("Set AAASM_RUN_NATIVE_CORE_TESTS=1 to run native core runtime tests.")

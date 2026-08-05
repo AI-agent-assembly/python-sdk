@@ -12,7 +12,7 @@ MAX_PER_CALL_NS = 2_000_000  # <2ms per-call overhead (AAASM-45)
 MAX_DETECTION_NS = 50_000_000  # <50ms detection overhead (AAASM-47)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_gateway_client() -> MagicMock:
     """Return a MagicMock that satisfies GatewayClient interface."""
     client = MagicMock()
@@ -23,7 +23,7 @@ def mock_gateway_client() -> MagicMock:
     return client
 
 
-@pytest.fixture()
+@pytest.fixture
 def noop_interceptor() -> _NoopInterceptor:
     """Return a no-op governance interceptor for benchmarking hooks."""
     return _NoopInterceptor()
