@@ -510,6 +510,87 @@ def _apply_function_tool_patch(function_tool_cls: type[Any], callback_handler: A
     return None
 
 
+async def _run_async_tool_pre_execution_check(
+    callback_handler: Any,
+    *,
+    tool_name: str,
+    tool_input: Any,
+    agent_id: Any,
+    ctx: Any,
+    enforce: bool,
+) -> tuple[bool, Any, bool]:
+    """Run the pre-execution governance check for a tool invocation.
+
+    Returns ``(return_now, return_value, governance_failed)``. When
+    ``return_now`` is True the caller must immediately return ``return_value``
+    (a deny/blocked result); otherwise the tool call may proceed.
+    """
+    try:
+        decision = await _invoke_async_tool_check(
+            callback_handler,
+            tool_name=tool_name,
+            tool_input=tool_input,
+            agent_id=agent_id,
+            ctx=ctx,
+        )
+        status, reason = _normalize_decision(decision, enforce=enforce)
+        is_pending_flow = False
+        if status == "pending":
+            is_pending_flow = True
+            timeout_seconds = _get_pending_tool_approval_timeout_seconds(callback_handler)
+            final_decision = await _wait_for_async_tool_approval(
+                callback_handler,
+                tool_name=tool_name,
+                timeout_seconds=timeout_seconds,
+                tool_input=tool_input,
+                agent_id=agent_id,
+                ctx=ctx,
+            )
+            status, reason = _normalize_decision(final_decision, enforce=enforce)
+
+        # Fail closed: only an explicit "allow" may proceed. A terminal
+        # "pending" (approval timed out or the resolver returned pending
+        # again) is a non-decision, not a grant — blocking it here stops it
+        # from falling through and running the tool, matching LangChain.
+        if status != "allow":
+            blocked_result = _build_tool_deny_error(
+                tool_name=tool_name,
+                reason=reason,
+                is_pending_rejection=is_pending_flow,
+            )
+            # Guard the audit so its failure cannot re-enter this handler and
+            # downgrade a decided deny to an allow (AAASM-4782).
+            await _record_denied_tool_result(
+                callback_handler,
+                tool_name=tool_name,
+                tool_input=tool_input,
+                result=blocked_result,
+                agent_id=agent_id,
+                ctx=ctx,
+            )
+            return True, blocked_result, False
+    except Exception as error:
+        governance_failed = _is_governance_error(error)
+        if not governance_failed:
+            raise
+        # A governance-layer fault during the pre-execution check. Under
+        # enforce the SDK is a security control: fail closed by denying the
+        # call rather than running the tool ungoverned — matching every other
+        # adapter, which never swallows a governance error into an allow.
+        # Under observe/disabled fall through to run the tool (fail-open by
+        # design), preserving the dry-run/hermetic posture (AAASM-4782).
+        if enforce:
+            deny = _build_tool_deny_error(
+                tool_name=tool_name,
+                reason=_GOVERNANCE_FAULT_DENY_REASON,
+                is_pending_rejection=False,
+            )
+            return True, deny, True
+        return False, None, True
+
+    return False, None, False
+
+
 def _wrap_on_invoke_tool(tool_obj: Any, callback_handler: Any) -> None:
     """Wrap a single tool instance's ``on_invoke_tool`` coroutine with governance."""
     original_invoke = getattr(tool_obj, "on_invoke_tool", None)
@@ -525,67 +606,16 @@ def _wrap_on_invoke_tool(tool_obj: Any, callback_handler: Any) -> None:
         tool_name = str(getattr(tool_obj, "name", tool_obj.__class__.__name__))
         agent_id = _resolve_agent_id(ctx)
 
-        governance_failed = False
-        try:
-            decision = await _invoke_async_tool_check(
-                callback_handler,
-                tool_name=tool_name,
-                tool_input=tool_input,
-                agent_id=agent_id,
-                ctx=ctx,
-            )
-            status, reason = _normalize_decision(decision, enforce=enforce)
-            is_pending_flow = False
-            if status == "pending":
-                is_pending_flow = True
-                timeout_seconds = _get_pending_tool_approval_timeout_seconds(callback_handler)
-                final_decision = await _wait_for_async_tool_approval(
-                    callback_handler,
-                    tool_name=tool_name,
-                    timeout_seconds=timeout_seconds,
-                    tool_input=tool_input,
-                    agent_id=agent_id,
-                    ctx=ctx,
-                )
-                status, reason = _normalize_decision(final_decision, enforce=enforce)
-
-            # Fail closed: only an explicit "allow" may proceed. A terminal
-            # "pending" (approval timed out or the resolver returned pending
-            # again) is a non-decision, not a grant — blocking it here stops it
-            # from falling through and running the tool, matching LangChain.
-            if status != "allow":
-                blocked_result = _build_tool_deny_error(
-                    tool_name=tool_name,
-                    reason=reason,
-                    is_pending_rejection=is_pending_flow,
-                )
-                # Guard the audit so its failure cannot re-enter this handler and
-                # downgrade a decided deny to an allow (AAASM-4782).
-                await _record_denied_tool_result(
-                    callback_handler,
-                    tool_name=tool_name,
-                    tool_input=tool_input,
-                    result=blocked_result,
-                    agent_id=agent_id,
-                    ctx=ctx,
-                )
-                return blocked_result
-        except Exception as error:
-            governance_failed = _is_governance_error(error)
-            if not governance_failed:
-                raise
-            # A governance-layer fault during the pre-execution check. Under
-            # enforce the SDK is a security control: fail closed by denying the
-            # call rather than running the tool ungoverned — matching every other
-            # adapter, which never swallows a governance error into an allow.
-            # Under observe/disabled fall through to run the tool (fail-open by
-            # design), preserving the dry-run/hermetic posture (AAASM-4782).
-            if enforce:
-                return _build_tool_deny_error(
-                    tool_name=tool_name,
-                    reason=_GOVERNANCE_FAULT_DENY_REASON,
-                    is_pending_rejection=False,
-                )
+        return_now, return_value, governance_failed = await _run_async_tool_pre_execution_check(
+            callback_handler,
+            tool_name=tool_name,
+            tool_input=tool_input,
+            agent_id=agent_id,
+            ctx=ctx,
+            enforce=enforce,
+        )
+        if return_now:
+            return return_value
 
         result = original_invoke(ctx, tool_input)
         if inspect.isawaitable(result):
