@@ -51,6 +51,7 @@ from .negative_control import (
     FileSideEffect,
     NetworkSideEffect,
     start_network_side_effect,
+    tool_args_of,
 )
 
 # A non-loopback https gateway: the register-endpoint TLS guard (AAASM-4655)
@@ -241,3 +242,46 @@ class TestNetworkSideEffect:
 
         assert network_effect.occurred() is True
         assert network_effect.requests[0].body == "ungoverned-payload"
+
+
+class TestDenyIsAttributable:
+    def test_the_runtime_saw_the_agent_and_tool_the_deny_was_decided_against(
+        self, monkeypatch: pytest.MonkeyPatch, file_effect: FileSideEffect
+    ) -> None:
+        quickstart = _init_quickstart(monkeypatch, decision="deny", reason="policy forbids disk writes")
+        try:
+            outcome = _settle(
+                lambda: quickstart.call(
+                    "write_to_disk", {"path": str(file_effect.path)}, lambda: file_effect.write("denied")
+                )
+            )
+        finally:
+            quickstart.context.shutdown()
+
+        assert isinstance(outcome, ToolExecutionBlockedError)
+        assert file_effect.occurred() is False
+
+        # Identity as presented to the authoritative policy query, not as the
+        # test reconstructed it: an anonymous deny is not usable evidence.
+        assert len(quickstart.runtime.query_calls) == 1
+        agent_id, action_type, tool_name, _args_json = quickstart.runtime.query_calls[0]
+        assert agent_id == _AGENT_ID
+        assert action_type == "tool_call"
+        assert tool_name == "write_to_disk"
+        assert tool_args_of(quickstart.runtime.query_calls[0]) == {"path": str(file_effect.path)}
+
+    def test_an_allowed_call_is_recorded_with_the_same_identity(
+        self, monkeypatch: pytest.MonkeyPatch, file_effect: FileSideEffect
+    ) -> None:
+        quickstart = _init_quickstart(monkeypatch, decision="allow")
+        try:
+            quickstart.call("write_to_disk", {"path": str(file_effect.path)}, lambda: file_effect.write("allowed"))
+        finally:
+            quickstart.context.shutdown()
+
+        assert file_effect.occurred() is True
+        assert len(quickstart.interceptor.records) == 1
+        record = quickstart.interceptor.records[0]
+        assert record.tool_name == "write_to_disk"
+        assert record.agent_id == _AGENT_ID
+        assert record.run_id == "run-1"
