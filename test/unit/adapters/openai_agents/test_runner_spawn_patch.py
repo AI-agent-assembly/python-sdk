@@ -61,7 +61,7 @@ class TestApplyRunnerRunPatch:
     async def test_patched_run_sets_spawn_ctx(self, monkeypatch: pytest.MonkeyPatch) -> None:
         captured: list[SpawnContext | None] = []
 
-        async def capturing_run(agent: object, *, input: object, **kwargs: object) -> str:
+        async def capturing_run(agent: object, /, *, input: object, **kwargs: object) -> str:
             captured.append(_SPAWN_CTX.get())
             return "done"
 
@@ -79,7 +79,7 @@ class TestApplyRunnerRunPatch:
 
     @pytest.mark.asyncio
     async def test_spawn_ctx_is_reset_after_run(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def passthrough_run(agent: object, *, input: object, **kwargs: object) -> str:
+        async def passthrough_run(agent: object, /, *, input: object, **kwargs: object) -> str:
             return "ok"
 
         monkeypatch.setattr(FakeRunner, "run", classmethod(passthrough_run))
@@ -90,7 +90,7 @@ class TestApplyRunnerRunPatch:
 
     @pytest.mark.asyncio
     async def test_spawn_ctx_reset_on_exception(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def failing_run(agent: object, *, input: object, **kwargs: object) -> str:
+        async def failing_run(agent: object, /, *, input: object, **kwargs: object) -> str:
             raise RuntimeError("runner failed")
 
         monkeypatch.setattr(FakeRunner, "run", classmethod(failing_run))
