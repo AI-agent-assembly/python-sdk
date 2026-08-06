@@ -46,7 +46,12 @@ from agent_assembly.core.runtime_interceptor import build_governance_interceptor
 from agent_assembly.exceptions import ToolExecutionBlockedError
 
 from .core._fake_core import FakeRuntimeClient, install_fake_core
-from .negative_control import AuditRecordingInterceptor, FileSideEffect
+from .negative_control import (
+    AuditRecordingInterceptor,
+    FileSideEffect,
+    NetworkSideEffect,
+    start_network_side_effect,
+)
 
 # A non-loopback https gateway: the register-endpoint TLS guard (AAASM-4655)
 # fail-closes a plaintext http:// register channel to a non-loopback host.
@@ -67,6 +72,15 @@ def _cleanup_active_context() -> None:
 @pytest.fixture
 def file_effect(tmp_path: Path) -> FileSideEffect:
     return FileSideEffect(path=tmp_path / "denied-write.txt")
+
+
+@pytest.fixture
+def network_effect() -> Any:
+    effect = start_network_side_effect()
+    try:
+        yield effect
+    finally:
+        effect.close()
 
 
 class _GovernedQuickStart:
@@ -178,3 +192,52 @@ class TestFilesystemSideEffect:
 
         assert file_effect.occurred() is True
         assert file_effect.content() == "ungoverned"
+
+
+class TestNetworkSideEffect:
+    def test_positive_control_allowed_egress_reaches_the_listener(
+        self, monkeypatch: pytest.MonkeyPatch, network_effect: NetworkSideEffect
+    ) -> None:
+        quickstart = _init_quickstart(monkeypatch, decision="allow")
+        try:
+            status = quickstart.call(
+                "send_http_request",
+                {"url": network_effect.url},
+                lambda: network_effect.call("allowed-payload"),
+            )
+        finally:
+            quickstart.context.shutdown()
+
+        assert status == 204
+        assert len(network_effect.requests) == 1
+        assert network_effect.requests[0].body == "allowed-payload"
+
+    def test_negative_control_denied_egress_never_reaches_the_listener(
+        self, monkeypatch: pytest.MonkeyPatch, network_effect: NetworkSideEffect
+    ) -> None:
+        quickstart = _init_quickstart(monkeypatch, decision="deny", reason="egress denied")
+        try:
+            outcome = _settle(
+                lambda: quickstart.call(
+                    "send_http_request",
+                    {"url": network_effect.url},
+                    lambda: network_effect.call("denied-payload"),
+                )
+            )
+        finally:
+            quickstart.context.shutdown()
+
+        # The listener is live and was reachable throughout — the positive
+        # control proves that on the same fixture — so zero received requests is
+        # evidence the egress did not happen, not that it could not have.
+        assert network_effect.occurred() is False
+        assert network_effect.requests == []
+        assert isinstance(outcome, ToolExecutionBlockedError)
+
+    def test_falsification_the_same_egress_ungoverned_reaches_the_listener(
+        self, network_effect: NetworkSideEffect
+    ) -> None:
+        assert network_effect.call("ungoverned-payload") == 204
+
+        assert network_effect.occurred() is True
+        assert network_effect.requests[0].body == "ungoverned-payload"
