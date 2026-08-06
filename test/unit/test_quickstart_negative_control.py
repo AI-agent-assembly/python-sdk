@@ -258,8 +258,11 @@ class TestDenyIsAttributable:
         finally:
             quickstart.context.shutdown()
 
-        assert isinstance(outcome, ToolExecutionBlockedError)
+        # Absence first, as in every other control here: an exception assertion
+        # placed ahead of it aborts the test before the side effect is checked,
+        # so the absence would never be exercised by the falsification run.
         assert file_effect.occurred() is False
+        assert isinstance(outcome, ToolExecutionBlockedError)
 
         # Identity as presented to the authoritative policy query, not as the
         # test reconstructed it: an anonymous deny is not usable evidence.
