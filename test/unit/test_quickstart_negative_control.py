@@ -285,3 +285,57 @@ class TestDenyIsAttributable:
         assert record.tool_name == "write_to_disk"
         assert record.agent_id == _AGENT_ID
         assert record.run_id == "run-1"
+
+
+class TestDegradedRuntimeCannotLookProtected:
+    def test_an_unavailable_native_runtime_denies_rather_than_silently_allowing(
+        self, monkeypatch: pytest.MonkeyPatch, file_effect: FileSideEffect
+    ) -> None:
+        """Under enforce, no native extension must block — not pass through.
+
+        AAASM-5526 forbids a degraded path presenting as protected. The control
+        proves the posture is real by the same standard as every other one here:
+        the side effect is absent.
+        """
+        monkeypatch.setattr(
+            core_assembly,
+            "_start_network_layer",
+            lambda **_kwargs: ("sdk-only", core_assembly._noop_shutdown),
+        )
+        captured: list[Any] = []
+
+        def _spy(*args: Any, **kwargs: Any) -> Any:
+            interceptor = build_governance_interceptor(*args, **kwargs)
+            captured.append(interceptor)
+            return interceptor
+
+        monkeypatch.setattr(core_assembly, "build_governance_interceptor", _spy)
+
+        # No install_fake_core: agent_assembly._core is absent, so the SDK has no
+        # authoritative verdict source at all.
+        context = init_assembly(
+            gateway_url=_GW_URL,
+            api_key=_API_KEY,
+            agent_id=_AGENT_ID,
+            mode="sdk-only",
+            enforcement_mode="enforce",
+        )
+        try:
+            outcome = _settle(
+                lambda: asyncio.run(
+                    run_governed_async_tool(
+                        captured[0],
+                        enforce=True,
+                        tool_name="write_to_disk",
+                        tool_args={"path": str(file_effect.path)},
+                        agent_id=_AGENT_ID,
+                        run_id="run-1",
+                        invoke_original=lambda: file_effect.write("degraded"),
+                    )
+                )
+            )
+        finally:
+            context.shutdown()
+
+        assert file_effect.occurred() is False
+        assert isinstance(outcome, ToolExecutionBlockedError)
