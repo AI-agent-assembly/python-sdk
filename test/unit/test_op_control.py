@@ -167,7 +167,8 @@ def test_terminate_unblocks_waiter_and_raises(subscriber: _Subscriber) -> None:
     stream.push(_msg("op-3", policy_pb2.OP_CONTROL_SIGNAL_TERMINATE, sequence=1))
     assert done.wait(timeout=2.0)
     t.join(timeout=1.0)
-    assert captured and isinstance(captured[0], OpTerminatedError)
+    assert captured
+    assert isinstance(captured[0], OpTerminatedError)
     assert captured[0].op_id == "op-3"
 
 

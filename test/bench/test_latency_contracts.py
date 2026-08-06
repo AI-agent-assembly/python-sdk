@@ -328,12 +328,12 @@ def test_detection_latency_under_50ms() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_init_assembly_coldstart_latency() -> None:
+def test_init_assembly_coldstart_latency(monkeypatch: pytest.MonkeyPatch) -> None:
     """Measure init_assembly() cold-start P50/P95/P99."""
     samples: list[int] = []
 
     for _ in range(_ITERATIONS):
-        assembly_mod._ACTIVE_CONTEXT = None
+        monkeypatch.setattr(assembly_mod, "_ACTIVE_CONTEXT", None)
 
         start = time.perf_counter_ns()
         ctx = init_assembly(
