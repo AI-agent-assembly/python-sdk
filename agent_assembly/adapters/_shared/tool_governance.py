@@ -20,6 +20,7 @@ enforce.
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, Literal
@@ -287,14 +288,23 @@ async def run_governed_async_tool(
         # supplied one. See _record_async_tool_result on why the SDK's own
         # interceptor still resolves no hook, leaving the shipped path
         # Unmeasured.
-        await _record_async_tool_result(
-            callback_handler,
-            tool_name=tool_name,
-            result=str(error),
-            agent_id=agent_id,
-            run_id=run_id,
-            denied=True,
-        )
+        #
+        # Best-effort, and the guard is load-bearing: the hook is duck-typed
+        # from caller-supplied code, and inserting a call here where none used
+        # to exist would otherwise let a raising handler replace a decided deny
+        # with its own exception — a caller matching on PolicyViolationError
+        # would stop recognising the deny. A decided deny is final regardless of
+        # audit outcome; this repo already settled that for the openai_agents
+        # path under AAASM-4782, so follow it rather than invent a second answer.
+        with contextlib.suppress(Exception):
+            await _record_async_tool_result(
+                callback_handler,
+                tool_name=tool_name,
+                result=str(error),
+                agent_id=agent_id,
+                run_id=run_id,
+                denied=True,
+            )
         raise error
 
     spawn_ctx = SpawnContext(
