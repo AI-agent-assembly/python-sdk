@@ -124,12 +124,18 @@ def start_network_side_effect() -> NetworkSideEffect:
 
 @dataclass
 class RecordedResult:
-    """One post-execution audit record the governed path emitted."""
+    """One audit record the governed path emitted.
+
+    ``denied`` separates "denied before execution" from a tool that ran and
+    returned the denial text — on the denied path ``result`` carries the
+    policy-violation message, so the flag is what makes the two distinguishable.
+    """
 
     tool_name: str
     agent_id: str | None
     run_id: str | None
     result: str
+    denied: bool = False
 
 
 class AuditRecordingInterceptor:
@@ -137,9 +143,15 @@ class AuditRecordingInterceptor:
 
     Only the post-execution ``record_result`` hook is added — the authoritative
     verdict still comes from the wrapped interceptor, so the deny under test is
-    the real one. This exists because the SDK's ``GatewayClient`` implements no
-    audit sink of its own (the interceptor is the only one), and AAASM-5529
-    requires deny/allow evidence to carry agent and tool identity.
+    the real one.
+
+    ``record_result`` is a hook the SDK genuinely calls, not a fixture
+    invention: ``_shared.tool_governance._record_async_tool_result`` duck-types
+    it on the callback handler (with an ``on_tool_end`` fallback), and seven
+    adapters route through it. The fixture supplies it because the real
+    ``GatewayClient`` implements no audit sink of its own — it exposes only
+    ``report_edge`` — so without a handler that accepts the hook there is
+    nothing to read the record off.
     """
 
     def __init__(self, inner: Any) -> None:
@@ -156,8 +168,17 @@ class AuditRecordingInterceptor:
         result: str,
         agent_id: str | None = None,
         run_id: str | None = None,
+        denied: bool = False,
     ) -> None:
-        self.records.append(RecordedResult(tool_name=tool_name, agent_id=agent_id, run_id=run_id, result=result))
+        self.records.append(
+            RecordedResult(
+                tool_name=tool_name,
+                agent_id=agent_id,
+                run_id=run_id,
+                result=result,
+                denied=denied,
+            )
+        )
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._inner, name)

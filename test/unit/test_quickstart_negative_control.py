@@ -273,6 +273,37 @@ class TestDenyIsAttributable:
         assert tool_name == "write_to_disk"
         assert tool_args_of(quickstart.runtime.query_calls[0]) == {"path": str(file_effect.path)}
 
+    def test_a_denied_call_emits_an_audit_record_carrying_the_agent_and_tool(
+        self, monkeypatch: pytest.MonkeyPatch, file_effect: FileSideEffect
+    ) -> None:
+        quickstart = _init_quickstart(monkeypatch, decision="deny", reason="policy forbids disk writes")
+        try:
+            outcome = _settle(
+                lambda: quickstart.call(
+                    "write_to_disk", {"path": str(file_effect.path)}, lambda: file_effect.write("denied")
+                )
+            )
+        finally:
+            quickstart.context.shutdown()
+
+        # Absence first, as everywhere else in this suite.
+        assert file_effect.occurred() is False
+        assert isinstance(outcome, ToolExecutionBlockedError)
+
+        # The load-bearing assertion for AAASM-5665, and the one the subtest
+        # above cannot make: the persisted audit record, not the policy query
+        # and not the raised exception. Before this the deny raised straight
+        # past the audit hook, so a denied call emitted nothing at all.
+        assert len(quickstart.interceptor.records) == 1
+        record = quickstart.interceptor.records[0]
+        assert record.tool_name == "write_to_disk"
+        assert record.agent_id == _AGENT_ID
+        assert record.run_id == "run-1"
+        # Distinguishes "denied before execution" from a tool that ran and
+        # returned this same text.
+        assert record.denied is True
+        assert "policy forbids disk writes" in record.result
+
     def test_an_allowed_call_is_recorded_with_the_same_identity(
         self, monkeypatch: pytest.MonkeyPatch, file_effect: FileSideEffect
     ) -> None:
