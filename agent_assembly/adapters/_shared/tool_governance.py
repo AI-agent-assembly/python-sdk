@@ -4,8 +4,9 @@ The Google ADK and Pydantic AI adapters intercept tool execution through
 framework-specific hook points, but the governance logic they run once a tool
 call is intercepted is identical: serialize the args, ask the interceptor for a
 verdict, honour a ``pending`` approval round-trip, deny by raising when the
-verdict is ``deny``, otherwise run the original inside a spawn-context scope and
-record the result. That shared body — previously duplicated verbatim in both
+verdict is ``deny``, otherwise run the original inside a spawn-context scope.
+Either way the outcome is recorded through the audit hook before the flow ends
+(AAASM-5665). That shared body — previously duplicated verbatim in both
 adapters (the cross-file duplication SonarCloud flagged on PR #269, AAASM-4746) —
 lives here so each adapter keeps only its framework-specific glue.
 
@@ -19,6 +20,7 @@ enforce.
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, Literal
@@ -38,6 +40,11 @@ from agent_assembly.adapters.crewai.patch import (
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 _MAX_AUDIT_RESULT_CHARS = 2000
+
+_KEYWORD_PARAMETER_KINDS = (
+    inspect.Parameter.KEYWORD_ONLY,
+    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+)
 
 
 def _current_spawn_depth() -> int:
@@ -127,6 +134,31 @@ def _truncate_result_for_audit(result: object) -> str:
     return str(result)[:_MAX_AUDIT_RESULT_CHARS]
 
 
+def _accepts_keyword(method: Any, name: str) -> bool:
+    """Whether ``method`` can be called with the ``name`` keyword.
+
+    The audit hook is duck-typed — adapters and user code supply their own
+    ``record_result`` / ``on_tool_end`` — and every existing implementation was
+    written against the four-keyword call, so passing a new keyword
+    unconditionally would raise ``TypeError`` on all of them. The denial flag is
+    therefore offered only to handlers that can receive it (an explicit
+    parameter or a ``**kwargs`` catch-all); the rest still get the record, just
+    without the flag.
+    """
+    try:
+        signature = inspect.signature(method)
+    except (TypeError, ValueError):
+        # C-implemented callables expose no introspectable signature. Fall back
+        # to the narrow call so the record is still emitted.
+        return False
+    for parameter in signature.parameters.values():
+        if parameter.kind is inspect.Parameter.VAR_KEYWORD:
+            return True
+        if parameter.name == name and parameter.kind in _KEYWORD_PARAMETER_KINDS:
+            return True
+    return False
+
+
 async def _record_async_tool_result(
     callback_handler: Any,
     *,
@@ -134,7 +166,27 @@ async def _record_async_tool_result(
     result: object,
     agent_id: str | None,
     run_id: str | None,
+    denied: bool = False,
 ) -> None:
+    """Offer the outcome of one governed tool call to the audit hook.
+
+    Called for a denied call as well as an executed one (AAASM-5665). On the
+    denied path ``result`` carries the denial message and ``denied`` is ``True``
+    so a handler that understands the flag can tell "denied before execution"
+    apart from a tool that ran and returned that same text.
+
+    Whether anything is recorded depends entirely on the ``callback_handler``.
+    Both hooks are duck-typed, and on the interceptor the SDK builds today
+    *neither resolves*: ``RuntimeQueryInterceptor`` defines only
+    ``check_tool_start`` and delegates the rest to ``GatewayClient``, whose
+    surface has no ``record_result`` and no ``on_tool_end``. So on the shipped
+    path this function finds no hook and emits nothing — for allowed calls as
+    much as denied ones — leaving tool outcomes Unmeasured in audit evidence
+    (ADR 0033 §6). A caller that supplies its own handler does get the record;
+    wiring a sink into the SDK's own interceptor is a separate capability.
+    """
+    denial_flag = {"denied": denied} if denied else {}
+
     record_method = getattr(callback_handler, "record_result", None)
     if callable(record_method):
         recorded = record_method(
@@ -142,6 +194,7 @@ async def _record_async_tool_result(
             result=_truncate_result_for_audit(result),
             agent_id=agent_id,
             run_id=run_id,
+            **(denial_flag if _accepts_keyword(record_method, "denied") else {}),
         )
         if inspect.isawaitable(recorded):
             await recorded
@@ -154,6 +207,7 @@ async def _record_async_tool_result(
             tool_name=tool_name,
             agent_id=agent_id,
             run_id=run_id,
+            **(denial_flag if _accepts_keyword(tool_end_method, "denied") else {}),
         )
         if inspect.isawaitable(recorded):
             await recorded
@@ -223,9 +277,35 @@ async def run_governed_async_tool(
     # non-decision, not a grant — blocking it here stops it from falling through
     # and running the tool, matching the LangChain handler.
     if status != "allow":
-        if is_pending_flow:
-            raise _build_pending_rejected_error(tool_name, reason)
-        raise _build_denied_error(tool_name, reason)
+        error = (
+            _build_pending_rejected_error(tool_name, reason)
+            if is_pending_flow
+            else _build_denied_error(tool_name, reason)
+        )
+        # Offer the deny to the audit hook before raising (AAASM-5665).
+        # Previously this raised straight past the record call below, so a
+        # denied call could not reach an audit sink even when the caller had
+        # supplied one. See _record_async_tool_result on why the SDK's own
+        # interceptor still resolves no hook, leaving the shipped path
+        # Unmeasured.
+        #
+        # Best-effort, and the guard is load-bearing: the hook is duck-typed
+        # from caller-supplied code, and inserting a call here where none used
+        # to exist would otherwise let a raising handler replace a decided deny
+        # with its own exception — a caller matching on PolicyViolationError
+        # would stop recognising the deny. A decided deny is final regardless of
+        # audit outcome; this repo already settled that for the openai_agents
+        # path under AAASM-4782, so follow it rather than invent a second answer.
+        with contextlib.suppress(Exception):
+            await _record_async_tool_result(
+                callback_handler,
+                tool_name=tool_name,
+                result=str(error),
+                agent_id=agent_id,
+                run_id=run_id,
+                denied=True,
+            )
+        raise error
 
     spawn_ctx = SpawnContext(
         parent_agent_id=agent_id or "",
