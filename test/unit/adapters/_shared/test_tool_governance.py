@@ -121,6 +121,36 @@ async def _run_denied(handler: Any) -> None:
     assert ran == [], "the denied tool body ran"
 
 
+class _RaisingAuditHandler(_DenyingHandlerMixin):
+    """A handler whose audit hook raises — reachable, since the hook is caller-supplied."""
+
+    def __init__(self) -> None:
+        self.attempts = 0
+
+    def record_result(self, **kwargs: Any) -> None:
+        del kwargs
+        self.attempts += 1
+        raise RuntimeError("audit handler exploded")
+
+
+@pytest.mark.asyncio
+async def test_a_raising_audit_handler_does_not_replace_the_policy_denial() -> None:
+    """Reads the exception the governed call actually raises.
+
+    Recording the deny put a caller-supplied hook on a path that previously did
+    not touch it, so a raising handler could substitute its own exception for
+    the denial. A decided deny is final regardless of audit outcome
+    (AAASM-4782); a caller matching on PolicyViolationError must still see one.
+    """
+    handler = _RaisingAuditHandler()
+
+    await _run_denied(handler)
+
+    # Distinguishes "the audit failure was contained" from "the hook was never
+    # reached", which would satisfy the assertion above for the wrong reason.
+    assert handler.attempts == 1
+
+
 @pytest.mark.asyncio
 async def test_a_four_keyword_handler_still_receives_the_deny_record_without_the_flag() -> None:
     """Reads the arguments the flow passed the handler's own record_result.
