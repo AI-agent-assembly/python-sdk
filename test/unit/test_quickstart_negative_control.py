@@ -290,10 +290,17 @@ class TestDenyIsAttributable:
         assert file_effect.occurred() is False
         assert isinstance(outcome, ToolExecutionBlockedError)
 
-        # The load-bearing assertion for AAASM-5665, and the one the subtest
-        # above cannot make: the persisted audit record, not the policy query
-        # and not the raised exception. Before this the deny raised straight
-        # past the audit hook, so a denied call emitted nothing at all.
+        # The load-bearing assertion for AAASM-5665, and the one the test above
+        # cannot make: the record handed to the audit hook, not the policy
+        # query and not the raised exception. Before this the deny raised
+        # straight past the hook, so a denied call offered it nothing.
+        #
+        # Scope of the evidence: the record is captured by this fixture's
+        # handler. The interceptor the SDK builds resolves no audit hook at all
+        # (RuntimeQueryInterceptor + GatewayClient expose neither
+        # record_result nor on_tool_end), so tool outcomes are Unmeasured in
+        # audit evidence on the shipped path. What this pins is the governance
+        # flow's call — the part fixable without wiring a sink.
         assert len(quickstart.interceptor.records) == 1
         record = quickstart.interceptor.records[0]
         assert record.tool_name == "write_to_disk"

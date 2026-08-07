@@ -167,12 +167,22 @@ async def _record_async_tool_result(
     run_id: str | None,
     denied: bool = False,
 ) -> None:
-    """Emit the post-decision audit record for one governed tool call.
+    """Offer the outcome of one governed tool call to the audit hook.
 
     Called for a denied call as well as an executed one (AAASM-5665). On the
     denied path ``result`` carries the denial message and ``denied`` is ``True``
     so a handler that understands the flag can tell "denied before execution"
     apart from a tool that ran and returned that same text.
+
+    Whether anything is recorded depends entirely on the ``callback_handler``.
+    Both hooks are duck-typed, and on the interceptor the SDK builds today
+    *neither resolves*: ``RuntimeQueryInterceptor`` defines only
+    ``check_tool_start`` and delegates the rest to ``GatewayClient``, whose
+    surface has no ``record_result`` and no ``on_tool_end``. So on the shipped
+    path this function finds no hook and emits nothing — for allowed calls as
+    much as denied ones — leaving tool outcomes Unmeasured in audit evidence
+    (ADR 0033 §6). A caller that supplies its own handler does get the record;
+    wiring a sink into the SDK's own interceptor is a separate capability.
     """
     denial_flag = {"denied": denied} if denied else {}
 
@@ -271,11 +281,12 @@ async def run_governed_async_tool(
             if is_pending_flow
             else _build_denied_error(tool_name, reason)
         )
-        # Audit the deny before raising (AAASM-5665). Previously this raised
-        # straight past the record call below, so a denied call emitted nothing
-        # and the only trace it ever happened was an in-process exception that
-        # never reaches an auditor — in a record stream a deny was
-        # indistinguishable from a call that was never attempted.
+        # Offer the deny to the audit hook before raising (AAASM-5665).
+        # Previously this raised straight past the record call below, so a
+        # denied call could not reach an audit sink even when the caller had
+        # supplied one. See _record_async_tool_result on why the SDK's own
+        # interceptor still resolves no hook, leaving the shipped path
+        # Unmeasured.
         await _record_async_tool_result(
             callback_handler,
             tool_name=tool_name,
