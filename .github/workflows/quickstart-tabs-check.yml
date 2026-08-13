@@ -13,6 +13,13 @@ on:
       - "scripts/generate_quickstart_tabs.py"
       - "docs/quick-start.md"
       - ".github/workflows/quickstart-tabs-check.yml"
+#     AAASM-5529: the claim-binding gate below reads the negative controls and the
+#     exception the quick-start names, so an edit to either must re-run it here.
+#     ci.yaml already covers them under agent_assembly/**/*.py and test/**/*.py;
+#     these entries matter for the docs-only PR, which ci.yaml deliberately skips.
+      - "test/unit/test_quickstart_claim_bindings.py"
+      - "test/unit/test_quickstart_negative_control.py"
+      - "agent_assembly/exceptions/**"
   push:
     branches:
       - main
@@ -47,3 +54,30 @@ jobs:
             echo "::error::  python scripts/generate_quickstart_tabs.py"
             exit 1
           fi
+
+  claim-bindings:
+    # AAASM-5529. The drift-check job above round-trips the §3 tabs as *text*: it
+    # proves the generated document matches the vendored snippets and nothing
+    # more — the snippets are never parsed, imported or executed (ruff.toml
+    # excludes them; they reference names they never define).
+    #
+    # This job gates a different surface: §"What just happened", where the
+    # quick-start states what governance did. It binds each claim to the control
+    # that proves it, so a claim cannot be added or reworded without someone
+    # naming the evidence.
+    #
+    # It runs here rather than only in ci.yaml because ci.yaml's paths allow-list
+    # excludes docs/**, so a docs-only PR — precisely the change that rewords a
+    # claim — gets no CI at all.
+    name: quick-start claim bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v7
+
+      - name: Install the SDK and its dev dependencies
+        run: uv sync
+
+      - name: Every documented enforcement claim names the control that proves it
+        run: uv run pytest test/unit/test_quickstart_claim_bindings.py -q --no-cov
