@@ -300,7 +300,7 @@ class TestDenyIsAttributable:
         # (RuntimeQueryInterceptor + GatewayClient expose neither
         # record_result nor on_tool_end), so tool outcomes produce no audit
         # evidence on the shipped path — Planned under ADR 0033 §6
-        # (AAASM-5731), not Unmeasured, since where the record stops has been
+        # (AAASM-5750), not Unmeasured, since where the record stops has been
         # measured. What this pins is the governance flow's call — the part
         # fixable without wiring a sink.
         assert len(quickstart.interceptor.records) == 1
