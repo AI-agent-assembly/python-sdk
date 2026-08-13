@@ -10,6 +10,7 @@ from agent_assembly import init_assembly
 from agent_assembly.adapters.base import FrameworkAdapter, GovernanceInterceptor
 from agent_assembly.client.gateway import GatewayClient
 from agent_assembly.core import assembly as core_assembly
+from agent_assembly.core.audit_sink import AUDIT_SINK_ABSENT
 from agent_assembly.exceptions import AssemblyError, ConfigurationError
 
 
@@ -59,7 +60,7 @@ def cleanup_active_context() -> None:
 def test_init_assembly_with_valid_config_returns_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -101,7 +102,7 @@ def test_init_assembly_zero_arg_resolves_local_default(
     monkeypatch.delenv(gateway_resolver.ENV_GATEWAY_URL, raising=False)
     monkeypatch.delenv(gateway_resolver.ENV_API_KEY, raising=False)
     monkeypatch.setattr(gateway_resolver, "_load_config_file", lambda: {})
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -130,7 +131,7 @@ def test_init_assembly_explicit_args_bypass_resolver(
 
     monkeypatch.setattr(gateway_resolver, "_probe_healthz", _fail_probe)
     monkeypatch.setattr(gateway_resolver, "_auto_start_gateway", _fail_auto_start)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -212,7 +213,7 @@ def test_context_manager_shutdown_calls_adapter_unregister_hooks(
     monkeypatch.setattr(
         core_assembly,
         "_register_adapters",
-        lambda **kwargs: [_TrackingAdapter("a"), _TrackingAdapter("b")],
+        lambda **kwargs: ([_TrackingAdapter("a"), _TrackingAdapter("b")], AUDIT_SINK_ABSENT),
     )
     monkeypatch.setattr(
         core_assembly,
@@ -261,7 +262,7 @@ def test_register_adapters_warns_on_stderr_when_register_hooks_raises(
         agent_id="test-agent-001",
         api_key="test-api-key",
     )
-    registered = core_assembly._register_adapters(
+    registered, _audit_sink = core_assembly._register_adapters(
         client=client,
         process_agent_id="test-agent-001",
     )
@@ -275,7 +276,7 @@ def test_register_adapters_warns_on_stderr_when_register_hooks_raises(
 def test_init_assembly_rejects_conflicting_reinit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -301,7 +302,7 @@ def test_init_assembly_rejects_conflicting_reinit(
 def test_init_assembly_rejects_conflicting_gateway_and_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -373,12 +374,12 @@ def test_init_assembly_is_thread_safe_and_idempotent(
     release = Event()
     register_call_count = 0
 
-    def fake_register_adapters(**kwargs: Any) -> list[Any]:
+    def fake_register_adapters(**kwargs: Any) -> tuple[list[Any], str]:
         nonlocal register_call_count
         register_call_count += 1
         started.set()
         release.wait(timeout=2)
-        return []
+        return [], AUDIT_SINK_ABSENT
 
     monkeypatch.setattr(core_assembly, "_register_adapters", fake_register_adapters)
     monkeypatch.setattr(
@@ -423,7 +424,7 @@ def test_init_assembly_topology_params_forwarded_to_client(
     delegation_reason: str | None,
     spawned_by_tool: str | None,
 ) -> None:
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -452,7 +453,7 @@ def test_init_assembly_topology_params_forwarded_to_client(
 def test_init_assembly_without_topology_params_is_backward_compatible(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -476,7 +477,7 @@ def test_init_assembly_without_topology_params_is_backward_compatible(
 def test_init_assembly_delegation_reason_too_long_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -498,7 +499,7 @@ def test_init_assembly_control_plane_url_forwarded_to_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """An explicit control_plane_url lands on the GatewayClient."""
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -524,7 +525,7 @@ def test_init_assembly_control_plane_url_defaults_to_gateway_url(
 ) -> None:
     """Without control_plane_url, HTTP routes fall back to gateway_url."""
     monkeypatch.delenv(core_assembly.ENV_CONTROL_PLANE_URL, raising=False)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -563,7 +564,7 @@ def test_init_assembly_gateway_url_falls_back_to_env_var(
     monkeypatch.setattr(core_assembly, "resolve_gateway_url", lambda explicit=None: explicit or "")
     monkeypatch.setenv(core_assembly.ENV_GATEWAY_URL, "https://env-gateway:7000")
     monkeypatch.delenv(core_assembly.ENV_CONTROL_PLANE_URL, raising=False)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -583,7 +584,7 @@ def test_init_assembly_control_plane_url_falls_back_to_env_var(
 ) -> None:
     """control_plane_url resolves from AA_CONTROL_PLANE_URL when no kwarg is given."""
     monkeypatch.setenv(core_assembly.ENV_CONTROL_PLANE_URL, "http://env-control-plane:9100")
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -607,7 +608,7 @@ def test_init_assembly_explicit_control_plane_url_overrides_env_var(
 ) -> None:
     """Explicit kwarg wins over AA_CONTROL_PLANE_URL (kwarg > env-var)."""
     monkeypatch.setenv(core_assembly.ENV_CONTROL_PLANE_URL, "http://env-control-plane:9100")
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -641,7 +642,7 @@ def test_init_assembly_enforcement_mode_forwarded_to_client(
     # This keeps the test focused on enforcement-mode forwarding regardless of
     # whether the native `_core` extension is built (AAASM-3435).
     monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -671,7 +672,7 @@ def test_init_assembly_enforcement_mode_invalid_raises_configuration_error(
     """
     from agent_assembly.exceptions import ConfigurationError
 
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -696,7 +697,7 @@ def test_init_assembly_enforcement_mode_defaults_to_none_to_preserve_wire_shape(
     The gateway then applies its server-side default of live enforcement,
     so semantic behaviour is identical to before.
     """
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -725,7 +726,7 @@ def test_init_assembly_warns_on_plaintext_http_with_api_key(
     that same plaintext non-loopback target, so ``init_assembly`` raises after
     the warning is emitted.
     """
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -746,7 +747,7 @@ def test_init_assembly_no_warning_for_loopback_http_with_api_key(
     """AAASM-3725: loopback http:// + API key must not warn (local dev)."""
     import warnings
 
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -815,7 +816,7 @@ def test_init_assembly_rejects_malformed_agent_id(
     when the SDK tries to connect. The validator raises ValueError up-front so the
     caller gets a clear, actionable error.
     """
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
@@ -838,7 +839,7 @@ def test_init_assembly_accepts_default_agent_id(
     Guards against a future change that alters _DEFAULT_AGENT_ID to a value the
     regex rejects, which would break every caller of init_assembly() (no args).
     """
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **kwargs: ([], AUDIT_SINK_ABSENT))
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
