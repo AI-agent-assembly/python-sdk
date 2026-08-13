@@ -99,8 +99,23 @@ _ENFORCEMENT_VOCABULARY = re.compile(
 
 #: Allow-list categories. A category is only permitted for a sentence that does
 #: NOT match the vocabulary above; anything that does needs a written reason.
-_NOT_A_CAPABILITY_CLAIM = "Descriptive or instructional prose. Says nothing about what governance does to a tool call."
-_NAVIGATION = "A cross-reference. The claim, if any, lives on the page linked to and is gated there."
+#: The ONLY bare constant. Permitted solely for structurally non-prose lines —
+#: tab labels, table rows, migration import pairs, bare link-list items — which
+#: are matched by _STRUCTURAL_LINE below. Every other entry carries a written
+#: justification unique to that sentence.
+#:
+#: The previous rule required a justification only when the sentence matched the
+#: enforcement vocabulary, which is backwards: the sentences that most need
+#: explaining are the ones that EVADE the vocabulary, since evading it is the
+#: whole reason the scan was inverted.
+_STRUCTURAL = "Structurally non-prose: a tab label, table row, migration import pair, or bare link-list item."
+
+#: Lines that may use the bare constant.
+_STRUCTURAL_LINE = re.compile(r"^===\s|^\||^-?\s*(?:Before|After)\s*\(|^Sources?:\s*\[|^\*\*\[|^\[")
+
+#: A justification must be at least this long. Not a real check — no gate can
+#: tell a justification from noise — but it makes reason="x" visible.
+_MIN_JUSTIFICATION = 40
 
 
 @dataclass(frozen=True)
@@ -162,18 +177,18 @@ BINDINGS: tuple[ClaimBinding, ...] = (
         # governed-tool chain, not "whichever framework"; per ADR 0033 §6 a
         # claim like this needs a named boundary or a qualification.
         unproven_reason=(
-            "AAASM-5536: an unbounded breadth claim. The controls prove the shared "
+            "AAASM-5768: an unbounded breadth claim. The controls prove the shared "
             "governed-tool chain behind two adapter tabs, not every framework the page "
-            "offers, and no control enumerates them. AAASM-5536 is the documentation "
-            "claim gate that forces such a sentence to name its boundary or be qualified."
+            "offers, and no control enumerates them. AAASM-5768 owns bounding or "
+            "qualifying it."
         ),
     ),
     ClaimBinding(
         claim_id="auto-start-probes-and-starts-a-gateway",
         quote=(
-            "**Let the SDK auto-start one.** Call `init_assembly()` with no `gateway_url`; the "
-            "SDK probes `http://localhost:7391` and, if nothing answers, runs `aasm start "
-            "--mode local --foreground` for you."
+            "Call `init_assembly()` with no `gateway_url`; the SDK probes "
+            "`http://localhost:7391` and, if nothing answers, runs `aasm start --mode local "
+            "--foreground` for you."
         ),
         # Measured during this ticket's scoping pass and reported: the
         # [project.scripts] aasm console script shadows the bundled Rust binary
@@ -203,31 +218,41 @@ BINDINGS: tuple[ClaimBinding, ...] = (
     ClaimBinding(
         claim_id="init-routes-every-tool-call",
         quote=(
-            "**`init_assembly()` wired in governance.** It registered the agent with the gateway "
-            "and auto-loaded the adapter for your framework — every tool call from this point on "
-            "is routed through the policy gate."
+            "It registered the agent with the gateway and auto-loaded the adapter for your "
+            "framework — every tool call from this point on is routed through the policy gate."
         ),
         unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
     ),
     ClaimBinding(
         claim_id="sdk-only-enforces-on-tool-calls",
         quote=(
-            '**`mode="sdk-only"` kept it offline.** The in-process adapter enforces on tool calls '
-            "with no network sidecar, so the example runs deterministically with no real LLM or "
-            "gateway round-trip."
+            "The in-process adapter enforces on tool calls with no network sidecar, so the "
+            "example runs deterministically with no real LLM or gateway round-trip."
         ),
         controls=_DENY_CONTROLS,
     ),
     ClaimBinding(
         claim_id="verdict-precedes-execution",
         quote=(
-            "**Tool calls were governed.** The adapter intercepts the framework's tool-invocation "
-            "path and asks the policy engine for an allow/deny verdict before the tool actually "
-            "runs."
+            "The adapter intercepts the framework's tool-invocation path and asks the policy "
+            "engine for an allow/deny verdict before the tool actually runs."
         ),
         # Both halves. The negative controls prove the "before" by absence of
         # the side effect; the positive controls prove the probe would have seen
         # that effect had it happened. Either alone is vacuous.
+        controls=_ALLOW_AND_DENY_CONTROLS,
+    ),
+    ClaimBinding(
+        claim_id="init-wired-in-governance-label",
+        # Split out from the bullet it leads, once the splitter learned to keep
+        # closing markup with its sentence. Short, but still a claim: "wired in
+        # governance" asserts an outcome.
+        quote="**`init_assembly()` wired in governance.**",
+        unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
+    ),
+    ClaimBinding(
+        claim_id="tool-calls-were-governed-label",
+        quote="**Tool calls were governed.**",
         controls=_ALLOW_AND_DENY_CONTROLS,
     ),
     ClaimBinding(
@@ -268,12 +293,11 @@ BINDINGS: tuple[ClaimBinding, ...] = (
         # which would have resolved to a closed issue the moment this merged.
         # No ticket currently owns *proving* it: nothing in this SDK starts or
         # probes a proxy or eBPF layer, so the honest resolution is
-        # qualification rather than proof, which is AAASM-5536's job.
+        # qualification rather than proof, which AAASM-5766 owns.
         unproven_reason=(
-            "AAASM-5536: no control in the Python SDK starts or probes a proxy or eBPF "
+            "AAASM-5766: no control in the Python SDK starts or probes a proxy or eBPF "
             "layer, so nothing here distinguishes 'the mode adds interception' from 'the "
-            "mode is selected'. No ticket owns proving this; the expected resolution is "
-            "that AAASM-5536's claim gate forces the sentence to name its boundary."
+            "mode is selected'. AAASM-5766 owns proving or qualifying it."
         ),
     ),
 )
@@ -283,101 +307,149 @@ BINDINGS: tuple[ClaimBinding, ...] = (
 #: _ENFORCEMENT_VOCABULARY; anything that does needs a written justification.
 _ALLOWED: dict[str, str] = {
     "Govern your first agent in about five minutes.": (
-        "The page's title line. It matches the vocabulary on the imperative verb "
-        "'Govern', which names what the reader is about to do, not what the product "
-        "guarantees. The substantive promise is the next sentence, which IS bound."
+        "The page title line. An imperative naming what the reader is about to do; the substantive promise is the next sentence, which is bound."
     ),
-    "The package is published on PyPI as [`{{ aa.python_sdk.package_name }}`]({{ aa.urls.pypi }}) (current version: `{{ aa.python_sdk.version }}`).": _NOT_A_CAPABILITY_CLAIM,
-    '=== "pip"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "uv"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "poetry"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "conda"': _NOT_A_CAPABILITY_CLAIM,
-    "`{{ aa.python_sdk.package_name }}` is not published on conda-forge or the Anaconda default channel — create a conda environment, then install from PyPI with `pip` inside it:": _NOT_A_CAPABILITY_CLAIM,
-    '!!! note "`--pre` is required for now" Agent Assembly is currently published only as a pre-release on PyPI, and `pip` skips pre-releases unless you pass `--pre` (already included above).': _NOT_A_CAPABILITY_CLAIM,
-    "Drop the flag once a stable (non-pre-release) version is published.": _NOT_A_CAPABILITY_CLAIM,
-    "`{{ aa.python_sdk.package_name }}` is the pure-Python client.": _NOT_A_CAPABILITY_CLAIM,
-    "`{{ aa.python_sdk.package_name }}[runtime]` additionally pulls a platform wheel (`manylinux`, `macosx`) that bundles the `{{ aa.python_sdk.cli_name }}` gateway/runtime binary, so a local gateway is available without a separate install.": _NOT_A_CAPABILITY_CLAIM,
-    "You have three options:": _NOT_A_CAPABILITY_CLAIM,
-    "This needs the `aasm` binary on your `PATH` (the `agent-assembly[runtime]` extra provides it).": _NOT_A_CAPABILITY_CLAIM,
-    "**Run one yourself** with `aasm start --mode local --foreground` in a separate terminal.": _NOT_A_CAPABILITY_CLAIM,
-    "For a full gateway walkthrough, see the core [Run the gateway](https://docs.agent-assembly.com/core/latest/quick-start/first-run.html) guide.": _NAVIGATION,
-    "**Pass an explicit URL**, as the example below does.": _NOT_A_CAPABILITY_CLAIM,
-    "See [Configuration](configuration.md) for the full URL/key resolution chain (`7391` is the local default port).": _NAVIGATION,
-    '!!! note "Local-mode transports: `:7391` REST + `:50051` gRPC" Starting local mode binds **two** loopback surfaces in one process:': _NOT_A_CAPABILITY_CLAIM,
-    "This runs the REST/dashboard API on `http://localhost:7391` (what `gateway_url` points to, and what the SDK probes and auto-starts) **and** the gRPC `AgentLifecycleService` on `127.0.0.1:50051`, which is the endpoint the native SDK uses to **register** your agent.": _NOT_A_CAPABILITY_CLAIM,
-    "`:8080` is **not** the local gateway port; ignore older docs or examples that point registration there.": _NOT_A_CAPABILITY_CLAIM,
-    "To confirm both surfaces are actually up rather than guessing from the SDK's behavior, check them directly:": _NOT_A_CAPABILITY_CLAIM,
-    "Pick your framework below — each tab is the **governance-wiring slice** (`init_assembly()` plus "
-    "that framework's adapter hookup) taken verbatim from that framework's runnable example in the "
-    "[examples repo](https://github.com/ai-agent-assembly/examples/tree/master/python).": (
-        "Describes where the tab content comes from. 'governance-wiring slice' names the "
-        "excerpt's provenance, not an enforcement outcome; it asserts nothing about "
-        "whether a denied call is stopped."
+    "The package is published on PyPI as [`{{ aa.python_sdk.package_name }}`]({{ aa.urls.pypi }}) (current version: `{{ aa.python_sdk.version }}`).": (
+        "States where the package is distributed and at what version. Distribution, not behaviour."
     ),
-    "Copy the full, runnable script — imports, tools, and the agent run — from the linked example; "
-    "the slice below is the part that wires in governance.": (
-        "An instruction to the reader about which lines to copy. 'wires in governance' "
-        "identifies the excerpt, and makes no claim about what that wiring then does to "
-        "a tool call."
+    '=== "pip"': _STRUCTURAL,
+    '=== "uv"': _STRUCTURAL,
+    '=== "poetry"': _STRUCTURAL,
+    '=== "conda"': _STRUCTURAL,
+    "`{{ aa.python_sdk.package_name }}` is not published on conda-forge or the Anaconda default channel — create a conda environment, then install from PyPI with `pip` inside it:": (
+        "A packaging-channel fact plus the workaround. Says nothing about runtime behaviour."
     ),
-    'Every example runs **offline** in `mode="sdk-only"` against a local policy, so you can try it with no API keys and no outbound network.': _NOT_A_CAPABILITY_CLAIM,
-    '=== "Agno"': _NOT_A_CAPABILITY_CLAIM,
-    '!!! note "Version compatibility" Agno was previously published as **Phidata**; the rename replaced every `phi.*` import with `agno.*`.': _NOT_A_CAPABILITY_CLAIM,
-    "Before (Phidata): `from phi.agent import Agent`": _NOT_A_CAPABILITY_CLAIM,
-    "After (Agno): `from agno.agent import Agent`": _NOT_A_CAPABILITY_CLAIM,
-    "Source: [Agno's official Phidata → Agno migration guide](https://docs.agno.com/how-to/phidata-to-agno).": _NAVIGATION,
-    '=== "AutoGen"': _NOT_A_CAPABILITY_CLAIM,
-    "!!! note \"Version compatibility\" AutoGen's `v0.4` rewrite (2024) replaced the single `pyautogen` package's `autogen.agentchat` namespace with separate `autogen-agentchat` / `autogen-core` / `autogen-ext` packages, and `llm_config` with an explicit `model_client`.": _NOT_A_CAPABILITY_CLAIM,
-    "Before (v0.2, `pyautogen`): `from autogen.agentchat import AssistantAgent`": _NOT_A_CAPABILITY_CLAIM,
-    "After (v0.4+): `from autogen_agentchat.agents import AssistantAgent`": _NOT_A_CAPABILITY_CLAIM,
-    "Source: [AutoGen's official v0.2 → v0.4 migration guide](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/migration-guide.html).": _NAVIGATION,
-    '=== "CrewAI"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "Custom (no framework)"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "Google ADK"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "Haystack"': _NOT_A_CAPABILITY_CLAIM,
-    '!!! note "Version compatibility" Haystack 2.0 replaced the `farm-haystack` package with `haystack-ai` and flattened node imports into `haystack.components.*`; the two package versions cannot coexist in one environment.': _NOT_A_CAPABILITY_CLAIM,
-    "Before (Haystack 1.x, `farm-haystack`): `from haystack.nodes import BM25Retriever`": _NOT_A_CAPABILITY_CLAIM,
-    "After (Haystack 2.x, `haystack-ai`): `from haystack.components.retrievers.in_memory import InMemoryBM25Retriever`": _NOT_A_CAPABILITY_CLAIM,
-    "Source: [Haystack's official migration guide](https://docs.haystack.deepset.ai/docs/migration).": _NAVIGATION,
-    '=== "LangChain"': _NOT_A_CAPABILITY_CLAIM,
-    '!!! note "Version compatibility" LangChain\'s import surface moved twice: `langchain-core` split out of `langchain` across the `0.1` → `0.3` series (2024), and the `1.0` rewrite (2025) moved legacy chains/agents/tools out of `langchain` entirely into `langchain-classic`.': _NOT_A_CAPABILITY_CLAIM,
-    "Before (`<1.0`): `from langchain.agents import AgentExecutor, create_react_agent`": _NOT_A_CAPABILITY_CLAIM,
-    "After (`>=1.0`): `from langchain_classic.agents import AgentExecutor, create_react_agent` (requires the separate `langchain-classic` package)": _NOT_A_CAPABILITY_CLAIM,
-    "This SDK's own quick-start sample hit exactly this break — see AAASM-4451.": _NOT_A_CAPABILITY_CLAIM,
-    "Sources: [LangChain's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langchain-v1) and the [LangChain v0.3 announcement](https://www.langchain.com/blog/announcing-langchain-v0-3).": _NAVIGATION,
-    '=== "LangChain (Research Agent)"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "LangGraph"': _NOT_A_CAPABILITY_CLAIM,
-    '!!! note "Version compatibility" LangGraph `1.0` deprecated `langgraph.prebuilt.create_react_agent` in favor of LangChain\'s own agent constructor.': _NOT_A_CAPABILITY_CLAIM,
-    "Before (`<1.0`): `from langgraph.prebuilt import create_react_agent`": _NOT_A_CAPABILITY_CLAIM,
-    "After (`>=1.0`): `from langchain.agents import create_agent`": _NOT_A_CAPABILITY_CLAIM,
-    "Source: [LangGraph's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langgraph-v1).": _NAVIGATION,
-    '=== "LlamaIndex"': _NOT_A_CAPABILITY_CLAIM,
-    '!!! note "Version compatibility" LlamaIndex `v0.10.0` (February 2024) split the monolithic `llama_index` package into a slim `llama-index-core` plus versioned per-provider packages (`llama-index-llms-openai`, etc.).': _NOT_A_CAPABILITY_CLAIM,
-    "An automated `llamaindex-cli upgrade` tool is provided for the migration.": _NOT_A_CAPABILITY_CLAIM,
-    "Before (`<0.10`): `from llama_index.llms import OpenAI`": _NOT_A_CAPABILITY_CLAIM,
-    "After (`>=0.10`): `from llama_index.llms.openai import OpenAI` (from the separate `llama-index-llms-openai` package)": _NOT_A_CAPABILITY_CLAIM,
-    "Source: [LlamaIndex's official v0.10 migration guide](https://www.llamaindex.ai/blog/llamaindex-v0-10-838e735948f8).": _NAVIGATION,
-    '=== "Microsoft Agent Framework"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "OpenAI Agents SDK"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "Pydantic AI"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "Semantic Kernel"': _NOT_A_CAPABILITY_CLAIM,
-    '=== "smolagents"': _NOT_A_CAPABILITY_CLAIM,
-    '!!! note "Version compatibility" smolagents `v1.14.0` (April 2025) renamed `HfApiModel` to `InferenceClientModel` to reflect that it wraps any Hugging Face Inference Provider, not just the HF Hub; backward-compatible re-export was restored in `v1.24.0`.': _NOT_A_CAPABILITY_CLAIM,
-    "Before (`<1.14`): `from smolagents import HfApiModel`": _NOT_A_CAPABILITY_CLAIM,
-    "After (`>=1.14`): `from smolagents import InferenceClientModel`": _NOT_A_CAPABILITY_CLAIM,
-    "Source: [smolagents releases](https://github.com/huggingface/smolagents/releases).": _NAVIGATION,
-    '=== "Strands Agents"': _NOT_A_CAPABILITY_CLAIM,
-    "That's the product working.": _NOT_A_CAPABILITY_CLAIM,
-    "It's the most portable mode and the best choice for deterministic, offline examples and tests.": _NOT_A_CAPABILITY_CLAIM,
-    "**[Core Concepts](concepts/index.md)** — the adapter pattern, the `init_assembly()` lifecycle, and the modes/enforcement model.": _NAVIGATION,
-    "**[Examples](examples/index.md)** — wire the SDK into the framework you actually use.": _NAVIGATION,
-    "**[Configuration](configuration.md)** — drop the hard-coded URL and key; let the resolver chain find them.": _NAVIGATION,
-    "See [Handling allow/deny decisions](guides/handling-decisions.md) for how to catch and respond "
-    "to those, and [Troubleshooting](troubleshooting.md) if `init_assembly()` itself raised.": (
-        "Navigational cross-reference. It matches the vocabulary only through the linked "
-        "page's title ('allow/deny decisions'); it asserts nothing about what governance "
-        "does. The claim it points at is gated on that page."
+    '!!! note "`--pre` is required for now" Agent Assembly is currently published only as a pre-release on PyPI, and `pip` skips pre-releases unless you pass `--pre` (already included above).': (
+        "Explains a pip flag required by the pre-release channel. Installer mechanics only."
     ),
+    "Drop the flag once a stable (non-pre-release) version is published.": (
+        "Forward-looking install instruction tied to the --pre note above it."
+    ),
+    "`{{ aa.python_sdk.package_name }}` is the pure-Python client.": (
+        "Names what the base distribution contains. Packaging composition, not capability."
+    ),
+    "`{{ aa.python_sdk.package_name }}[runtime]` additionally pulls a platform wheel (`manylinux`, `macosx`) that bundles the `{{ aa.python_sdk.cli_name }}` gateway/runtime binary, so a local gateway is available without a separate install.": (
+        "Names what the [runtime] extra adds to the install. Packaging composition; whether that binary is actually reachable is a separate, bound claim."
+    ),
+    "You have three options:": ("A list lead-in with no predicate of its own."),
+    "**Let the SDK auto-start one.**": (
+        "The bold label of a bullet. The behavioural claim it introduces is the next sentence, which is bound and registered unproven."
+    ),
+    "This needs the `aasm` binary on your `PATH` (the `agent-assembly[runtime]` extra provides it).": (
+        "States a prerequisite for the auto-start option. A precondition, not a claim that anything is enforced."
+    ),
+    "**Run one yourself** with `aasm start --mode local --foreground` in a separate terminal.": (
+        "One of the three gateway options, given as a command to run."
+    ),
+    "For a full gateway walkthrough, see the core [Run the gateway](https://docs.agent-assembly.com/core/latest/quick-start/first-run.html) guide.": (
+        "A cross-reference to the Core docs; the gateway's own claims are gated there."
+    ),
+    "**Pass an explicit URL**, as the example below does.": (
+        "The third gateway option, pointing at the example below."
+    ),
+    "See [Configuration](configuration.md) for the full URL/key resolution chain (`7391` is the local default port).": (
+        "A cross-reference plus the default port number."
+    ),
+    '!!! note "Local-mode transports: `:7391` REST + `:50051` gRPC" Starting local mode binds **two** loopback surfaces in one process:': (
+        "Describes which ports local mode binds. Transport topology, not enforcement."
+    ),
+    "This runs the REST/dashboard API on `http://localhost:7391` (what `gateway_url` points to, and what the SDK probes and auto-starts) **and** the gRPC `AgentLifecycleService` on `127.0.0.1:50051`, which is the endpoint the native SDK uses to **register** your agent.": (
+        "Maps each local-mode port to the consumer that dials it. Transport topology, not enforcement."
+    ),
+    "`:8080` is **not** the local gateway port; ignore older docs or examples that point registration there.": (
+        "Corrects a wrong port number that appears in older material."
+    ),
+    "To confirm both surfaces are actually up rather than guessing from the SDK's behavior, check them directly:": (
+        "Tells the reader to verify the ports themselves; the commands follow in a fenced block."
+    ),
+    "Pick your framework below — each tab is the **governance-wiring slice** (`init_assembly()` plus that framework's adapter hookup) taken verbatim from that framework's runnable example in the [examples repo](https://github.com/ai-agent-assembly/examples/tree/master/python).": (
+        "Describes the provenance of the tab content. 'governance-wiring slice' names the excerpt, not an enforcement outcome."
+    ),
+    "Copy the full, runnable script — imports, tools, and the agent run — from the linked example; the slice below is the part that wires in governance.": (
+        "An instruction about which lines to copy. Identifies the excerpt without claiming what the wiring achieves."
+    ),
+    'Every example runs **offline** in `mode="sdk-only"` against a local policy, so you can try it with no API keys and no outbound network.': (
+        "A claim about network usage and credentials, not about whether a denied call is stopped. The enforcement claim for this mode is bound separately."
+    ),
+    '=== "Agno"': _STRUCTURAL,
+    '!!! note "Version compatibility" Agno was previously published as **Phidata**; the rename replaced every `phi.*` import with `agno.*`.': (
+        "Third-party framework rename note, for Agno."
+    ),
+    "Before (Phidata): `from phi.agent import Agent`": _STRUCTURAL,
+    "After (Agno): `from agno.agent import Agent`": _STRUCTURAL,
+    "Source: [Agno's official Phidata → Agno migration guide](https://docs.agno.com/how-to/phidata-to-agno).": _STRUCTURAL,
+    '=== "AutoGen"': _STRUCTURAL,
+    "!!! note \"Version compatibility\" AutoGen's `v0.4` rewrite (2024) replaced the single `pyautogen` package's `autogen.agentchat` namespace with separate `autogen-agentchat` / `autogen-core` / `autogen-ext` packages, and `llm_config` with an explicit `model_client`.": (
+        "Third-party framework migration note, for AutoGen v0.2 to v0.4."
+    ),
+    "Before (v0.2, `pyautogen`): `from autogen.agentchat import AssistantAgent`": _STRUCTURAL,
+    "After (v0.4+): `from autogen_agentchat.agents import AssistantAgent`": _STRUCTURAL,
+    "Source: [AutoGen's official v0.2 → v0.4 migration guide](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/migration-guide.html).": _STRUCTURAL,
+    '=== "CrewAI"': _STRUCTURAL,
+    '=== "Custom (no framework)"': _STRUCTURAL,
+    '=== "Google ADK"': _STRUCTURAL,
+    '=== "Haystack"': _STRUCTURAL,
+    '!!! note "Version compatibility" Haystack 2.0 replaced the `farm-haystack` package with `haystack-ai` and flattened node imports into `haystack.components.*`; the two package versions cannot coexist in one environment.': (
+        "Third-party framework migration note, for Haystack 1.x to 2.x."
+    ),
+    "Before (Haystack 1.x, `farm-haystack`): `from haystack.nodes import BM25Retriever`": _STRUCTURAL,
+    "After (Haystack 2.x, `haystack-ai`): `from haystack.components.retrievers.in_memory import InMemoryBM25Retriever`": _STRUCTURAL,
+    "Source: [Haystack's official migration guide](https://docs.haystack.deepset.ai/docs/migration).": _STRUCTURAL,
+    '=== "LangChain"': _STRUCTURAL,
+    '!!! note "Version compatibility" LangChain\'s import surface moved twice: `langchain-core` split out of `langchain` across the `0.1` → `0.3` series (2024), and the `1.0` rewrite (2025) moved legacy chains/agents/tools out of `langchain` entirely into `langchain-classic`.': (
+        "Third-party framework migration note, for LangChain's two import moves."
+    ),
+    "Before (`<1.0`): `from langchain.agents import AgentExecutor, create_react_agent`": _STRUCTURAL,
+    "After (`>=1.0`): `from langchain_classic.agents import AgentExecutor, create_react_agent` (requires the separate `langchain-classic` package)": _STRUCTURAL,
+    "This SDK's own quick-start sample hit exactly this break — see AAASM-4451.": (
+        "A historical note recording that this repo was affected by the LangChain break above."
+    ),
+    "Sources: [LangChain's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langchain-v1) and the [LangChain v0.3 announcement](https://www.langchain.com/blog/announcing-langchain-v0-3).": _STRUCTURAL,
+    '=== "LangChain (Research Agent)"': _STRUCTURAL,
+    '=== "LangGraph"': _STRUCTURAL,
+    '!!! note "Version compatibility" LangGraph `1.0` deprecated `langgraph.prebuilt.create_react_agent` in favor of LangChain\'s own agent constructor.': (
+        "Third-party framework deprecation note, for LangGraph 1.0."
+    ),
+    "Before (`<1.0`): `from langgraph.prebuilt import create_react_agent`": _STRUCTURAL,
+    "After (`>=1.0`): `from langchain.agents import create_agent`": _STRUCTURAL,
+    "Source: [LangGraph's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langgraph-v1).": _STRUCTURAL,
+    '=== "LlamaIndex"': _STRUCTURAL,
+    '!!! note "Version compatibility" LlamaIndex `v0.10.0` (February 2024) split the monolithic `llama_index` package into a slim `llama-index-core` plus versioned per-provider packages (`llama-index-llms-openai`, etc.).': (
+        "Third-party framework packaging-split note, for LlamaIndex v0.10."
+    ),
+    "An automated `llamaindex-cli upgrade` tool is provided for the migration.": (
+        "Names the upstream tool that performs the LlamaIndex migration described above."
+    ),
+    "Before (`<0.10`): `from llama_index.llms import OpenAI`": _STRUCTURAL,
+    "After (`>=0.10`): `from llama_index.llms.openai import OpenAI` (from the separate `llama-index-llms-openai` package)": _STRUCTURAL,
+    "Source: [LlamaIndex's official v0.10 migration guide](https://www.llamaindex.ai/blog/llamaindex-v0-10-838e735948f8).": _STRUCTURAL,
+    '=== "Microsoft Agent Framework"': _STRUCTURAL,
+    '=== "OpenAI Agents SDK"': _STRUCTURAL,
+    '=== "Pydantic AI"': _STRUCTURAL,
+    '=== "Semantic Kernel"': _STRUCTURAL,
+    '=== "smolagents"': _STRUCTURAL,
+    '!!! note "Version compatibility" smolagents `v1.14.0` (April 2025) renamed `HfApiModel` to `InferenceClientModel` to reflect that it wraps any Hugging Face Inference Provider, not just the HF Hub; backward-compatible re-export was restored in `v1.24.0`.': (
+        "Third-party framework rename note, for smolagents v1.14 and its v1.24 re-export."
+    ),
+    "Before (`<1.14`): `from smolagents import HfApiModel`": _STRUCTURAL,
+    "After (`>=1.14`): `from smolagents import InferenceClientModel`": _STRUCTURAL,
+    "Source: [smolagents releases](https://github.com/huggingface/smolagents/releases).": _STRUCTURAL,
+    '=== "Strands Agents"': _STRUCTURAL,
+    '**`mode="sdk-only"` kept it offline.**': (
+        "The bold label of a bullet, claiming only that no network was used. The enforcement half of the bullet is the next sentence, which is bound to the deny controls."
+    ),
+    "That's the product working.": (
+        "A one-clause reassurance attached to the ToolExecutionBlockedError sentence before it, which is bound."
+    ),
+    "See [Handling allow/deny decisions](guides/handling-decisions.md) for how to catch and respond to those, and [Troubleshooting](troubleshooting.md) if `init_assembly()` itself raised.": (
+        "A cross-reference. It reads like a claim only through the linked page's title; the claims live on that page."
+    ),
+    "It's the most portable mode and the best choice for deterministic, offline examples and tests.": (
+        "A recommendation about which mode to pick for examples. A preference, not a capability."
+    ),
+    "**[Core Concepts](concepts/index.md)** — the adapter pattern, the `init_assembly()` lifecycle, and the modes/enforcement model.": _STRUCTURAL,
+    "**[Examples](examples/index.md)** — wire the SDK into the framework you actually use.": _STRUCTURAL,
+    "**[Configuration](configuration.md)** — drop the hard-coded URL and key; let the resolver chain find them.": _STRUCTURAL,
 }
 
 
@@ -393,7 +465,25 @@ _LIST_MARKER = re.compile(r"(?m)^\s*(?:[-*+]|\d+\.)\s+")
 _UNIT_SPLIT = re.compile(r"(?m)^(?=\s*(?:[-*+]|\d+\.)\s|\|)")
 #: '.' and '?' only. '!' is not a terminator here because mkdocs admonitions
 #: open with '!!! note', which would otherwise split into a bare '!!!' unit.
-_SENTENCE_END = re.compile(r"(?<=[.?])\s+")
+#:
+#: Closing markup between the terminator and the space is consumed WITH the
+#: sentence, so "**Tool calls were governed.**" is its own unit instead of
+#: running into the sentence after it. Without that, a bold lead-in label and
+#: the claim it introduces were one string, and binding the pair covered both.
+#: A backtick is deliberately NOT in the trailing class: inline code such as
+#: `phi.*` would otherwise be read as a sentence end and split mid-sentence.
+_SENTENCE_END = re.compile(r"[.?][*)\]_\"']*(?=\s)")
+
+
+def _split_sentences(unit: str) -> list[str]:
+    """Split on terminators, keeping the terminator and its markup attached."""
+    out: list[str] = []
+    start = 0
+    for match in _SENTENCE_END.finditer(unit):
+        out.append(unit[start : match.end()])
+        start = match.end()
+    out.append(unit[start:])
+    return out
 
 
 def _document() -> str:
@@ -406,8 +496,14 @@ def _document() -> str:
     return _QUICK_START.read_text(encoding="utf-8").replace("\r\n", "\n")
 
 
-def _scanned_sentences() -> dict[str, str]:
-    """Return ``flattened sentence -> section heading`` for the WHOLE document.
+def _scanned_occurrences() -> list[tuple[str, str]]:
+    """Return every ``(sentence, section)`` OCCURRENCE in the whole document.
+
+    A list, not a dict. Keying by sentence collapsed duplicates before anything
+    counted them, so ``matched == 1`` could only ever be 0 or 1 and a bound true
+    sentence could be pasted into a section that inverts its meaning — an
+    observe-mode block, a "what not to do" block — and still count once. Section
+    attribution was last-write-wins for the same reason.
 
     No section is skipped. A section-level exclusion was a black hole: the guard
     checked the heading still existed and said nothing about its contents, so a
@@ -418,7 +514,7 @@ def _scanned_sentences() -> dict[str, str]:
     for pattern in (_FENCE, _HTML_COMMENT, _MDX_COMMENT):
         body = pattern.sub("\n\n", body)
 
-    sentences: dict[str, str] = {}
+    occurrences: list[tuple[str, str]] = []
     section = "(preamble)"
     for chunk in re.split(r"(?m)^(#{1,6} .*)$", body):
         if chunk is None:
@@ -428,11 +524,11 @@ def _scanned_sentences() -> dict[str, str]:
             continue
         for paragraph in chunk.split("\n\n"):
             for unit in _UNIT_SPLIT.split(paragraph):
-                for raw in _SENTENCE_END.split(_LIST_MARKER.sub("", unit)):
+                for raw in _split_sentences(_LIST_MARKER.sub("", unit)):
                     flat = re.sub(r"\s+", " ", raw).strip()
                     if flat:
-                        sentences[flat] = section
-    return sentences
+                        occurrences.append((flat, section))
+    return occurrences
 
 
 def _control_node_ids() -> set[str]:
@@ -454,10 +550,10 @@ class TestTheGateCanSeeWhatItGates:
     """Positive controls. An empty parse and a clean result look identical."""
 
     def test_the_whole_document_is_read_and_split(self) -> None:
-        assert len(_scanned_sentences()) > 60, "too few sentences parsed from the whole quick-start"
+        assert len(_scanned_occurrences()) > 60, "too few sentences parsed from the whole quick-start"
 
     def test_the_scan_covers_every_section_including_the_last(self) -> None:
-        sections = set(_scanned_sentences().values())
+        sections = {section for _, section in _scanned_occurrences()}
         assert len(sections) >= 6, f"the scan reached only {len(sections)} sections: {sections}"
         assert "## Next steps" in sections, (
             "'## Next steps' is not in the scan. It used to be excluded by name, which made it "
@@ -474,7 +570,7 @@ class TestTheGateCanSeeWhatItGates:
             "this control assumes the quick-start still contains an HTML comment; if it no "
             "longer does, re-point it rather than deleting it"
         )
-        joined = " ".join(_scanned_sentences())
+        joined = " ".join(sentence for sentence, _ in _scanned_occurrences())
         assert "BEGIN GENERATED" not in joined, "HTML comment content leaked into the scan"
 
     def test_the_ast_extraction_finds_controls_in_every_control_module(self) -> None:
@@ -495,7 +591,7 @@ class TestEverySentenceIsAccountedFor:
         quotes = {binding.quote for binding in BINDINGS}
         loose = {
             sentence: section
-            for sentence, section in _scanned_sentences().items()
+            for sentence, section in _scanned_occurrences()
             if sentence not in quotes and sentence not in _ALLOWED
         }
         rendered = "\n".join(
@@ -520,12 +616,18 @@ class TestEverySentenceIsAccountedFor:
 
     @pytest.mark.parametrize("binding", BINDINGS, ids=lambda b: b.claim_id)
     def test_each_binding_matches_exactly_one_whole_sentence(self, binding: ClaimBinding) -> None:
-        matches = [s for s in _scanned_sentences() if s == binding.quote]
+        matches = [(text, section) for text, section in _scanned_occurrences() if text == binding.quote]
         assert len(matches) == 1, (
-            f"ClaimBinding {binding.claim_id!r} must match exactly one whole sentence in "
-            f"{_QUICK_START.name}; it matched {len(matches)}.\nIts quote is:\n  {binding.quote!r}\n"
-            "The claim was reworded, split, merged, or commented out. Update the quote to the "
-            "new whole sentence and re-check that the named controls still prove it."
+            f"ClaimBinding {binding.claim_id!r} must match exactly one whole sentence occurrence "
+            f"in {_QUICK_START.name}; it matched {len(matches)} "
+            f"(sections: {[section for _, section in matches]}).\n"
+            f"Its quote is:\n  {binding.quote!r}\n"
+            "0 means the claim was reworded, split, merged, or commented out — update the quote "
+            "and re-check the named controls.\n"
+            "More than 1 means the same sentence now appears in more than one place. That is not "
+            "harmless: a true claim pasted into a section that inverts its meaning — an "
+            "observe-mode block, a 'what not to do' block — would otherwise be counted by this "
+            "binding as though it were still the sentence that was proven."
         )
 
     def test_no_two_bindings_claim_the_same_sentence(self) -> None:
@@ -537,7 +639,7 @@ class TestEverySentenceIsAccountedFor:
 class TestTheAllowListCannotBecomeABypass:
     def test_every_allowed_sentence_is_still_present_verbatim(self) -> None:
         """A stale entry cannot silently exempt a reworded claim."""
-        scanned = _scanned_sentences()
+        scanned = {text for text, _ in _scanned_occurrences()}
         stale = [s for s in _ALLOWED if s not in scanned]
         assert not stale, (
             "_ALLOWED contains sentences that no longer appear in the quick-start:\n"
@@ -546,24 +648,50 @@ class TestTheAllowListCannotBecomeABypass:
             "makes a capability claim, bind it."
         )
 
-    def test_a_claim_like_sentence_needs_a_written_justification(self) -> None:
-        """Allow-listing something that reads like a claim costs a sentence of prose.
+    def test_only_structural_lines_may_use_the_bare_constant(self) -> None:
+        """Every prose entry needs a written justification — not only claim-like ones.
 
-        The category constants are deliberately unusable here: waving through a
-        sentence that matches the vocabulary must require saying why.
+        The previous rule keyed off the enforcement vocabulary, which is exactly
+        backwards. A sentence that *matches* the vocabulary has already warned
+        the author; a sentence that *evades* it has not, and evading it is the
+        whole reason this scan was inverted. So the bare constant is now
+        available only to structurally non-prose lines.
         """
-        categories = {_NOT_A_CAPABILITY_CLAIM, _NAVIGATION}
         offenders = {
-            sentence: reason
+            sentence
             for sentence, reason in _ALLOWED.items()
-            if _ENFORCEMENT_VOCABULARY.search(sentence) and reason in categories
+            if reason == _STRUCTURAL and not _STRUCTURAL_LINE.match(sentence)
         }
         assert not offenders, (
-            "These allow-listed sentences match the enforcement vocabulary but are waved "
-            "through with a bare category:\n"
-            + "\n".join(f"  {s!r}" for s in offenders)
-            + "\nReplace the category with a written justification saying why the sentence "
-            "makes no capability claim, or bind it."
+            "These allow-listed sentences are prose but are waved through with the bare "
+            "_STRUCTURAL constant:\n" + "\n".join(f"  {s!r}" for s in offenders) + "\n"
+            "Replace it with a written justification saying why this particular sentence makes "
+            "no capability claim, or bind it."
+        )
+
+    def test_written_justifications_are_substantial_and_distinct(self) -> None:
+        """A cheap partial, and it is only that.
+
+        No gate can tell a justification from noise — ``reason="x"`` is prose to
+        a computer. Requiring length and uniqueness does not fix that; it only
+        makes the two cheapest ways of waving something through, an empty
+        gesture and a copy-paste, visible in review.
+        """
+        written = {s: r for s, r in _ALLOWED.items() if r != _STRUCTURAL}
+        too_short = {s: r for s, r in written.items() if len(r) < _MIN_JUSTIFICATION}
+        assert not too_short, f"These justifications are shorter than {_MIN_JUSTIFICATION} characters:\n" + "\n".join(
+            f"  {r!r} for {s!r}" for s, r in too_short.items()
+        )
+        seen: dict[str, str] = {}
+        duplicates: list[str] = []
+        for sentence, reason in written.items():
+            if reason in seen:
+                duplicates.append(f"{reason!r}\n    used by {seen[reason]!r}\n    and by {sentence!r}")
+            seen[reason] = sentence
+        assert not duplicates, (
+            "The same justification is reused for different sentences:\n"
+            + "\n".join(f"  {d}" for d in duplicates)
+            + "\nA justification explains one specific sentence. Reuse is copy-paste waving."
         )
 
     def test_every_allow_list_reason_is_non_empty(self) -> None:
