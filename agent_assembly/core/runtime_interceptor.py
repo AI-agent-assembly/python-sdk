@@ -43,6 +43,7 @@ import warnings
 from importlib import metadata
 from typing import Any
 
+from agent_assembly.core.audit_sink import AUDIT_SINK_ABSENT, AuditSinkDisposition
 from agent_assembly.exceptions import OpTerminatedError
 
 ENV_RUNTIME_SOCKET = "AA_RUNTIME_SOCKET"
@@ -227,7 +228,20 @@ class RuntimeQueryInterceptor:
     an authoritative allow — a raising ``query_policy`` or an error-sentinel
     ``decision`` — maps to ``deny`` (fail closed). When ``False`` those paths
     proceed (fail open), preserving the observe / disabled behavior.
+
+    The "delegates everything else" clause is doing more work than it looks:
+    ``record_result`` and ``on_tool_end`` — the adapters' audit hook — delegate to
+    a ``GatewayClient`` that has neither, so neither resolves and the adapters
+    emit **no** audit record for a governed call, allowed or denied. That is
+    declared in :attr:`audit_sink` rather than left to be discovered by reading
+    this class (AAASM-5731).
     """
+
+    # AAASM-5731 — an audit-hook lookup on this object returns None, so the
+    # adapters' getattr guard finds nothing to call and the record is never even
+    # attempted. Declared so init_assembly can surface it and a test can catch a
+    # shipped handler that emits nothing without saying so.
+    audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
 
     def __init__(
         self,
@@ -362,8 +376,12 @@ class _FailClosedInterceptor:
     control) but the runtime socket could not be connected, meaning no
     authoritative verdict can be obtained. Under ``enforce`` this must block
     every tool rather than silently allow it (AAASM-3106). Non-check attributes
-    delegate to the wrapped ``GatewayClient`` so event reporting still works.
+    delegate to the wrapped ``GatewayClient``, whose surface carries no audit hook
+    — so a call denied here produces no audit record either (see
+    :attr:`audit_sink`, AAASM-5731).
     """
+
+    audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
 
     def __init__(self, client: Any, reason: str) -> None:
         self._client = client
