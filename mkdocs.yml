@@ -4,8 +4,8 @@ site_url: https://docs.agent-assembly.com/python-sdk/
 site_author: Agent Assembly Team
 site_description: >-
   Python SDK for AI Agent Assembly — a governance-native runtime for AI agents.
-  Wire framework adapters, enforce policy on tool calls, and emit audit events
-  with one init_assembly() call.
+  Wire framework adapters and enforce policy on tool calls with one
+  init_assembly() call.
 
 # Repository
 repo_name: ai-agent-assembly/python-sdk

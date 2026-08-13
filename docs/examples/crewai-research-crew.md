@@ -177,7 +177,7 @@ Running crew delegation trajectory:
     → write_file({"path": "report.md"})
        ❌ BLOCKED  — Approval for 'write_file' by 'critic' was rejected — the crew may not persist files without sign-off.
 
-Delegation-aware audit events recorded this run:
+Delegation-aware audit events recorded this run (by the demo's own handler — the SDK layer produces none, AAASM-5731):
 ----------------------------------------------
   ✅ allow web_search      chain: researcher → web_search
   ✅ allow web_search      chain: researcher → web_search

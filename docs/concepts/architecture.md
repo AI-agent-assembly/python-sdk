@@ -102,7 +102,7 @@ For most contributors, this is unnecessary — the pure-Python SDK is the defaul
 2. **Create the gateway client** — pure-Python `GatewayClient` by default. If `mode != "sdk-only"` and the native extension is available, the assembly may switch to the Rust `RuntimeClient` (transparent to the caller).
 3. **Discover adapters** via `AdapterRegistry.get_available_adapters_by_priority()`. Adapters whose underlying framework is not importable are silently skipped — no warning noise.
 4. **Install hooks** by calling `adapter.register_hooks(interceptor)` for each available adapter, in priority order. Each adapter records the patches it owns so they can be reverted in step 9.
-5. **Start the network layer** (the side-channel that streams audit events to the gateway). For `mode="ebpf"` and `mode="proxy"`, this is where the network sidecar handshake happens.
+5. **Start the network layer.** This is the seam reserved for the sidecar handshake under `mode="ebpf"` / `mode="proxy"`; in this SDK all three branches currently return a no-op shutdown and start nothing, so no side-channel streams audit events from here (AAASM-5731).
 6. **Register the active context** in a process-global slot under a lock — `init_assembly()` is idempotent within a process: a second call returns the active context unchanged rather than double-installing hooks.
 7. Return the [`AssemblyContext`](../api-reference/index.md) to the caller.
 
@@ -110,7 +110,7 @@ For most contributors, this is unnecessary — the pure-Python SDK is the defaul
 
 The returned `AssemblyContext` doubles as a context manager (`__enter__` / `__exit__`). On `shutdown()`:
 
-8. **Stop the network layer** — flush in-flight audit events.
+8. **Stop the network layer** — a no-op today, matching step 5; there are no in-flight audit events to flush.
 9. **`unregister_hooks()` on every adapter, in reverse install order** — guarantees that nested patches (e.g. LangGraph wrapping LangChain) come off in the order opposite to install.
 10. **Close the gateway client** — drain the HTTP keep-alive pool.
 11. **Clear the process-global active-context slot** — the next `init_assembly()` call starts clean.
