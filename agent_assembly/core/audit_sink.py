@@ -65,6 +65,14 @@ The **absence of a claim, not an assurance** that the record is retained. An
 if the caller's own handler actually keeps what it is given.
 """
 
+AUDIT_HOOK_NAMES = ("record_result", "on_tool_end")
+"""The audit hooks the adapters look up, in the order they look them up.
+
+Defined here so the interceptors, the tests and the adapters cannot drift apart
+on what counts as "the audit hook" — a drift that would make every
+:data:`AUDIT_SINK_ABSENT` declaration below unfalsifiable.
+"""
+
 AUDIT_SINK_ATTRIBUTE = "audit_sink"
 """Attribute name a handler declares its disposition under.
 
@@ -74,6 +82,33 @@ registration would break every caller-supplied handler that works today.
 """
 
 _VALID_DISPOSITIONS = frozenset(get_args(AuditSinkDisposition.__value__))
+
+
+def resolve_delegated_audit_sink(delegate: Any) -> AuditSinkDisposition:
+    """Disposition of an interceptor that delegates its audit hooks to ``delegate``.
+
+    Computed rather than fixed, because it genuinely depends on what is wrapped.
+    Review of AAASM-5731's PR measured the cost of hard-coding it: with a
+    caller-supplied client whose ``record_result`` resolves,
+    ``RuntimeQueryInterceptor`` still reported :data:`AUDIT_SINK_ABSENT` — a false
+    ``absent``, contradicting the very hook the adapters would have called.
+
+    Two branches, both honest:
+
+    * no hook resolves on ``delegate`` — nothing can be attempted through this
+      interceptor either, so :data:`AUDIT_SINK_ABSENT`;
+    * a hook resolves — this SDK ships no client that has one, so the hook came
+      from the caller and this SDK makes no claim about it:
+      :data:`AUDIT_SINK_CALLER_SUPPLIED`.
+
+    Note the failure direction if this is ever wrong: it under-claims. Reporting
+    ``caller-supplied`` where a record is in fact dropped withholds a claim; the
+    reverse — reporting retention where there is none — is the defect this whole
+    type exists to prevent, and this function cannot produce it.
+    """
+    if any(callable(getattr(delegate, hook, None)) for hook in AUDIT_HOOK_NAMES):
+        return AUDIT_SINK_CALLER_SUPPLIED
+    return AUDIT_SINK_ABSENT
 
 
 def resolve_audit_sink(handler: Any) -> AuditSinkDisposition:

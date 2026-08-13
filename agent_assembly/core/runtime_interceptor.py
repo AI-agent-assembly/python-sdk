@@ -43,7 +43,7 @@ import warnings
 from importlib import metadata
 from typing import Any
 
-from agent_assembly.core.audit_sink import AUDIT_SINK_ABSENT, AuditSinkDisposition
+from agent_assembly.core.audit_sink import AuditSinkDisposition, resolve_delegated_audit_sink
 from agent_assembly.exceptions import OpTerminatedError
 
 ENV_RUNTIME_SOCKET = "AA_RUNTIME_SOCKET"
@@ -237,11 +237,20 @@ class RuntimeQueryInterceptor:
     this class (AAASM-5731).
     """
 
-    # AAASM-5731 — an audit-hook lookup on this object returns None, so the
-    # adapters' getattr guard finds nothing to call and the record is never even
-    # attempted. Declared so init_assembly can surface it and a test can catch a
-    # shipped handler that emits nothing without saying so.
-    audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
+    @property
+    def audit_sink(self) -> AuditSinkDisposition:
+        """What this interceptor does with the audit record (AAASM-5731).
+
+        Computed from the wrapped client rather than fixed, because this class
+        owns no audit hook of its own — ``__getattr__`` hands both names
+        straight to the client, so the client's surface *is* the answer. With
+        the ``GatewayClient`` this SDK builds, neither resolves and the record is
+        never attempted; with a caller-supplied client that has one, this SDK
+        makes no claim. Declared on this class rather than inherited through
+        ``__getattr__`` so a test can require the interceptor to speak for
+        itself.
+        """
+        return resolve_delegated_audit_sink(self._client)
 
     def __init__(
         self,
@@ -381,7 +390,10 @@ class _FailClosedInterceptor:
     :attr:`audit_sink`, AAASM-5731).
     """
 
-    audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
+    @property
+    def audit_sink(self) -> AuditSinkDisposition:
+        """See :attr:`RuntimeQueryInterceptor.audit_sink` — same delegation, same answer."""
+        return resolve_delegated_audit_sink(self._client)
 
     def __init__(self, client: Any, reason: str) -> None:
         self._client = client
