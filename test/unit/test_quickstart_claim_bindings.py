@@ -141,6 +141,19 @@ _STRUCTURAL_LINE = re.compile(r'^===\s+"[^"]*"$')
 #: the live Go case used "but". Controls for both are in the test below.
 _CONTRASTIVE_CONJUNCTION = re.compile(r"(?i)\s(?:but|because|though|although|however|whereas|while)\s")
 
+#: "so" is handled separately, because the risk it carries is not
+#: adversativeness but POLARITY CHANGE. "We don't do X but Y" is a concession;
+#: "we don't do X so Y covers it" is a REASSURANCE, and reassurance is the
+#: register documentation over-claims in. A negated clause followed by an
+#: un-negated one is the shape that hides an affirmative capability claim
+#: behind a limitation.
+#:
+#: Flagging "so" flat would catch six live sentences across the three repos,
+#: every one of which turns the way it started. This form catches none of them
+#: and still catches the payload, which is the only negative-to-positive case.
+_NEGATION = re.compile(r"(?i)\b(?:not|no|never|cannot|can't|without)\b")
+_SO = re.compile(r"(?i)\sso\s")
+
 #: A justification must be at least this long. Not a real check — no gate can
 #: tell a justification from noise — but it makes reason="x" visible.
 _MIN_JUSTIFICATION = 40
@@ -758,6 +771,32 @@ class TestTheAllowListCannotBecomeABypass:
             "may be an affirmative capability claim riding along under the justification:\n"
             + "\n".join(f"  {s!r}" for s in offenders)
             + "\nSplit the affirmative clause into its own sentence and bind it to the controls "
+            "that prove it."
+        )
+
+    def test_no_allow_listed_sentence_reassures_across_a_negation(self) -> None:
+        """A negated clause followed by an un-negated one, joined by "so".
+
+        "Network-layer interception is not enabled by default, so the in-process
+        adapter verifies every outbound request before it leaves the host
+        instead." reads as a limitation and asserts a capability the product
+        does not have. The contrastive list above does not catch it, because
+        "so" is not adversative — it is the reassurance that follows a denial,
+        which is precisely where an unbacked claim hides.
+        """
+        offenders = []
+        for sentence in _ALLOWED:
+            for match in _SO.finditer(sentence):
+                before, after = sentence[: match.start()], sentence[match.end() :]
+                if _NEGATION.search(before) and not _NEGATION.search(after):
+                    offenders.append(sentence)
+                    break
+        assert not offenders, (
+            'These allow-listed sentences negate something and then say "so ..." without a '
+            "second negation — the shape of a limitation followed by a reassurance, where the "
+            "reassurance may be an unbacked capability claim:\n"
+            + "\n".join(f"  {s!r}" for s in offenders)
+            + '\nSplit the clause after "so" into its own sentence and bind it to the controls '
             "that prove it."
         )
 
