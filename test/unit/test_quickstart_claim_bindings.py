@@ -108,10 +108,38 @@ _ENFORCEMENT_VOCABULARY = re.compile(
 #: enforcement vocabulary, which is backwards: the sentences that most need
 #: explaining are the ones that EVADE the vocabulary, since evading it is the
 #: whole reason the scan was inverted.
-_STRUCTURAL = "Structurally non-prose: a tab label, table row, migration import pair, or bare link-list item."
+_STRUCTURAL = "Structurally non-prose: a bare mkdocs tab label, which renders as a tab caption and carries no sentence."
 
 #: Lines that may use the bare constant.
-_STRUCTURAL_LINE = re.compile(r"^===\s|^\||^-?\s*(?:Before|After)\s*\(|^Sources?:\s*\[|^\*\*\[|^\[")
+#:
+#: Fully anchored, and deliberately narrow. The previous pattern asked whether
+#: a sentence STARTED with structure, not whether it was ONLY structure — so a
+#: link item, a table row or a bold link was waved through on its first few
+#: characters while its anchor text, which a reader sees as prose, went
+#: unexamined. A payload as plain as
+#:   [Every tool request is permitted to proceed and its outcome captured](x.md)
+#: passed. Only a bare tab label qualifies now; everything else is justified.
+_STRUCTURAL_LINE = re.compile(r'^===\s+"[^"]*"$')
+
+#: A sentence that turns mid-way can under-claim and over-claim at once:
+#: "Network-layer interception is not enabled by default, because the in-process
+#: adapter already verifies every outbound request before it leaves the host."
+#: The first clause is a limitation; the second is a fabrication riding along
+#: under it. Rather than judge each case, the shape is rejected: an allow-listed
+#: sentence may not contain a contrastive conjunction. It costs nothing on
+#: genuine non-claims, because a sentence containing " but " should be split
+#: regardless of what its justification says.
+#:
+#: Applied to EVERY entry, not only ones whose justification calls itself a
+#: disclaimer. Keying off a marker phrase made the rule opt-in by the author it
+#: constrains — capitalising the phrase, or omitting it, evaded the check.
+#: "so" is deliberately NOT in this list. It is consequential ("therefore"),
+#: not adversative, and both sentences it flagged here — "…against a local
+#: policy, so you can try it with no API keys" and "…bundles the binary, so a
+#: local gateway is available" — turn in the same direction they started.
+#: Both attack payloads are still caught: the reviewer's used "because" and
+#: the live Go case used "but". Controls for both are in the test below.
+_CONTRASTIVE_CONJUNCTION = re.compile(r"(?i)\s(?:but|because|though|although|however|whereas|while)\s")
 
 #: A justification must be at least this long. Not a real check — no gate can
 #: tell a justification from noise — but it makes reason="x" visible.
@@ -375,16 +403,28 @@ _ALLOWED: dict[str, str] = {
     '!!! note "Version compatibility" Agno was previously published as **Phidata**; the rename replaced every `phi.*` import with `agno.*`.': (
         "Third-party framework rename note, for Agno."
     ),
-    "Before (Phidata): `from phi.agent import Agent`": _STRUCTURAL,
-    "After (Agno): `from agno.agent import Agent`": _STRUCTURAL,
-    "Source: [Agno's official Phidata → Agno migration guide](https://docs.agno.com/how-to/phidata-to-agno).": _STRUCTURAL,
+    "Before (Phidata): `from phi.agent import Agent`": (
+        "The pre-rename Agno import, shown as the before half of a two-line pair."
+    ),
+    "After (Agno): `from agno.agent import Agent`": (
+        "The post-rename Agno import, shown as the after half of a two-line pair."
+    ),
+    "Source: [Agno's official Phidata → Agno migration guide](https://docs.agno.com/how-to/phidata-to-agno).": (
+        "Attribution for the Agno rename note, linking that framework's own migration guide."
+    ),
     '=== "AutoGen"': _STRUCTURAL,
     "!!! note \"Version compatibility\" AutoGen's `v0.4` rewrite (2024) replaced the single `pyautogen` package's `autogen.agentchat` namespace with separate `autogen-agentchat` / `autogen-core` / `autogen-ext` packages, and `llm_config` with an explicit `model_client`.": (
         "Third-party framework migration note, for AutoGen v0.2 to v0.4."
     ),
-    "Before (v0.2, `pyautogen`): `from autogen.agentchat import AssistantAgent`": _STRUCTURAL,
-    "After (v0.4+): `from autogen_agentchat.agents import AssistantAgent`": _STRUCTURAL,
-    "Source: [AutoGen's official v0.2 → v0.4 migration guide](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/migration-guide.html).": _STRUCTURAL,
+    "Before (v0.2, `pyautogen`): `from autogen.agentchat import AssistantAgent`": (
+        "The AutoGen v0.2 import, shown as the before half of a two-line pair."
+    ),
+    "After (v0.4+): `from autogen_agentchat.agents import AssistantAgent`": (
+        "The AutoGen v0.4 import, shown as the after half of a two-line pair."
+    ),
+    "Source: [AutoGen's official v0.2 → v0.4 migration guide](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/migration-guide.html).": (
+        "Attribution for the AutoGen rewrite note, linking that framework's own migration guide."
+    ),
     '=== "CrewAI"': _STRUCTURAL,
     '=== "Custom (no framework)"': _STRUCTURAL,
     '=== "Google ADK"': _STRUCTURAL,
@@ -392,27 +432,45 @@ _ALLOWED: dict[str, str] = {
     '!!! note "Version compatibility" Haystack 2.0 replaced the `farm-haystack` package with `haystack-ai` and flattened node imports into `haystack.components.*`; the two package versions cannot coexist in one environment.': (
         "Third-party framework migration note, for Haystack 1.x to 2.x."
     ),
-    "Before (Haystack 1.x, `farm-haystack`): `from haystack.nodes import BM25Retriever`": _STRUCTURAL,
-    "After (Haystack 2.x, `haystack-ai`): `from haystack.components.retrievers.in_memory import InMemoryBM25Retriever`": _STRUCTURAL,
-    "Source: [Haystack's official migration guide](https://docs.haystack.deepset.ai/docs/migration).": _STRUCTURAL,
+    "Before (Haystack 1.x, `farm-haystack`): `from haystack.nodes import BM25Retriever`": (
+        "The Haystack 1.x import, shown as the before half of a two-line pair."
+    ),
+    "After (Haystack 2.x, `haystack-ai`): `from haystack.components.retrievers.in_memory import InMemoryBM25Retriever`": (
+        "The Haystack 2.x import, shown as the after half of a two-line pair."
+    ),
+    "Source: [Haystack's official migration guide](https://docs.haystack.deepset.ai/docs/migration).": (
+        "Attribution for the Haystack packaging note, linking that framework's own migration guide."
+    ),
     '=== "LangChain"': _STRUCTURAL,
     '!!! note "Version compatibility" LangChain\'s import surface moved twice: `langchain-core` split out of `langchain` across the `0.1` → `0.3` series (2024), and the `1.0` rewrite (2025) moved legacy chains/agents/tools out of `langchain` entirely into `langchain-classic`.': (
         "Third-party framework migration note, for LangChain's two import moves."
     ),
-    "Before (`<1.0`): `from langchain.agents import AgentExecutor, create_react_agent`": _STRUCTURAL,
-    "After (`>=1.0`): `from langchain_classic.agents import AgentExecutor, create_react_agent` (requires the separate `langchain-classic` package)": _STRUCTURAL,
+    "Before (`<1.0`): `from langchain.agents import AgentExecutor, create_react_agent`": (
+        "The pre-1.0 LangChain agents import, shown as the before half of a two-line pair."
+    ),
+    "After (`>=1.0`): `from langchain_classic.agents import AgentExecutor, create_react_agent` (requires the separate `langchain-classic` package)": (
+        "The post-1.0 LangChain agents import, naming the extra package it now needs."
+    ),
     "This SDK's own quick-start sample hit exactly this break — see AAASM-4451.": (
         "A historical note recording that this repo was affected by the LangChain break above."
     ),
-    "Sources: [LangChain's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langchain-v1) and the [LangChain v0.3 announcement](https://www.langchain.com/blog/announcing-langchain-v0-3).": _STRUCTURAL,
+    "Sources: [LangChain's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langchain-v1) and the [LangChain v0.3 announcement](https://www.langchain.com/blog/announcing-langchain-v0-3).": (
+        "Attribution for the LangChain note, linking both upstream announcements it draws on."
+    ),
     '=== "LangChain (Research Agent)"': _STRUCTURAL,
     '=== "LangGraph"': _STRUCTURAL,
     '!!! note "Version compatibility" LangGraph `1.0` deprecated `langgraph.prebuilt.create_react_agent` in favor of LangChain\'s own agent constructor.': (
         "Third-party framework deprecation note, for LangGraph 1.0."
     ),
-    "Before (`<1.0`): `from langgraph.prebuilt import create_react_agent`": _STRUCTURAL,
-    "After (`>=1.0`): `from langchain.agents import create_agent`": _STRUCTURAL,
-    "Source: [LangGraph's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langgraph-v1).": _STRUCTURAL,
+    "Before (`<1.0`): `from langgraph.prebuilt import create_react_agent`": (
+        "The pre-1.0 LangGraph prebuilt import, shown as the before half of a two-line pair."
+    ),
+    "After (`>=1.0`): `from langchain.agents import create_agent`": (
+        "The post-1.0 replacement for the LangGraph prebuilt constructor."
+    ),
+    "Source: [LangGraph's official v1 migration guide](https://docs.langchain.com/oss/python/migrate/langgraph-v1).": (
+        "Attribution for the LangGraph deprecation note, linking that project's own migration guide."
+    ),
     '=== "LlamaIndex"': _STRUCTURAL,
     '!!! note "Version compatibility" LlamaIndex `v0.10.0` (February 2024) split the monolithic `llama_index` package into a slim `llama-index-core` plus versioned per-provider packages (`llama-index-llms-openai`, etc.).': (
         "Third-party framework packaging-split note, for LlamaIndex v0.10."
@@ -420,9 +478,15 @@ _ALLOWED: dict[str, str] = {
     "An automated `llamaindex-cli upgrade` tool is provided for the migration.": (
         "Names the upstream tool that performs the LlamaIndex migration described above."
     ),
-    "Before (`<0.10`): `from llama_index.llms import OpenAI`": _STRUCTURAL,
-    "After (`>=0.10`): `from llama_index.llms.openai import OpenAI` (from the separate `llama-index-llms-openai` package)": _STRUCTURAL,
-    "Source: [LlamaIndex's official v0.10 migration guide](https://www.llamaindex.ai/blog/llamaindex-v0-10-838e735948f8).": _STRUCTURAL,
+    "Before (`<0.10`): `from llama_index.llms import OpenAI`": (
+        "The pre-0.10 LlamaIndex LLM import, shown as the before half of a two-line pair."
+    ),
+    "After (`>=0.10`): `from llama_index.llms.openai import OpenAI` (from the separate `llama-index-llms-openai` package)": (
+        "The post-0.10 LlamaIndex LLM import, naming the provider package it moved into."
+    ),
+    "Source: [LlamaIndex's official v0.10 migration guide](https://www.llamaindex.ai/blog/llamaindex-v0-10-838e735948f8).": (
+        "Attribution for the LlamaIndex split note, linking that project's own release post."
+    ),
     '=== "Microsoft Agent Framework"': _STRUCTURAL,
     '=== "OpenAI Agents SDK"': _STRUCTURAL,
     '=== "Pydantic AI"': _STRUCTURAL,
@@ -431,9 +495,15 @@ _ALLOWED: dict[str, str] = {
     '!!! note "Version compatibility" smolagents `v1.14.0` (April 2025) renamed `HfApiModel` to `InferenceClientModel` to reflect that it wraps any Hugging Face Inference Provider, not just the HF Hub; backward-compatible re-export was restored in `v1.24.0`.': (
         "Third-party framework rename note, for smolagents v1.14 and its v1.24 re-export."
     ),
-    "Before (`<1.14`): `from smolagents import HfApiModel`": _STRUCTURAL,
-    "After (`>=1.14`): `from smolagents import InferenceClientModel`": _STRUCTURAL,
-    "Source: [smolagents releases](https://github.com/huggingface/smolagents/releases).": _STRUCTURAL,
+    "Before (`<1.14`): `from smolagents import HfApiModel`": (
+        "The pre-1.14 smolagents model import, shown as the before half of a two-line pair."
+    ),
+    "After (`>=1.14`): `from smolagents import InferenceClientModel`": (
+        "The post-1.14 smolagents model import, after the class was renamed."
+    ),
+    "Source: [smolagents releases](https://github.com/huggingface/smolagents/releases).": (
+        "Attribution for the smolagents rename note, linking that project's release list."
+    ),
     '=== "Strands Agents"': _STRUCTURAL,
     '**`mode="sdk-only"` kept it offline.**': (
         "The bold label of a bullet, claiming only that no network was used. The enforcement half of the bullet is the next sentence, which is bound to the deny controls."
@@ -447,9 +517,15 @@ _ALLOWED: dict[str, str] = {
     "It's the most portable mode and the best choice for deterministic, offline examples and tests.": (
         "A recommendation about which mode to pick for examples. A preference, not a capability."
     ),
-    "**[Core Concepts](concepts/index.md)** — the adapter pattern, the `init_assembly()` lifecycle, and the modes/enforcement model.": _STRUCTURAL,
-    "**[Examples](examples/index.md)** — wire the SDK into the framework you actually use.": _STRUCTURAL,
-    "**[Configuration](configuration.md)** — drop the hard-coded URL and key; let the resolver chain find them.": _STRUCTURAL,
+    "**[Core Concepts](concepts/index.md)** — the adapter pattern, the `init_assembly()` lifecycle, and the modes/enforcement model.": (
+        "A Next-steps link item. Its anchor text lists topics covered elsewhere; the claims live on the Core Concepts page and are gated there."
+    ),
+    "**[Examples](examples/index.md)** — wire the SDK into the framework you actually use.": (
+        "A Next-steps link item pointing at the examples index. An invitation to read further, asserting nothing about enforcement."
+    ),
+    "**[Configuration](configuration.md)** — drop the hard-coded URL and key; let the resolver chain find them.": (
+        "A Next-steps link item about configuration ergonomics: where the URL and key come from, not what governance does."
+    ),
 }
 
 
@@ -667,6 +743,22 @@ class TestTheAllowListCannotBecomeABypass:
             "_STRUCTURAL constant:\n" + "\n".join(f"  {s!r}" for s in offenders) + "\n"
             "Replace it with a written justification saying why this particular sentence makes "
             "no capability claim, or bind it."
+        )
+
+    def test_no_allow_listed_sentence_turns_mid_way(self) -> None:
+        """An allow-listed sentence may not contain a contrastive conjunction.
+
+        A sentence can under-claim and over-claim at once, and a justification
+        arguing "this only says what the product does NOT do" cannot be trusted
+        for one that turns. Split the affirmative clause out and bind it.
+        """
+        offenders = {sentence for sentence in _ALLOWED if _CONTRASTIVE_CONJUNCTION.search(sentence)}
+        assert not offenders, (
+            "These allow-listed sentences contain a contrastive conjunction, so part of each "
+            "may be an affirmative capability claim riding along under the justification:\n"
+            + "\n".join(f"  {s!r}" for s in offenders)
+            + "\nSplit the affirmative clause into its own sentence and bind it to the controls "
+            "that prove it."
         )
 
     def test_written_justifications_are_substantial_and_distinct(self) -> None:
