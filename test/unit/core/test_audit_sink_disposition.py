@@ -186,6 +186,43 @@ def _shipped_handler_matrix(http_crossings: list[str]) -> dict[str, Any]:
     return handlers
 
 
+def _declares_on_its_own_class(handler: object) -> bool:
+    """Whether ``audit_sink`` is declared in the handler's own MRO.
+
+    ``getattr`` cannot answer this: every interceptor here defines ``__getattr__``
+    and would happily forward the lookup to the wrapped client, which is exactly
+    the hole this closes. A class-dictionary walk is consulted instead, because
+    instance ``__getattr__`` is not invoked for attributes found on the class.
+    """
+    return any("audit_sink" in klass.__dict__ for klass in type(handler).__mro__ if klass is not object)
+
+
+def test_the_declaration_probe_can_tell_delegation_from_declaration() -> None:
+    """Control for _declares_on_its_own_class, which the gate's verdict rests on.
+
+    Without it, a probe that returned True unconditionally would make the gate
+    above pass for every handler, including one that only delegates.
+    """
+
+    class _Delegating:
+        def __init__(self, inner: object) -> None:
+            self._inner = inner
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._inner, name)
+
+    class _Declaring:
+        audit_sink = AUDIT_SINK_ABSENT
+
+    declaring = _Declaring()
+    delegating = _Delegating(declaring)
+
+    # The delegating object answers the same value, and must still be rejected.
+    assert getattr(delegating, "audit_sink", None) == AUDIT_SINK_ABSENT
+    assert _declares_on_its_own_class(declaring) is True
+    assert _declares_on_its_own_class(delegating) is False
+
+
 def test_every_shipped_governance_handler_declares_its_audit_sink() -> None:
     handlers = _shipped_handler_matrix([])
 
@@ -197,10 +234,24 @@ def test_every_shipped_governance_handler_declares_its_audit_sink() -> None:
         "the branches it is supposed to, so its verdict proves nothing"
     )
 
+    # Every handler must declare on ITS OWN class, not inherit an answer through
+    # __getattr__. Review of #315 measured why: deleting audit_sink from
+    # RuntimeQueryInterceptor left __getattr__ answering from GatewayClient and
+    # all eight tests passed, so the interceptor was never required to speak for
+    # itself — and a fourth interceptor that delegates would inherit "absent"
+    # silently even if its own hook resolved.
+    silent = [label for label, handler in handlers.items() if not _declares_on_its_own_class(handler)]
+    assert not silent, (
+        f"handler(s) {silent} do not declare 'audit_sink' anywhere in their own MRO; "
+        "they answer only by delegation, so the gate would pass a handler that never "
+        "says what it does with the record (AAASM-5731)"
+    )
+
     undeclared = [
         label
         for label, handler in handlers.items()
-        if getattr(handler, "audit_sink", None) not in {AUDIT_SINK_ABSENT, AUDIT_SINK_DISCARDED}
+        if getattr(handler, "audit_sink", None)
+        not in {AUDIT_SINK_ABSENT, AUDIT_SINK_DISCARDED, AUDIT_SINK_CALLER_SUPPLIED}
     ]
     assert not undeclared, (
         f"handler(s) {undeclared} are shipped without declaring what they do with the "
@@ -285,6 +336,46 @@ def test_a_handler_that_records_does_reach_the_probe() -> None:
     # This SDK must claim nothing about a handler it did not build, in either
     # direction — including one that plainly records.
     assert resolve_audit_sink(handler) == AUDIT_SINK_CALLER_SUPPLIED
+
+
+def test_a_caller_supplied_recording_client_is_not_reported_as_absent() -> None:
+    """A false ``absent`` is a claim about the caller's code that this SDK cannot make.
+
+    ``RuntimeQueryInterceptor`` owns no audit hook — ``__getattr__`` hands both
+    names to the wrapped client — so its disposition is the client's. When it was
+    a fixed class attribute, a caller-supplied client whose ``record_result``
+    resolves still reported ``absent``, contradicting the very hook the adapters
+    would have called, and the LangChain handler on top compounded it to
+    ``discarded``.
+
+    The direction of the old error matters and is why this is a correctness fix
+    rather than a severity one: it under-claimed. It never reported retention
+    where there was none.
+    """
+    http_crossings: list[str] = []
+
+    class _RecordingClient(GatewayClient):
+        def record_result(self, **_kwargs: Any) -> None:
+            return None
+
+    client = _RecordingClient(_GW_URL, _AGENT_ID, api_key=_API_KEY)
+    client._client = httpx.Client(base_url=client.gateway_url, transport=_RecordingTransport(http_crossings))
+    interceptor = build_governance_interceptor(
+        client, _AGENT_ID, None, runtime_client=_RecordingRuntimeClient(), native_available=True
+    )
+
+    # Precondition: the hook really does resolve through the delegation, or this
+    # test is asserting about a situation that cannot arise.
+    assert callable(getattr(interceptor, "record_result", None))
+
+    assert resolve_audit_sink(interceptor) == AUDIT_SINK_CALLER_SUPPLIED
+    assert resolve_audit_sink(AssemblyCallbackHandler(interceptor)) == AUDIT_SINK_CALLER_SUPPLIED
+
+    # Control on the same shapes: the client this SDK actually ships still reads
+    # 'absent', so the fix did not simply stop reporting the real gap.
+    shipped = _shipped_interceptor(_RecordingRuntimeClient(), http_crossings)
+    assert resolve_audit_sink(shipped) == AUDIT_SINK_ABSENT
+    assert resolve_audit_sink(AssemblyCallbackHandler(shipped)) == AUDIT_SINK_DISCARDED
 
 
 def test_the_langchain_handler_resolves_the_hook_and_still_drops_the_record() -> None:
