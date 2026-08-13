@@ -7,6 +7,12 @@ from collections.abc import Mapping
 from typing import Any, Literal, cast
 from uuid import UUID
 
+from agent_assembly.core.audit_sink import (
+    AUDIT_SINK_ABSENT,
+    AUDIT_SINK_DISCARDED,
+    AuditSinkDisposition,
+    resolve_audit_sink,
+)
 from agent_assembly.exceptions import ToolExecutionBlockedError
 
 _KNOWN_STATUSES: frozenset[str] = frozenset({"allow", "deny", "pending"})
@@ -44,6 +50,26 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
 
     def __init__(self, interceptor: Any) -> None:
         self._interceptor = interceptor
+
+    @property
+    def audit_sink(self) -> AuditSinkDisposition:
+        """What this handler does with the hook-layer audit record (AAASM-5731).
+
+        Computed rather than declared, because it genuinely depends on what is
+        wrapped, and this handler sits on the *other* side of the split from the
+        interceptors it wraps. ``on_tool_end`` is defined here, so the adapters'
+        audit-hook lookup **does** resolve on this object — the record is built
+        and handed over. It is then forwarded to the interceptor's own
+        ``on_tool_end``, and on every interceptor this SDK ships there is none,
+        so the record stops here: accepted and dropped, which is ``discarded``,
+        not ``absent``.
+
+        A caller-supplied interceptor that really records is reported as such:
+        this SDK does not claim anything about a handler it did not build, in
+        either direction.
+        """
+        wrapped = resolve_audit_sink(self._interceptor)
+        return AUDIT_SINK_DISCARDED if wrapped == AUDIT_SINK_ABSENT else wrapped
 
     def __getattr__(self, name: str) -> Any:
         """Delegate any attribute this handler does not define to the interceptor.
