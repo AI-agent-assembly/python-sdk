@@ -2,30 +2,37 @@
 
 AAASM-5529, Epic AAASM-5526.
 
-``docs/quick-start.md`` §"What just happened" is where the Python quick-start
-tells a reader what governance did for them. Those sentences are the product's
-load-bearing enforcement claims, and until now nothing connected them to the
-negative controls in :mod:`test.unit.test_quickstart_negative_control`. A claim
-could be added, reworded or left standing after the behaviour beneath it changed,
-and no gate would notice.
+``docs/quick-start.md`` tells a reader what governance did for them. Those
+sentences are the product's load-bearing enforcement claims, and until now
+nothing connected them to the negative controls in
+:mod:`test.unit.test_quickstart_negative_control`. A claim could be added,
+reworded, or left standing after the behaviour beneath it changed, and no gate
+would notice.
 
 What this gate proves
 ---------------------
 
-#. **Every enforcement claim in the section is bound to a named control.** The
-   claim list is parsed out of the document, so adding a fifth numbered claim
-   without registering a binding for it fails here rather than shipping an
-   unbacked sentence.
-#. **Every binding still describes the document.** Each binding quotes the
-   load-bearing fragment of its claim; rewording the sentence in the document
-   breaks the quote and fails.
-#. **Every control a binding names still exists.** The control names are
-   extracted from the negative-control module's AST, not transcribed, so
-   renaming or deleting a control fails here.
-#. **Every SDK symbol the section names is real.** The symbol is imported and
-   its ``__name__`` compared, so renaming ``ToolExecutionBlockedError`` in the
-   SDK fails here instead of leaving the documentation pointing at a class that
-   no longer exists.
+#. **The whole document is scanned, not an opted-in section.** Every sentence
+   that uses enforcement vocabulary anywhere in the quick-start must be bound.
+   Regions and sentences may be excluded only through the two named allow-lists
+   below, each entry carrying a reason and an exact sentence — so an allow-list
+   entry cannot cover a reworded or newly added claim.
+#. **A binding must match a whole sentence, exactly.** ``quote`` is compared
+   with ``==`` against the flattened sentence, never with ``in``. Substring
+   containment let a sentence carry unlimited extra unbound claims — including
+   its own negation — as long as one bound fragment survived, which is the
+   defect this revision exists to close.
+#. **Exactly one binding may match a sentence,** so two bindings cannot quietly
+   split responsibility for one claim and leave neither owning it.
+#. **Every control a binding names still exists.** Control names are extracted
+   from the negative-control module's AST, not transcribed, so renaming or
+   deleting one fails here.
+#. **Every claim is proven or openly unproven.** There is no claim category
+   exempt from that: a binding names controls, or names a ticket. The former
+   ``kind`` field was removed because it was a one-word bypass — relabelling a
+   claim as lifecycle disabled the requirement entirely.
+#. **Every SDK symbol the document names is real,** resolved lazily so a rename
+   fails on the assertion rather than aborting collection.
 
 What this gate does **not** prove
 ---------------------------------
@@ -35,13 +42,13 @@ a vendored, verbatim copy of regions from the ``examples`` repository
 (``ruff.toml`` excludes it for this reason), and the snippets are partial
 governance slices that reference names they never define — ``gateway_url``,
 ``api_key``, ``src.policy`` — so they are not importable modules. The existing
-``quickstart-tabs-check`` workflow round-trips them as *text*, asserting only
-that the generated document matches the vendored copy. Neither that gate nor
+``quickstart-tabs-check`` drift job round-trips them as *text*, asserting only
+that the generated document matches the vendored copy. Neither that job nor
 this one type-checks, imports or runs a snippet.
 
 Nor does binding a claim make the claim *true*. A binding records which control
-stands behind a sentence; where no control does, the binding must say so and
-name the ticket, which is the state claim 1 is in today (AAASM-5661).
+stands behind a sentence; where none does, the binding must say so and name the
+ticket.
 """
 
 from __future__ import annotations
@@ -58,23 +65,43 @@ import pytest
 # attribute name, rather than imported here. Importing them at module scope
 # makes a rename a *collection* error, which aborts before
 # test_named_sdk_symbols_resolve_to_that_name can run — leaving the assertion
-# that is supposed to catch the rename permanently unexercised. That is the
-# same inverted-order defect the round-1 review of this ticket found in all
-# three SDKs, and it is invisible unless you mutate and watch which line fails.
+# that is supposed to catch the rename permanently unexercised.
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _QUICK_START = _REPO_ROOT / "docs" / "quick-start.md"
 _NEGATIVE_CONTROL = Path(__file__).with_name("test_quickstart_negative_control.py")
 
-_SECTION_HEADING = "## What just happened"
+#: Sentences using any of these make a claim about what governance does. Kept
+#: deliberately wide: a narrow vocabulary is itself a bypass, because a new
+#: enforcement paragraph phrased around it is not treated as a claim at all.
+_ENFORCEMENT_VOCABULARY = re.compile(
+    r"(?i)\bdenie[sd]\b|\bdeny\b|\bblocked\b|\bblocking\b|\bnever runs?\b"
+    r"|\bbefore execution\b|\bchecked against\b|\benforces?\b|\benforced\b"
+    r"|\bpassthrough\b|\bdiscards?\b|\bdiscarded\b|\bthrows?\b|\brejects?\b"
+    r"|\brouted\b|\bintercepts?\b|\binterception\b|\bgoverned\b|\bverified\b"
+    r"|\bprotection\b|\bunprotected\b|\bbypass(ed|es)?\b"
+)
 
-#: Claims that assert governance acted on a tool call. These are the ones the
-#: Epic exists for, and the ones a binding must back with a control.
-ENFORCEMENT = "enforcement"
-#: Claims about setup or teardown. They are still bound, so the parser's
-#: completeness check cannot be satisfied by silently dropping one, but they do
-#: not require an enforcement control.
-LIFECYCLE = "lifecycle"
+#: Whole sections excluded from the scan, each with the reason. Keyed by the
+#: exact heading line.
+_EXCLUDED_SECTIONS: dict[str, str] = {
+    "## Next steps": (
+        "A link list. Every line is a cross-reference to another page; the "
+        "claims themselves live on the pages linked to and are gated there."
+    ),
+}
+
+#: Individual sentences excluded from the scan, each with the reason. These are
+#: exact flattened sentences, never patterns, so an entry cannot silently cover
+#: a reworded or newly added claim — changing the sentence makes the entry stale
+#: and test_every_excluded_sentence_is_still_present_verbatim fails.
+_EXCLUDED_SENTENCES: dict[str, str] = {
+    "See [Handling allow/deny decisions](guides/handling-decisions.md) for how to catch and respond to "
+    "those, and [Troubleshooting](troubleshooting.md) if `init_assembly()` itself raised.": (
+        "Navigational cross-reference. It makes no capability claim of its "
+        "own; it matches the vocabulary only through the linked page's title."
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -82,130 +109,157 @@ class ClaimBinding:
     """One documented claim and the controls that stand behind it."""
 
     claim_id: str
-    kind: str
-    #: A verbatim fragment of the claim as it appears in the document, with
-    #: newlines collapsed. Rewording the document breaks this.
+    #: The claim as a WHOLE sentence, flattened. Compared with ==, not `in`.
     quote: str
     #: ``ClassName::test_name`` node ids in the negative-control module.
     controls: tuple[str, ...] = ()
     #: Set when no control proves the claim. Must name the ticket that tracks it.
     unproven_reason: str = ""
     #: Backticked SDK identifiers the claim names, mapped to the module they
-    #: must be importable from. Resolved lazily — see the note at the top.
+    #: must be importable from. Resolved lazily.
     symbols: dict[str, str] = field(default_factory=dict)
 
 
+_DENY_CONTROLS = (
+    "TestFilesystemSideEffect::test_negative_control_denied_write_leaves_no_file",
+    "TestNetworkSideEffect::test_negative_control_denied_egress_never_reaches_the_listener",
+)
+_ALLOW_AND_DENY_CONTROLS = (
+    "TestFilesystemSideEffect::test_positive_control_allowed_write_creates_the_file",
+    "TestFilesystemSideEffect::test_negative_control_denied_write_leaves_no_file",
+    "TestNetworkSideEffect::test_positive_control_allowed_egress_reaches_the_listener",
+    "TestNetworkSideEffect::test_negative_control_denied_egress_never_reaches_the_listener",
+)
+
 BINDINGS: tuple[ClaimBinding, ...] = (
     ClaimBinding(
-        claim_id="init-routes-every-tool-call",
-        kind=ENFORCEMENT,
-        quote="every tool call from this point on is routed",
-        # Deliberately unbacked. AAASM-5661 measured the documented
-        # configuration and found this sentence overstates it: the controls in
-        # the negative-control module all call install_fake_core(), supplying an
-        # authoritative runtime the documented configuration does not have, so
-        # they are structurally incapable of proving a claim about the
-        # documented path. Binding it to one of them would launder that gap into
-        # evidence. The honest state is a named, ticketed absence.
+        claim_id="gateway-returns-allow-deny-decisions",
+        quote=("`init_assembly()` needs to reach a **gateway** — the policy brain that returns allow/deny decisions."),
+        # AAASM-5661 measured the documented configuration: it reaches no
+        # gateway and installs a deny-all fail-closed interceptor instead. No
+        # control covers the documented path, because every control here
+        # supplies a fake native core the documented path does not have.
         unproven_reason=(
-            "AAASM-5661: the documented configuration was measured and no control "
-            "covers it. Every control in test_quickstart_negative_control.py "
-            "installs a fake native core, which the documented path does not have."
+            "AAASM-5661: the documented configuration was measured and reaches no gateway. "
+            "Every control in test_quickstart_negative_control.py installs a fake native "
+            "core, so none of them exercises the path this sentence describes."
+        ),
+    ),
+    ClaimBinding(
+        claim_id="init-routes-every-tool-call",
+        quote=(
+            "**`init_assembly()` wired in governance.** It registered the agent with the gateway "
+            "and auto-loaded the adapter for your framework — every tool call from this point on "
+            "is routed through the policy gate."
+        ),
+        unproven_reason=(
+            "AAASM-5661: measured false for the documented configuration. Binding this to a "
+            "control that installs a fake native core would launder that gap into evidence."
         ),
     ),
     ClaimBinding(
         claim_id="sdk-only-enforces-on-tool-calls",
-        kind=ENFORCEMENT,
-        quote="The in-process adapter enforces on tool calls with no",
-        controls=(
-            "TestFilesystemSideEffect::test_negative_control_denied_write_leaves_no_file",
-            "TestNetworkSideEffect::test_negative_control_denied_egress_never_reaches_the_listener",
+        quote=(
+            '**`mode="sdk-only"` kept it offline.** The in-process adapter enforces on tool calls '
+            "with no network sidecar, so the example runs deterministically with no real LLM or "
+            "gateway round-trip."
         ),
+        controls=_DENY_CONTROLS,
     ),
     ClaimBinding(
         claim_id="verdict-precedes-execution",
-        kind=ENFORCEMENT,
-        quote="asks the policy engine for an allow/deny verdict before the tool actually runs",
-        # The two negative controls prove the *before* by absence of the side
-        # effect; the two positive controls prove the probe would have seen the
-        # effect had it happened. Both halves are named, because either alone is
-        # the vacuous evidence this Epic exists to remove.
-        controls=(
-            "TestFilesystemSideEffect::test_positive_control_allowed_write_creates_the_file",
-            "TestFilesystemSideEffect::test_negative_control_denied_write_leaves_no_file",
-            "TestNetworkSideEffect::test_positive_control_allowed_egress_reaches_the_listener",
-            "TestNetworkSideEffect::test_negative_control_denied_egress_never_reaches_the_listener",
+        quote=(
+            "**Tool calls were governed.** The adapter intercepts the framework's tool-invocation "
+            "path and asks the policy engine for an allow/deny verdict before the tool actually "
+            "runs."
         ),
-    ),
-    ClaimBinding(
-        claim_id="with-block-unwinds",
-        kind=LIFECYCLE,
-        quote="tore everything down on exit",
-        unproven_reason=(
-            "Teardown is covered by the context-manager tests, not by the enforcement controls this gate binds."
-        ),
+        # Both halves are named. The negative controls prove the "before" by
+        # absence of the side effect; the positive controls prove the probe
+        # would have seen that effect had it happened. Either alone is the
+        # vacuous evidence this Epic exists to remove.
+        controls=_ALLOW_AND_DENY_CONTROLS,
     ),
     ClaimBinding(
         claim_id="deny-surfaces-as-tool-execution-blocked",
-        kind=ENFORCEMENT,
-        quote="that is not a bug — the policy denied the",
+        quote=("If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — the policy denied the call."),
         controls=(
-            "TestFilesystemSideEffect::test_negative_control_denied_write_leaves_no_file",
+            *_DENY_CONTROLS,
             "TestDegradedRuntimeCannotLookProtected"
             "::test_an_unavailable_native_runtime_denies_rather_than_silently_allowing",
         ),
         symbols={"ToolExecutionBlockedError": "agent_assembly.exceptions"},
     ),
+    ClaimBinding(
+        claim_id="sdk-only-is-the-in-process-interception-layer",
+        quote=(
+            '`mode="sdk-only"` is the in-process-only interception layer: the framework adapter '
+            "enforces on tool calls, with no network sidecar to start."
+        ),
+        controls=_DENY_CONTROLS,
+    ),
+    ClaimBinding(
+        claim_id="other-modes-add-network-kernel-interception",
+        quote=(
+            "The other modes (`auto`, `proxy`, `ebpf`) add network/kernel interception — see "
+            "[Core Concepts → Modes](concepts/index.md#runtime-modes)."
+        ),
+        # This is the sentence AAASM-5529's own SDK-specific check names:
+        # "mode=auto/proxy/ebpf does not report verified network protection
+        # unless the corresponding layer is actually running and probed." No
+        # control in this repo probes a proxy or eBPF layer, so the claim rests
+        # on the Core Concepts page's authority, not on evidence here.
+        unproven_reason=(
+            "AAASM-5529: this ticket's own mode-probing acceptance check is not delivered. "
+            "No control in the Python SDK starts or probes a proxy or eBPF layer, so nothing "
+            "here can distinguish 'the mode adds interception' from 'the mode is selected'."
+        ),
+    ),
 )
 
 
-def _section_text() -> str:
-    """Return the "What just happened" section, up to the next ``##`` heading."""
-    document = _QUICK_START.read_text(encoding="utf-8")
-    start = document.find(_SECTION_HEADING)
-    assert start != -1, (
-        f"{_QUICK_START} no longer contains a '{_SECTION_HEADING}' section. "
-        "If the quick-start was restructured, re-point this gate at the section "
-        "that now carries the enforcement claims — do not delete it."
-    )
-    body = document[start + len(_SECTION_HEADING) :]
-    end = body.find("\n## ")
-    return body if end == -1 else body[:end]
+def _document() -> str:
+    return _QUICK_START.read_text(encoding="utf-8")
 
 
 def _flatten(text: str) -> str:
-    """Collapse Markdown's soft wrapping so a quote can span wrapped lines."""
+    """Collapse Markdown's soft wrapping so a sentence is one line."""
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _documented_claims() -> dict[str, str]:
-    """Parse the section into ``claim_key -> flattened text``.
+def _scanned_sentences() -> dict[str, str]:
+    """Return ``flattened sentence -> section heading`` for the whole document.
 
-    Numbered list items become ``item-N``; the trailing prose paragraph becomes
-    ``prose-N``. Both are derived from the document, so a newly added claim
-    appears here without anyone updating this module — which is the point.
+    Fenced code is dropped, and sections named in :data:`_EXCLUDED_SECTIONS` are
+    skipped. Everything else is in scope — the gate opts sections *out* by name
+    rather than opting them in, so a claim added to a section nobody thought
+    about is still caught.
     """
-    section = _section_text()
-    claims: dict[str, str] = {}
+    body = re.sub(r"```.*?```", " ", _document(), flags=re.DOTALL)
 
-    # Numbered items: "1. ..." through the line before the next "N. " or a blank
-    # line followed by unindented prose.
-    item_pattern = re.compile(r"^(\d+)\.\s+(.*(?:\n(?![ ]*\d+\.\s|\n).*)*)", re.MULTILINE)
-    for match in item_pattern.finditer(section):
-        claims[f"item-{match.group(1)}"] = _flatten(match.group(2))
+    sentences: dict[str, str] = {}
+    section = "(preamble)"
+    for chunk in re.split(r"(?m)^(#{2,6} .*)$", body):
+        if chunk is None:
+            continue
+        if re.match(r"^#{2,6} ", chunk):
+            section = chunk.strip()
+            continue
+        if section in _EXCLUDED_SECTIONS:
+            continue
+        for raw in re.split(r"(?<=\.)\s+", chunk):
+            flat = _flatten(raw)
+            if flat:
+                sentences[flat] = section
+    return sentences
 
-    # Prose paragraphs that make a claim, i.e. mention denial or blocking. Link
-    # lists and prose that merely points elsewhere are not claims.
-    consumed = {match.group(0) for match in item_pattern.finditer(section)}
-    remainder = section
-    for chunk in consumed:
-        remainder = remainder.replace(chunk, "\n")
-    for index, paragraph in enumerate(p for p in remainder.split("\n\n") if p.strip()):
-        flat = _flatten(paragraph)
-        if re.search(r"\bdenied\b|\bblocked\b|\bdeny\b", flat, re.IGNORECASE):
-            claims[f"prose-{index}"] = flat
 
-    return claims
+def _claim_sentences() -> dict[str, str]:
+    """The scanned sentences that make an enforcement claim, minus the allow-list."""
+    return {
+        sentence: section
+        for sentence, section in _scanned_sentences().items()
+        if _ENFORCEMENT_VOCABULARY.search(sentence) and sentence not in _EXCLUDED_SENTENCES
+    }
 
 
 def _control_node_ids() -> set[str]:
@@ -227,57 +281,104 @@ def _control_node_ids() -> set[str]:
 
 
 class TestTheGateCanSeeWhatItGates:
-    """Positive controls. Every check below reads a real artifact; prove it arrived."""
+    """Positive controls. Every check below reads a real artifact; prove it arrived.
 
-    def test_the_quick_start_section_is_found_and_non_empty(self) -> None:
-        section = _section_text()
-        assert len(section.strip()) > 200, "the parsed section is too short to contain the claim list"
+    An empty parse and a clean result are otherwise indistinguishable, which is
+    the failure mode that makes a drift gate worthless without ever going red.
+    """
 
-    def test_the_parser_finds_the_numbered_claims(self) -> None:
-        claims = _documented_claims()
-        numbered = [key for key in claims if key.startswith("item-")]
-        # A count is asserted, not a list, because the list is the thing under
-        # test. If the document grows a claim this fails, which is the gate.
-        assert len(numbered) >= 4, f"expected the four documented claims, parsed {sorted(claims)}"
+    def test_the_document_is_read_and_split_into_sentences(self) -> None:
+        sentences = _scanned_sentences()
+        assert len(sentences) > 40, f"only {len(sentences)} sentences parsed from the whole quick-start"
+
+    def test_the_scan_finds_enforcement_claims(self) -> None:
+        claims = _claim_sentences()
+        assert len(claims) >= 7, f"only {len(claims)} claim sentences found: {sorted(claims)}"
+
+    def test_the_scan_reaches_beyond_the_what_just_happened_section(self) -> None:
+        """The whole document is in scope, not one opted-in region.
+
+        Without this, narrowing the scan back to a single section would look
+        identical to a clean pass.
+        """
+        sections = set(_claim_sentences().values())
+        assert len(sections) >= 3, f"claims were found in only these sections: {sections}"
 
     def test_the_ast_extraction_finds_the_negative_controls(self) -> None:
         node_ids = _control_node_ids()
         assert len(node_ids) >= 8, f"AST extraction found only {len(node_ids)} controls: {sorted(node_ids)}"
-        # A named one, so an extraction that silently returned an unrelated set
-        # cannot satisfy the count above.
         assert "TestFilesystemSideEffect::test_negative_control_denied_write_leaves_no_file" in node_ids
 
 
+class TestTheAllowListCannotBecomeABypass:
+    def test_every_excluded_section_is_still_a_real_heading(self) -> None:
+        document = _document()
+        for heading, reason in _EXCLUDED_SECTIONS.items():
+            assert heading in document, (
+                f"_EXCLUDED_SECTIONS names {heading!r}, which is no longer a heading in "
+                f"{_QUICK_START.name}. A stale exclusion silently widens over time — remove it."
+            )
+            assert reason.strip(), f"exclusion {heading!r} carries no reason"
+
+    def test_every_excluded_sentence_is_still_present_verbatim(self) -> None:
+        """An allow-listed sentence must still exist, exactly.
+
+        This is what stops the allow-list becoming the new bypass: an entry is a
+        whole sentence, so rewording the claim makes the entry stale and fails
+        here rather than silently exempting the new wording.
+        """
+        scanned = _scanned_sentences()
+        for sentence, reason in _EXCLUDED_SENTENCES.items():
+            assert sentence in scanned, (
+                f"_EXCLUDED_SENTENCES contains a sentence that no longer appears in "
+                f"{_QUICK_START.name}:\n  {sentence!r}\n"
+                "It was reworded or removed. Delete the stale entry, and if the replacement "
+                "makes an enforcement claim, bind it."
+            )
+            assert reason.strip(), f"exclusion of {sentence!r} carries no reason"
+
+
 class TestEveryDocumentedClaimIsBound:
-    def test_no_claim_in_the_section_is_unbound(self) -> None:
-        """Adding a claim to the quick-start without a binding fails here.
+    def test_no_enforcement_sentence_is_unbound(self) -> None:
+        """Adding an enforcement claim anywhere in the quick-start fails here.
 
         This is the check that makes the gate load-bearing rather than
         decorative: a new enforcement sentence cannot reach the published
-        quick-start without someone naming the control that stands behind it,
-        or recording in the binding that none does.
+        quick-start without someone naming the control that stands behind it.
         """
-        documented = _documented_claims()
-        unmatched = {
-            key: text for key, text in documented.items() if not any(binding.quote in text for binding in BINDINGS)
-        }
+        quotes = {binding.quote for binding in BINDINGS}
+        unmatched = {sentence: section for sentence, section in _claim_sentences().items() if sentence not in quotes}
         assert not unmatched, (
-            "These quick-start claims have no ClaimBinding in BINDINGS:\n"
-            + "\n".join(f"  {key}: {text}" for key, text in unmatched.items())
-            + "\n\nAdd a ClaimBinding naming the control that proves each one. If no "
-            "control does, set unproven_reason and name the ticket — do not delete "
-            "the claim from this gate to make it pass."
+            "These quick-start sentences make an enforcement claim and have no ClaimBinding:\n"
+            + "\n".join(f"  [{section}] {sentence}" for sentence, section in unmatched.items())
+            + "\n\nAdd a ClaimBinding whose quote is the WHOLE sentence, naming the control that "
+            "proves it. If no control does, set unproven_reason and name the ticket. If the "
+            "sentence genuinely makes no capability claim, add it to _EXCLUDED_SENTENCES with a "
+            "reason — do not delete the claim from this gate to make it pass."
         )
 
     @pytest.mark.parametrize("binding", BINDINGS, ids=lambda b: b.claim_id)
-    def test_each_binding_still_quotes_the_document(self, binding: ClaimBinding) -> None:
-        """Rewording a claim in the document fails here."""
-        documented = _documented_claims()
-        assert any(binding.quote in text for text in documented.values()), (
-            f"ClaimBinding {binding.claim_id!r} quotes:\n  {binding.quote!r}\n"
-            f"which no longer appears in {_SECTION_HEADING!r} of {_QUICK_START.name}. "
-            "The claim was reworded or removed. Update the quote and re-check that "
-            "the named controls still prove the new wording."
+    def test_each_binding_matches_exactly_one_whole_sentence(self, binding: ClaimBinding) -> None:
+        """Rewording any part of a bound claim fails here.
+
+        Whole-sentence equality, not containment. Containment allowed a sentence
+        to carry extra unbound claims — up to and including its own negation —
+        while one bound fragment kept the gate green.
+        """
+        matches = [sentence for sentence in _scanned_sentences() if sentence == binding.quote]
+        assert len(matches) == 1, (
+            f"ClaimBinding {binding.claim_id!r} must match exactly one whole sentence in "
+            f"{_QUICK_START.name}; it matched {len(matches)}.\nIts quote is:\n  {binding.quote!r}\n"
+            "The claim was reworded, split, or merged. Update the quote to the new whole "
+            "sentence and re-check that the named controls still prove it."
+        )
+
+    def test_no_two_bindings_claim_the_same_sentence(self) -> None:
+        quotes = [binding.quote for binding in BINDINGS]
+        duplicates = {quote for quote in quotes if quotes.count(quote) > 1}
+        assert not duplicates, (
+            f"More than one ClaimBinding quotes the same sentence: {duplicates}. "
+            "Split responsibility like that and neither binding owns the claim."
         )
 
 
@@ -295,21 +396,23 @@ class TestEveryBindingNamesSomethingReal:
         )
 
     @pytest.mark.parametrize("binding", BINDINGS, ids=lambda b: b.claim_id)
-    def test_an_enforcement_claim_is_either_proven_or_openly_unproven(self, binding: ClaimBinding) -> None:
-        """An enforcement claim may not be silently unbacked."""
-        if binding.kind != ENFORCEMENT:
-            return
+    def test_a_claim_is_either_proven_or_openly_unproven(self, binding: ClaimBinding) -> None:
+        """Every claim, with no exempt category.
+
+        There used to be a ``kind`` field here, and setting it to "lifecycle"
+        skipped this check entirely — a one-word bypass that needed no ticket
+        and no control. It was removed rather than fixed.
+        """
         assert binding.controls or binding.unproven_reason, (
-            f"Enforcement claim {binding.claim_id!r} names no control and gives no "
-            "unproven_reason. One or the other is required: a documented enforcement "
-            "claim with neither is exactly the unbacked assertion AAASM-5526 exists "
-            "to eliminate."
+            f"Claim {binding.claim_id!r} names no control and gives no unproven_reason. One or "
+            "the other is required: a documented claim with neither is exactly the unbacked "
+            "assertion AAASM-5526 exists to eliminate."
         )
         if not binding.controls:
             assert re.search(r"AAASM-\d+", binding.unproven_reason), (
-                f"Claim {binding.claim_id!r} is unproven but its reason names no "
-                "ticket. An unproven claim must be traceable to the work that "
-                f"resolves it. Reason given: {binding.unproven_reason!r}"
+                f"Claim {binding.claim_id!r} is unproven but its reason names no ticket. An "
+                "unproven claim must be traceable to the work that resolves it. Reason given: "
+                f"{binding.unproven_reason!r}"
             )
 
     @pytest.mark.parametrize("binding", BINDINGS, ids=lambda b: b.claim_id)
@@ -328,8 +431,4 @@ class TestEveryBindingNamesSomethingReal:
                 f"{_QUICK_START.name} names {documented_name!r} but the resolved "
                 f"symbol reports __name__ == {resolved.__name__!r} — the documented "
                 "name is an alias for a class that has been renamed underneath it."
-            )
-            assert f"`{documented_name}`" in _section_text(), (
-                f"ClaimBinding {binding.claim_id!r} declares the symbol "
-                f"{documented_name!r} but the section no longer mentions it."
             )
