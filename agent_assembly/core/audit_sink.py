@@ -19,7 +19,7 @@ This module is how that stops being invisible. Every handler the SDK ships
 declares its disposition; :func:`resolve_audit_sink` reads it; ``init_assembly``
 warns about it and reports it on the returned context.
 
-Under ADR 0033 §6 this makes SDK-side recording **Planned** (AAASM-5731), not
+Under ADR 0033 §6 this makes SDK-side recording **Planned** (AAASM-5750), not
 *Observed* — *Observed* requires a durable event attributed to the action, and
 there is none. It is deliberately not *Unmeasured*: §6 reserves that for an
 action no control inspected, where nothing is known, and here exactly where the

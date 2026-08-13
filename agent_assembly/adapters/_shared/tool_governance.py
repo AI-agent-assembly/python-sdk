@@ -185,7 +185,7 @@ async def _record_async_tool_result(
     HTTP boundaries, this function therefore finds no hook and emits nothing on
     the shipped path — for allowed calls as much as denied ones.
 
-    Under ADR 0033 §6 that makes SDK-side recording **Planned** (AAASM-5731),
+    Under ADR 0033 §6 that makes SDK-side recording **Planned** (AAASM-5750),
     not *Unmeasured*: §6 reserves ``Unmeasured`` for an action no control
     inspected, where nothing is known, and here exactly where the record stops
     has been measured. It is certainly not *Observed*, which needs a durable
