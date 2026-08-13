@@ -9,8 +9,10 @@ from agent_assembly.adapters.llamaindex.patch import LlamaIndexPatch
 class LlamaIndexAdapter(FrameworkAdapter):
     """Adapter for LlamaIndex framework governance hook installation.
 
-    Wires the SDK-layer pre-execution allow/deny + audit hook onto the
-    LlamaIndex tool-execution path (``FunctionTool.call`` / ``acall``). The
+    Wires the SDK-layer pre-execution allow/deny onto the LlamaIndex
+    tool-execution path (``FunctionTool.call`` / ``acall``), and offers each
+    outcome to the audit hook — which no interceptor this SDK ships resolves, so
+    nothing is recorded from here (AAASM-5731). The
     framework package is imported as ``llama_index.core``; the patch targets the
     concrete tool methods the agent loop actually invokes (the base methods are
     abstract).

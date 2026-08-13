@@ -18,6 +18,7 @@ import pytest
 
 from agent_assembly.core import assembly as core_assembly
 from agent_assembly.core.assembly import init_assembly
+from agent_assembly.core.audit_sink import AUDIT_SINK_ABSENT
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 
@@ -57,7 +58,7 @@ def _call_init_assembly(**kwargs: object) -> MagicMock:
         # Also patch out adapter registration and network layer — we only care
         # about what GatewayClient receives.
         with (
-            patch("agent_assembly.core.assembly._register_adapters", return_value=[]),
+            patch("agent_assembly.core.assembly._register_adapters", return_value=([], AUDIT_SINK_ABSENT)),
             patch(
                 "agent_assembly.core.assembly._start_network_layer",
                 return_value=("sdk-only", lambda: None),

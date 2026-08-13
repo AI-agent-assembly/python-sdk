@@ -11,13 +11,15 @@
 [![Code style: ruff](https://img.shields.io/badge/style-ruff-261230?logo=ruff&logoColor=white)](https://github.com/astral-sh/ruff)
 [![Type-checked: mypy](https://img.shields.io/badge/types-mypy-2a6db2?logo=python&logoColor=white)](https://mypy-lang.org/)
 
-Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agents. One `init_assembly()` call wires your agent into the policy gateway, applies pre-execution allow/deny on tool calls, and emits audit events without changing how the agent itself is written.
+Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agents. One `init_assembly()` call wires your agent into the policy gateway and applies pre-execution allow/deny on tool calls, without changing how the agent itself is written.
+
+> **The SDK layer produces no audit evidence of its own.** The framework adapters offer the outcome of every governed call to an audit hook on the governance interceptor — but on every interceptor this SDK ships, that hook **does not resolve**, so nothing is emitted. This covers **allowed** calls as much as denied ones. Enforcement is unaffected: a policy DENY still blocks the tool. `init_assembly()` warns about it and reports `audit_sink` on the returned context; supply your own handler with a `record_result` or `on_tool_end` to retain the record ([AAASM-5731](https://lightning-dust-mite.atlassian.net/browse/AAASM-5731)).
 
 ## Why use it
 
 - **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, Google ADK, Haystack, Smolagents, Agno, LlamaIndex, Microsoft Agent Framework, and MCP servers — drop in, no SDK rewrites required.
 - **Pre-execution policy enforcement** via the `FrameworkAdapter` ABC — block disallowed tool calls before they hit the LLM.
-- **Audit trail** — every tool call, prompt, and policy decision is emitted to the gateway with full agent lineage (parent / root / team).
+- **Agent lineage** — parent / root / team identity is registered with the gateway and carried on every policy check. (An audit *trail* is not part of what this SDK layer delivers — see the note above.)
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need sub-millisecond policy checks.
 - **Typed throughout** — Pydantic models for every gateway payload, mypy strict on adapter base and registry.
 

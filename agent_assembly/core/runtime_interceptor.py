@@ -43,6 +43,7 @@ import warnings
 from importlib import metadata
 from typing import Any
 
+from agent_assembly.core.audit_sink import AuditSinkDisposition, resolve_delegated_audit_sink
 from agent_assembly.exceptions import OpTerminatedError
 
 ENV_RUNTIME_SOCKET = "AA_RUNTIME_SOCKET"
@@ -227,7 +228,29 @@ class RuntimeQueryInterceptor:
     an authoritative allow — a raising ``query_policy`` or an error-sentinel
     ``decision`` — maps to ``deny`` (fail closed). When ``False`` those paths
     proceed (fail open), preserving the observe / disabled behavior.
+
+    The "delegates everything else" clause is doing more work than it looks:
+    ``record_result`` and ``on_tool_end`` — the adapters' audit hook — delegate to
+    a ``GatewayClient`` that has neither, so neither resolves and the adapters
+    emit **no** audit record for a governed call, allowed or denied. That is
+    declared in :attr:`audit_sink` rather than left to be discovered by reading
+    this class (AAASM-5731).
     """
+
+    @property
+    def audit_sink(self) -> AuditSinkDisposition:
+        """What this interceptor does with the audit record (AAASM-5731).
+
+        Computed from the wrapped client rather than fixed, because this class
+        owns no audit hook of its own — ``__getattr__`` hands both names
+        straight to the client, so the client's surface *is* the answer. With
+        the ``GatewayClient`` this SDK builds, neither resolves and the record is
+        never attempted; with a caller-supplied client that has one, this SDK
+        makes no claim. Declared on this class rather than inherited through
+        ``__getattr__`` so a test can require the interceptor to speak for
+        itself.
+        """
+        return resolve_delegated_audit_sink(self._client)
 
     def __init__(
         self,
@@ -362,8 +385,15 @@ class _FailClosedInterceptor:
     control) but the runtime socket could not be connected, meaning no
     authoritative verdict can be obtained. Under ``enforce`` this must block
     every tool rather than silently allow it (AAASM-3106). Non-check attributes
-    delegate to the wrapped ``GatewayClient`` so event reporting still works.
+    delegate to the wrapped ``GatewayClient``, whose surface carries no audit hook
+    — so a call denied here produces no audit record either (see
+    :attr:`audit_sink`, AAASM-5731).
     """
+
+    @property
+    def audit_sink(self) -> AuditSinkDisposition:
+        """See :attr:`RuntimeQueryInterceptor.audit_sink` — same delegation, same answer."""
+        return resolve_delegated_audit_sink(self._client)
 
     def __init__(self, client: Any, reason: str) -> None:
         self._client = client

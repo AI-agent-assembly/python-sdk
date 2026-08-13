@@ -14,6 +14,7 @@ import pytest
 from agent_assembly import init_assembly
 from agent_assembly.adapters.base import FrameworkAdapter, GovernanceInterceptor
 from agent_assembly.core import assembly as core_assembly
+from agent_assembly.core.audit_sink import AUDIT_SINK_ABSENT, resolve_audit_sink
 from agent_assembly.core.runtime_interceptor import build_governance_interceptor
 from agent_assembly.core.spawn import SpawnContext, spawn_context_scope
 from agent_assembly.exceptions import ConfigurationError
@@ -78,7 +79,7 @@ def test_init_assembly_registers_agent_on_init(monkeypatch: pytest.MonkeyPatch) 
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="agent-7", mode="sdk-only")
     try:
@@ -94,7 +95,7 @@ def test_init_assembly_forwards_team_and_parent_on_register(
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(
         gateway_url=_GW_URL,
@@ -119,7 +120,7 @@ def test_init_assembly_forwards_only_team_when_parent_absent(
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(
         gateway_url=_GW_URL,
@@ -143,7 +144,7 @@ def test_init_assembly_forwards_only_parent_when_team_absent(
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(
         gateway_url=_GW_URL,
@@ -165,7 +166,7 @@ def test_init_assembly_no_lineage_when_neither_set(monkeypatch: pytest.MonkeyPat
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(
         gateway_url=_GW_URL,
@@ -191,7 +192,7 @@ def test_init_assembly_forwards_ambient_spawn_parent_on_register(
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     ctx = SpawnContext(parent_agent_id="ambient-parent", depth=1, spawned_by_tool="delegate")
     with spawn_context_scope(ctx):
@@ -216,7 +217,7 @@ def test_explicit_parent_overrides_ambient_spawn_parent(
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     ctx = SpawnContext(parent_agent_id="ambient-parent", depth=2, spawned_by_tool="delegate")
     with spawn_context_scope(ctx):
@@ -243,7 +244,7 @@ def test_register_falls_back_on_older_native_build_without_lineage_kwargs(
     legacy_client = LegacyRuntimeClient()
     install_fake_core(monkeypatch, legacy_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(
         gateway_url=_GW_URL,
@@ -268,7 +269,7 @@ def test_init_assembly_lineage_values_round_trip_verbatim(
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     team = "équipe-paiements-🌐"
     parent = "parent-" + ("a" * 200)
@@ -483,7 +484,7 @@ def test_observe_mode_swallows_register_failure(monkeypatch: pytest.MonkeyPatch)
     runtime_client.register_should_raise = RuntimeError("gateway down")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(
         gateway_url=_GW_URL,
@@ -501,7 +502,7 @@ def test_enforce_mode_propagates_register_failure(monkeypatch: pytest.MonkeyPatc
     runtime_client.register_should_raise = RuntimeError("gateway rejected")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     with pytest.raises(ConfigurationError, match="Failed to initialize assembly runtime"):
         init_assembly(
@@ -529,7 +530,7 @@ def test_init_refuses_plaintext_nonloopback_register_by_default(
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     with pytest.raises(ConfigurationError, match="Failed to initialize assembly runtime"):
         init_assembly(
@@ -551,7 +552,7 @@ def test_init_allow_insecure_permits_plaintext_nonloopback_register(
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(
         gateway_url=_INSECURE_GW_URL,
@@ -579,7 +580,7 @@ def _patched_register_adapters(adapter: _CapturingAdapter) -> object:
         enforcement_mode: str | None = None,
         runtime_client: object | None = None,
         native_available: bool = False,
-    ) -> list[FrameworkAdapter]:
+    ) -> tuple[list[FrameworkAdapter], str]:
         interceptor = build_governance_interceptor(
             client,
             process_agent_id,
@@ -588,7 +589,7 @@ def _patched_register_adapters(adapter: _CapturingAdapter) -> object:
             native_available=native_available,
         )
         adapter.register_hooks(interceptor)
-        return [adapter]
+        return [adapter], resolve_audit_sink(interceptor)
 
     return _impl
 
@@ -598,7 +599,7 @@ def test_successful_register_marks_context_registered(monkeypatch: pytest.Monkey
     runtime_client = FakeRuntimeClient(decision="allow")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="reg-ok", mode="sdk-only")
     try:
@@ -615,7 +616,7 @@ def test_native_absent_warns_loudly_and_marks_unregistered(
     it warns loudly and reports ``ctx.registered`` False (AAASM-4547)."""
     monkeypatch.setattr(core_assembly, "_native_core_available", lambda: False)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="no-native", mode="sdk-only")
     try:
@@ -675,7 +676,7 @@ def test_native_present_but_no_runtime_client_warns_and_marks_unregistered(
     monkeypatch.setattr(core_assembly, "_native_core_available", lambda: True)
     monkeypatch.setattr(core_assembly, "connect_runtime_client", lambda _agent_id: None)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id="no-client", mode="sdk-only")
     try:
@@ -695,7 +696,7 @@ def test_register_failure_under_observe_warns_and_marks_unregistered(
     runtime_client.register_should_raise = RuntimeError("gateway gRPC endpoint is unreachable")
     install_fake_core(monkeypatch, runtime_client)
     _no_network(monkeypatch)
-    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: [])
+    monkeypatch.setattr(core_assembly, "_register_adapters", lambda **_kwargs: ([], AUDIT_SINK_ABSENT))
 
     context = init_assembly(
         gateway_url=_GW_URL,

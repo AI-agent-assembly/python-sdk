@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from agent_assembly.core import assembly as core_assembly
+from agent_assembly.core.audit_sink import AUDIT_SINK_ABSENT
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
 
@@ -93,7 +94,7 @@ class TestInitAssemblySpawnContextAutoRead:
 
         with (
             patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client),
-            patch("agent_assembly.core.assembly._register_adapters", return_value=[]),
+            patch("agent_assembly.core.assembly._register_adapters", return_value=([], AUDIT_SINK_ABSENT)),
             patch("agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)),
             spawn_context_scope(spawn_ctx),
         ):
@@ -130,7 +131,7 @@ class TestInitAssemblySpawnContextAutoRead:
 
         with (
             patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client),
-            patch("agent_assembly.core.assembly._register_adapters", return_value=[]),
+            patch("agent_assembly.core.assembly._register_adapters", return_value=([], AUDIT_SINK_ABSENT)),
             patch("agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)),
             spawn_context_scope(spawn_ctx),
         ):
@@ -165,7 +166,7 @@ class TestInitAssemblySpawnContextAutoRead:
 
         with (
             patch("agent_assembly.core.assembly.GatewayClient", side_effect=fake_gateway_client),
-            patch("agent_assembly.core.assembly._register_adapters", return_value=[]),
+            patch("agent_assembly.core.assembly._register_adapters", return_value=([], AUDIT_SINK_ABSENT)),
             patch("agent_assembly.core.assembly._start_network_layer", return_value=("sdk-only", lambda: None)),
         ):
             ctx = assembly.init_assembly(

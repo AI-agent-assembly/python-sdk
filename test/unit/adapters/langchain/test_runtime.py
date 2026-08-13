@@ -9,6 +9,7 @@ from agent_assembly.adapters.langchain.runtime import (
     get_active_callback_handler,
 )
 from agent_assembly.core import assembly as core_assembly
+from agent_assembly.core.audit_sink import AUDIT_SINK_ABSENT
 from agent_assembly.exceptions import ConfigurationError
 
 
@@ -63,9 +64,9 @@ def test_init_assembly_auto_injects_callback_handler(monkeypatch: pytest.MonkeyP
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
 
-    def fake_register_adapters(**kwargs: object) -> list[object]:
+    def fake_register_adapters(**kwargs: object) -> tuple[list[object], str]:
         auto_inject_callback_handler(kwargs["client"])
-        return []
+        return [], AUDIT_SINK_ABSENT
 
     monkeypatch.setattr(core_assembly, "_register_adapters", fake_register_adapters)
     monkeypatch.setattr(
@@ -89,9 +90,9 @@ def test_init_assembly_reuses_existing_callback_handler(monkeypatch: pytest.Monk
     _reset_runtime_state_for_tests()
     _reset_assembly_state()
 
-    def fake_register_adapters(**kwargs: object) -> list[object]:
+    def fake_register_adapters(**kwargs: object) -> tuple[list[object], str]:
         auto_inject_callback_handler(kwargs["client"])
-        return []
+        return [], AUDIT_SINK_ABSENT
 
     monkeypatch.setattr(core_assembly, "_register_adapters", fake_register_adapters)
     monkeypatch.setattr(

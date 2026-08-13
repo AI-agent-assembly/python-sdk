@@ -2,8 +2,9 @@
 
 **In plain terms:** this SDK is how a Python agent asks for permission before it acts.
 You wrap your existing agent in one `init_assembly()` call, and from that point on every
-tool call your agent makes is checked against a governance policy — allowed, denied, or
-recorded — without you rewriting a single line of the agent itself.
+tool call your agent makes is checked against a governance policy — allowed or denied —
+without you rewriting a single line of the agent itself. Recording is *not* a third
+outcome: the SDK layer produces no audit evidence of its own (see below).
 
 It is two things in one package:
 
@@ -43,15 +44,33 @@ flowchart LR
 
 - **Developers** who want to add governance to an existing Python agent without re-architecting it.
 - **Platform teams** standing up a policy gateway who need their agents to report to it.
-- **Operators** who need an audit trail of every tool call, prompt, and policy decision.
+- **Operators** who need agents to run under a policy gate they control, with identity and
+  lineage registered against the gateway.
+
+Note that an **audit trail of governed tool calls is not something this SDK layer
+produces** — see the warning under "Why use it" below.
 
 ## Why use it
 
 - **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI,
   Google ADK, and MCP servers — drop in, no agent rewrites required.
 - **Pre-execution policy enforcement** — block disallowed tool calls *before* they run.
-- **Audit trail** — every tool call, prompt, and policy decision is emitted to the gateway
-  with full agent lineage (parent / root / team).
+- **Agent lineage** — parent / root / team identity is registered with the gateway and
+  carried on every policy check.
+
+!!! warning "The SDK layer keeps no audit trail of its own"
+
+    The framework adapters offer the outcome of every governed call to an audit hook
+    on the governance interceptor. On every interceptor this SDK ships that hook
+    **does not resolve**, so nothing is emitted — for **allowed** calls as much as
+    denied ones — and no claim of attributability or after-the-fact review holds on
+    the SDK path.
+
+    Enforcement is unaffected: a policy DENY still blocks the tool, and the proxy /
+    eBPF layers remain authoritative. `init_assembly()` warns at startup and reports
+    `audit_sink` on the returned context; supply your own handler exposing
+    `record_result` or `on_tool_end` to retain the record
+    ([AAASM-5731](https://lightning-dust-mite.atlassian.net/browse/AAASM-5731)).
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need
   sub-millisecond policy checks.
 - **Typed throughout** — typed models for every gateway payload; the package ships a

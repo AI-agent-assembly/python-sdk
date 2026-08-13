@@ -15,6 +15,13 @@ from agent_assembly.adapters.langchain.adapter import LangChainAdapter
 from agent_assembly.adapters.langchain.runtime import get_active_callback_handler
 from agent_assembly.adapters.registry import AdapterRegistry
 from agent_assembly.client.gateway import GatewayClient
+from agent_assembly.core.audit_sink import (
+    AUDIT_SINK_ABSENT,
+    AUDIT_SINK_CALLER_SUPPLIED,
+    AUDIT_SINK_DISCARDED,
+    AuditSinkDisposition,
+    resolve_audit_sink,
+)
 from agent_assembly.core.gateway_resolver import (
     resolve_api_key,
     resolve_gateway_grpc_endpoint,
@@ -116,6 +123,14 @@ class AssemblyContext:
     # programmatically rather than relying on the stderr warning alone
     # (AAASM-4547, mirroring the Node SDK's ``ctx.registered``).
     registered: bool = True
+    # What the governance interceptor the adapters were handed does with the
+    # hook-layer audit record for a governed tool call (AAASM-5731). Anything
+    # other than ``"caller-supplied"`` means governed actions produce NO audit
+    # evidence from this SDK, so no claim of attributability or after-the-fact
+    # review holds on the SDK path. The programmatic counterpart of the stderr
+    # warning ``_warn_audit_not_recorded`` emits, so the gap is detectable in
+    # code and not only by reading stderr.
+    audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
     _lock: Lock = field(default_factory=Lock, init=False, repr=False)
     _is_shutdown: bool = field(default=False, init=False, repr=False)
 
@@ -281,6 +296,7 @@ def init_assembly(
         network_mode: NetworkMode = "sdk-only"
         network_shutdown: Callable[[], None] = _noop_shutdown
         registered = False
+        audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
         try:
             native_available = _native_core_available()
             runtime_client = connect_runtime_client(resolved_agent_id) if native_available else None
@@ -293,7 +309,7 @@ def init_assembly(
                 team_id=team_id,
                 parent_agent_id=parent_agent_id,
             )
-            registered_adapters = _register_adapters(
+            registered_adapters, audit_sink = _register_adapters(
                 client=client,
                 process_agent_id=resolved_agent_id,
                 enforcement_mode=enforcement_mode,
@@ -306,12 +322,19 @@ def init_assembly(
             client.close()
             raise ConfigurationError(f"Failed to initialize assembly runtime: {error}") from error
 
+        # AAASM-5731 — surface an audit path that retains nothing, on the
+        # default path with nothing opted into. Emitted after registration so it
+        # reflects the interceptor the adapters were actually handed.
+        if audit_sink != AUDIT_SINK_CALLER_SUPPLIED:
+            _warn_audit_not_recorded(audit_sink)
+
         context = AssemblyContext(
             client=client,
             adapters=registered_adapters,
             network_mode=network_mode,
             _network_shutdown=network_shutdown,
             registered=registered,
+            audit_sink=audit_sink,
         )
         _ACTIVE_CONTEXT = context
         return context
@@ -370,6 +393,50 @@ def _warn_agent_unregistered(detail: str) -> None:
         "state; the proxy / eBPF layers remain authoritative. Inspect the "
         "'registered' attribute on the returned assembly context to detect this "
         "programmatically (AAASM-4547).\n"
+    )
+
+
+def _warn_audit_not_recorded(disposition: AuditSinkDisposition) -> None:
+    """Emit a loud, unconditional stderr warning that no audit record is kept.
+
+    The framework adapters offer the outcome of every governed tool call to an
+    audit hook on the interceptor they were handed. On every interceptor this SDK
+    ships that hook does not resolve, so nothing is emitted — for **allowed**
+    calls as much as denied ones — and the caller had no way to learn that short
+    of reading the interceptor. Enforcement is genuinely unaffected, which is
+    exactly why the gap is easy to miss: denies still deny, and the governed call
+    returns normally.
+
+    Written straight to ``sys.stderr`` for the same reason as
+    :func:`_warn_agent_unregistered`: ``logging`` configuration cannot silence it.
+    Once per ``init_assembly`` rather than per governed call, so it cannot become
+    steady-state noise. It does not fail init — a caller may not need SDK-side
+    audit at all, and the proxy / eBPF layers are unaffected, so refusing to start
+    over an evidence gap would trade a truthfulness fix for an availability
+    regression.
+
+    :param disposition: The resolved sink disposition. The mechanism clause MUST
+        branch on it: ``"absent"`` and ``"discarded"`` fail differently and need
+        different remedies, and a single unconditional sentence would be wrong in
+        one direction or the other.
+    """
+    mechanism = (
+        "the LangChain callback handler accepts the record and drops it, because "
+        "the interceptor it forwards to exposes no on_tool_end"
+        if disposition == AUDIT_SINK_DISCARDED
+        else "no audit hook (record_result / on_tool_end) resolves on the governance "
+        "interceptor this SDK builds, so no record is even attempted"
+    )
+    sys.stderr.write(
+        "[agent-assembly] WARNING: hook-layer audit records are NOT retained "
+        f"(audit sink '{disposition}'): {mechanism}. Governed tool calls — ALLOWED "
+        "ones as well as denied ones — therefore produce NO audit evidence from "
+        "this SDK, and nothing on this path can be attributed or reviewed after "
+        "the fact. Enforcement is unaffected: a policy DENY still blocks a tool "
+        "call, and the proxy / eBPF layers remain authoritative. Supply your own "
+        "handler with a record_result or on_tool_end to retain the record, and "
+        "inspect the 'audit_sink' attribute on the returned assembly context to "
+        "detect this programmatically (AAASM-5731).\n"
     )
 
 
@@ -460,7 +527,7 @@ def _register_adapters(
     enforcement_mode: EnforcementMode | None = None,
     runtime_client: Any | None = None,
     native_available: bool = False,
-) -> list[FrameworkAdapter]:
+) -> tuple[list[FrameworkAdapter], AuditSinkDisposition]:
     """Detect available frameworks via AdapterRegistry and register hooks.
 
     Adapters are returned in priority order.  LangChain is registered first
@@ -472,6 +539,11 @@ def _register_adapters(
     ``check_tool_start``. ``enforcement_mode`` decides the failure posture: under
     ``enforce`` an unreachable runtime or a failed query blocks (fail closed,
     AAASM-3106); under ``observe`` / ``disabled`` it proceeds (fail open).
+
+    Returns the registered adapters and what the interceptor they were handed
+    does with hook-layer audit records (AAASM-5731). The disposition is returned
+    rather than re-derived by the caller because building a second interceptor to
+    ask it would re-emit the one-time native-missing warning.
     """
     registry = AdapterRegistry()
     adapters = registry.get_available_adapters_by_priority()
@@ -484,6 +556,11 @@ def _register_adapters(
         runtime_client=runtime_client,
         native_available=native_available,
     )
+    # AAASM-5731 — read off the interceptor the SDK itself builds, before the
+    # LangChain hand-over below. That one is the object this SDK can speak for;
+    # the handler that may replace it declares its own disposition, and the
+    # worst of the two is what the caller is told.
+    audit_sink = resolve_audit_sink(interceptor)
 
     for adapter in adapters:
         adapter.set_process_agent_id(process_agent_id)
@@ -502,8 +579,15 @@ def _register_adapters(
             callback_handler = get_active_callback_handler()
             if callback_handler is not None:
                 interceptor = callback_handler
+                handler_sink = resolve_audit_sink(callback_handler)
+                # Only ever narrow away from "no claim": the handler accepts the
+                # record and drops it where the wrapped interceptor never sees
+                # one at all, and reporting the milder of the two would
+                # understate what the later adapters actually get.
+                if handler_sink != AUDIT_SINK_CALLER_SUPPLIED:
+                    audit_sink = handler_sink
 
-    return registered
+    return registered, audit_sink
 
 
 def _unregister_adapters(adapters: list[FrameworkAdapter]) -> None:
