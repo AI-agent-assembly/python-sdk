@@ -13,18 +13,40 @@ to finished work. So the invariant is narrow and permanent — **AAASM-5731 may 
 cited as the ticket that measured the gap, never as the ticket that will fix
 it.**
 
-Deliberately NOT asserted: that every ``Planned`` in this repository names
-AAASM-5750. §6 scopes ``Planned`` to any decided-but-unbuilt capability with any
-ticket, so an unrelated roadmap row — including
-``docs/examples/framework-support.md``'s docs-area maturity label, a different
-axis entirely — is legitimate and must not fail this gate. The first version of
-this test made exactly that over-broad assertion.
+The assertion is two-tier, because one tier alone fails in one direction or the
+other and review caught both:
+
+* a **guarded** site (one of :data:`EXPECTED_SITES`) must name AAASM-5750
+  exactly. Without this the gate stops asserting the thing the change made true
+  — repointing a guarded site to any other live ticket passed green, which is
+  precisely the drift the gate exists to catch.
+* **any other** site must merely not name a stale referent. Asserting
+  AAASM-5750 repository-wide was the first version's defect: §6 scopes
+  ``Planned`` to any decided-but-unbuilt capability with any ticket, so an
+  unrelated roadmap row — including
+  ``docs/examples/framework-support.md``'s docs-area maturity label, a
+  different axis entirely — is legitimate and must not fail this gate.
+
+Two limits are disclosed rather than fixed, both measured as currently
+unreachable:
+
+* the reachability check is per **file**, not per site. A guarded file that
+  reflowed its real site out of the scan's reach *and* gained a second, correct
+  claim would keep its entry. Requires two coordinated edits; today no file in
+  this repository carries more than one site.
+* the gate file is excluded from its own scan, so it is a hiding place for a
+  stale referent. It is a test file that documents no SDK behaviour, and the
+  exclusion matches one exact path rather than a prefix.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
+
+#: The ticket that owns building the SDK-side audit sink. Guarded sites must
+#: name it exactly.
+CAPABILITY_REFERENT = "AAASM-5750"
 
 #: Tickets that *measured* the absence of an SDK-side audit sink. Backward
 #: citations to them are correct and are left alone; what this gate forbids is
@@ -70,6 +92,16 @@ def _repo_root() -> Path:
     )
 
 
+def _ends_sentence(line: str) -> bool:
+    """Whether a comment line closes a sentence.
+
+    A wrapped sentence (``… Planned under ADR 0033 §6`` / ``(AAASM-5750) …``)
+    does not; a complete one does.
+    """
+    trimmed = line.strip().rstrip("#* ")
+    return bool(trimmed) and trimmed[-1] in ".!?"
+
+
 def _deferral_sites() -> list[tuple[str, int, str, str]]:
     """Every forward-looking claim paired with a ticket.
 
@@ -96,8 +128,14 @@ def _deferral_sites() -> list[tuple[str, int, str, str]]:
             if not _FORWARD_CLAIM.search(line):
                 continue
 
+            # Extend to the next line only when this line carries no ticket of
+            # its own AND does not end a sentence. Without the sentence guard
+            # the window pairs a claim with a ticket belonging to the *next*
+            # sentence — review produced a real case where an inserted line of
+            # forward-looking prose was blamed for a correct backward citation
+            # beneath it. There are 33 such backward citations in this repo.
             window = line
-            if index + 1 < len(lines):
+            if not _TICKET_REF.search(line) and not _ends_sentence(line) and index + 1 < len(lines):
                 window = f"{line}\n{lines[index + 1]}"
 
             ticket = _TICKET_REF.search(window)
@@ -109,14 +147,27 @@ def _deferral_sites() -> list[tuple[str, int, str, str]]:
     return sites
 
 
-def test_no_forward_claim_defers_to_a_closed_measurement_ticket() -> None:
-    wrong = [site for site in _deferral_sites() if site[2] in STALE_REFERENTS]
-    assert not wrong, "\n".join(
-        f"{path}:{lineno} defers to {ticket}, which measured the gap and will "
-        f"not fix it — use the ticket that builds the sink (AAASM-5750, per its "
-        f"own description): {text}"
-        for path, lineno, ticket, text in wrong
-    )
+def test_forward_claims_name_the_right_ticket() -> None:
+    guarded = set(EXPECTED_SITES)
+    problems = []
+
+    for path, lineno, ticket, text in _deferral_sites():
+        if path in guarded:
+            if ticket != CAPABILITY_REFERENT:
+                problems.append(
+                    f"{path}:{lineno} is a guarded audit-sink deferral and must "
+                    f"name {CAPABILITY_REFERENT}, not {ticket} — this is the site "
+                    f"the referent change corrected, and letting it drift to any "
+                    f"other ticket is what this gate exists to prevent: {text}"
+                )
+        elif ticket in STALE_REFERENTS:
+            problems.append(
+                f"{path}:{lineno} defers to {ticket}, which measured the gap and "
+                f"will not fix it — use the ticket that builds the sink "
+                f"(AAASM-5750, per its own description): {text}"
+            )
+
+    assert not problems, "\n".join(problems)
 
 
 def test_every_expected_site_is_still_reachable() -> None:
