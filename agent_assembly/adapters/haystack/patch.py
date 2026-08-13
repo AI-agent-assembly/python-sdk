@@ -13,7 +13,9 @@ not at the higher-level ``Agent`` / ``ToolInvoker`` layer.
 The interceptor contract mirrors the other tool-call adapters (CrewAI, Pydantic AI):
 a ``check_tool_start`` pre-execution gate that returns ``allow`` / ``deny`` /
 ``pending``, an optional ``wait_for_tool_approval`` for the pending flow, and a
-post-execution ``record_result`` / ``on_tool_end`` audit hook.  Under the fail-closed
+post-execution ``record_result`` / ``on_tool_end`` audit hook — which no interceptor
+this SDK ships resolves, so the outcome is offered and not recorded (AAASM-5731).
+Under the fail-closed
 ``enforce`` posture an unknown or malformed verdict denies (AAASM-3107).
 """
 

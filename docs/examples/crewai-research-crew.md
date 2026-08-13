@@ -1,11 +1,11 @@
 # CrewAI — multi-agent research crew
 
-A three-agent CrewAI-style research crew (researcher → writer → critic) governed by Agent Assembly, where every governed tool call is attributed to the acting agent with the full delegation chain captured on each audit event.
+A three-agent CrewAI-style research crew (researcher → writer → critic) governed by Agent Assembly, where every governed tool call is attributed to the acting agent with the full delegation chain captured on each audit event by the demo's own `CrewPolicyEngine`. The SDK layer records nothing itself (AAASM-5731).
 
 ## What this example demonstrates
 
 - A three-agent crew: **researcher → writer → critic**, each with a distinct role.
-- **Agent-delegation tracking** — every governed call records an `AuditEvent` whose `call_stack` is the delegation chain (`parent → agent → tool`), built from the SDK's real `agent_assembly.types.AuditEvent` and `CallStackNode`.
+- **Agent-delegation tracking** — the demo's `CrewPolicyEngine` records an `AuditEvent` per governed call whose `call_stack` is the delegation chain (`parent → agent → tool`), built from the SDK's real `agent_assembly.types.AuditEvent` and `CallStackNode`. The types are the SDK's; the recording is the demo's.
 - **Multi-agent governance** under one policy:
     - **File-write approval** — any agent that attempts `write_file` is gated; the decision is `pending` until an approver signs off (rejected in this demo).
     - **Shared daily budget** — tool calls across all three agents are metered against a single `$2.00 / day` cap.

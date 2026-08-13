@@ -64,10 +64,12 @@ flowchart LR
     Adapter -->|register_hooks(interceptor)| Patch
     Patch -->|monkey-patch| Framework
     Framework -.->|every tool call| Interceptor
-    Interceptor -.->|allow/deny + audit| Gateway
+    Interceptor -.->|allow/deny| Gateway
 ```
 
 Solid arrows are install-time; dashed arrows fire on every framework call after hooks are installed. The interceptor → gateway hop is the only network boundary in the data path.
+
+There is deliberately no audit edge on that hop. The adapters offer every governed outcome to an audit hook on the interceptor, but on every interceptor this SDK ships the hook does not resolve, so no record leaves the SDK — for allowed calls as much as denied ones ([AAASM-5731](https://lightning-dust-mite.atlassian.net/browse/AAASM-5731)).
 
 ## PyO3 FFI layer
 
@@ -77,8 +79,8 @@ The pure-Python adapters described above are sufficient for governing most agent
 
 The native crate lives at `native/aa-ffi-python/` in the repository and is built with [`maturin`](https://www.maturin.rs/). When installed, it exposes a private `agent_assembly._core` module with two symbols:
 
-- `RuntimeClient` — a Rust-backed runtime client (a thin shim over the shared `aa-sdk-client` crate) that ships governance events to `aa-runtime` over the local socket. Sub-millisecond, fire-and-forget event reporting under load.
-- `GovernanceEvent` — Rust-side dataclass for events emitted on the audit channel.
+- `RuntimeClient` — a Rust-backed runtime client (a thin shim over the shared `aa-sdk-client` crate). `agent_assembly` uses it for `register` and `query_policy` only. It also exposes `send_event`, which **nothing in `agent_assembly` calls** — the capability exists in the shim and the SDK never reaches it, so no governance event is shipped from here (AAASM-5731).
+- `GovernanceEvent` — Rust-side dataclass for the events that channel would carry. Exported from `agent_assembly`, and never constructed by it.
 
 `agent_assembly/__init__.py` imports these symbols inside a `try / except ImportError` block. **If the native extension was never built, the SDK still works** — pure-Python `GatewayClient` is the fallback, and the `RuntimeClient` symbol simply is not present in `agent_assembly.__all__`.
 

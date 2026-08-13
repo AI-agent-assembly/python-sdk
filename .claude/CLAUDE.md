@@ -32,8 +32,11 @@ The product enforces governance through three independently-deployable layers,
 ordered by latency cost (lowest first) and detection authority (highest first):
 
 1. **SDK layer (in-process)** — *this repo*. The SDK applies pre-execution allow/deny
-   on tool calls and emits audit events to the gateway, via the native shim over
-   `aa-sdk-client`. Fastest path; requires SDK adoption.
+   on tool calls via the native shim over `aa-sdk-client`. Fastest path; requires SDK
+   adoption. It does **not** emit audit events: the adapters offer every governed
+   outcome to an audit hook, but on every interceptor this SDK ships that hook does not
+   resolve, so nothing is recorded — for allowed calls as much as denied ones
+   (AAASM-5731). Do not describe this layer as producing an audit trail.
 2. **Sidecar proxy (`aa-proxy`)** — MitM of outbound HTTPS; enforces network-egress
    policy with no code changes. (Lives in the monorepo.)
 3. **eBPF (`aa-ebpf*`)** — kernel uprobes; catches everything, including bypass

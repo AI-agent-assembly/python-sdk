@@ -2,8 +2,9 @@
 
 **In plain terms:** this SDK is how a Python agent asks for permission before it acts.
 You wrap your existing agent in one `init_assembly()` call, and from that point on every
-tool call your agent makes is checked against a governance policy — allowed, denied, or
-recorded — without you rewriting a single line of the agent itself.
+tool call your agent makes is checked against a governance policy — allowed or denied —
+without you rewriting a single line of the agent itself. Recording is *not* a third
+outcome: the SDK layer produces no audit evidence of its own (see below).
 
 It is two things in one package:
 

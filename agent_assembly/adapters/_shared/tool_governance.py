@@ -5,8 +5,10 @@ framework-specific hook points, but the governance logic they run once a tool
 call is intercepted is identical: serialize the args, ask the interceptor for a
 verdict, honour a ``pending`` approval round-trip, deny by raising when the
 verdict is ``deny``, otherwise run the original inside a spawn-context scope.
-Either way the outcome is recorded through the audit hook before the flow ends
-(AAASM-5665). That shared body — previously duplicated verbatim in both
+Either way the outcome is *offered* to the audit hook before the flow ends
+(AAASM-5665) — offered, not recorded: on every interceptor this SDK ships the hook
+does not resolve, so nothing is retained on either path. See
+:func:`_record_async_tool_result` for the measurement. That shared body — previously duplicated verbatim in both
 adapters (the cross-file duplication SonarCloud flagged on PR #269, AAASM-4746) —
 lives here so each adapter keeps only its framework-specific glue.
 

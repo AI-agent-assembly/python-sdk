@@ -31,7 +31,9 @@ print(f"Version: {agent_config.version}")
 # For example:
 # - Register the agent with the gateway
 # - Check policy compliance before executing actions
-# - Log audit events
+#
+# Note: the SDK layer does NOT log audit events. Governed outcomes are offered to an
+# audit hook that no interceptor this SDK ships resolves (AAASM-5731).
 
 # Don't forget to shutdown the runtime when done
 assembly.shutdown()
