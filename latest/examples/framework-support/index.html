@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Python SDK for AI Agent Assembly — a governance-native runtime for AI agents. Wire framework adapters, enforce policy on tool calls, and emit audit events with one init_assembly() call.">
+        <meta name="description" content="Python SDK for AI Agent Assembly — a governance-native runtime for AI agents. Wire framework adapters and enforce policy on tool calls with one init_assembly() call.">
       
       
         <meta name="author" content="Agent Assembly Team">
@@ -2574,8 +2574,10 @@ linked from the <a href="../">Examples overview</a>.</p>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;sdk-only&quot;</span><span class="p">,</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">):</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="c1"># Build and run your agent exactly as you normally would.</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="c1"># Every tool call now passes through the policy gate and is audited.</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="o">...</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="c1"># Every tool call now passes through the policy gate. It is NOT audited by the</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="c1"># SDK layer: the outcome is offered to an audit hook that does not resolve on</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="c1"># any interceptor this SDK ships, so nothing is recorded (AAASM-5731).</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="o">...</span>
 </span></code></pre></div>
 <p>Inside the <code>with</code> block, the relevant adapter has monkey-patched the framework's tool-call
 entry points. On exit, all hooks are removed in reverse order.</p>
@@ -2732,7 +2734,7 @@ then follow the per-framework page:</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="July 20, 2026 14:01:24 CST"><span class="timeago" datetime="2026-07-20T14:01:24+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="July 20, 2026 14:01:24 CST">2026-07-20</span> by Chisanan232</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 13, 2026 15:31:11 CST"><span class="timeago" datetime="2026-08-13T15:31:11+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 13, 2026 15:31:11 CST">2026-08-13</span> by Chisanan232</span>
 
     
     

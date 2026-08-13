@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Python SDK for AI Agent Assembly — a governance-native runtime for AI agents. Wire framework adapters, enforce policy on tool calls, and emit audit events with one init_assembly() call.">
+        <meta name="description" content="Python SDK for AI Agent Assembly — a governance-native runtime for AI agents. Wire framework adapters and enforce policy on tool calls with one init_assembly() call.">
       
       
         <meta name="author" content="Agent Assembly Team">
@@ -2594,8 +2594,9 @@
 <h1 id="agent-assembly-python-sdk">Agent Assembly Python SDK<a class="headerlink" href="#agent-assembly-python-sdk" title="Permanent link">&para;</a></h1>
 <p><strong>In plain terms:</strong> this SDK is how a Python agent asks for permission before it acts.
 You wrap your existing agent in one <code>init_assembly()</code> call, and from that point on every
-tool call your agent makes is checked against a governance policy — allowed, denied, or
-recorded — without you rewriting a single line of the agent itself.</p>
+tool call your agent makes is checked against a governance policy — allowed or denied —
+without you rewriting a single line of the agent itself. Recording is <em>not</em> a third
+outcome: the SDK layer produces no audit evidence of its own (see below).</p>
 <p>It is two things in one package:</p>
 <ul>
 <li>a <strong>pure-Python client</strong> that talks to the Agent Assembly <strong>gateway</strong> (the policy brain),
@@ -2629,15 +2630,33 @@ Pydantic AI, Google ADK, and MCP servers</strong>.</p>
 <ul>
 <li><strong>Developers</strong> who want to add governance to an existing Python agent without re-architecting it.</li>
 <li><strong>Platform teams</strong> standing up a policy gateway who need their agents to report to it.</li>
-<li><strong>Operators</strong> who need an audit trail of every tool call, prompt, and policy decision.</li>
+<li><strong>Operators</strong> who need agents to run under a policy gate they control, with identity and
+  lineage registered against the gateway.</li>
 </ul>
+<p>Note that an <strong>audit trail of governed tool calls is not something this SDK layer
+produces</strong> — see the warning under "Why use it" below.</p>
 <h2 id="why-use-it">Why use it<a class="headerlink" href="#why-use-it" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Framework adapters</strong> for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI,
   Google ADK, and MCP servers — drop in, no agent rewrites required.</li>
 <li><strong>Pre-execution policy enforcement</strong> — block disallowed tool calls <em>before</em> they run.</li>
-<li><strong>Audit trail</strong> — every tool call, prompt, and policy decision is emitted to the gateway
-  with full agent lineage (parent / root / team).</li>
+<li><strong>Agent lineage</strong> — parent / root / team identity is registered with the gateway and
+  carried on every policy check.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">The SDK layer keeps no audit trail of its own</p>
+<p>The framework adapters offer the outcome of every governed call to an audit hook
+on the governance interceptor. On every interceptor this SDK ships that hook
+<strong>does not resolve</strong>, so nothing is emitted — for <strong>allowed</strong> calls as much as
+denied ones — and no claim of attributability or after-the-fact review holds on
+the SDK path.</p>
+<p>Enforcement is unaffected: a policy DENY still blocks the tool, and the proxy /
+eBPF layers remain authoritative. <code>init_assembly()</code> warns at startup and reports
+<code>audit_sink</code> on the returned context; supply your own handler exposing
+<code>record_result</code> or <code>on_tool_end</code> to retain the record
+(<a href="https://lightning-dust-mite.atlassian.net/browse/AAASM-5731">AAASM-5731</a>).</p>
+</div>
+<ul>
 <li><strong>Native PyO3 fast path</strong> (optional) — drop into a Rust runtime client when you need
   sub-millisecond policy checks.</li>
 <li><strong>Typed throughout</strong> — typed models for every gateway payload; the package ships a
@@ -2709,7 +2728,7 @@ and <strong>latest</strong> (the head of <code>master</code>). Older versions re
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="July 5, 2026 20:10:08 CST"><span class="timeago" datetime="2026-07-05T20:10:08+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="July 5, 2026 20:10:08 CST">2026-07-05</span> by Bryant</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 13, 2026 15:31:11 CST"><span class="timeago" datetime="2026-08-13T15:31:11+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 13, 2026 15:31:11 CST">2026-08-13</span> by Bryant</span>
 
     
     

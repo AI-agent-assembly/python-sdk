@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Python SDK for AI Agent Assembly — a governance-native runtime for AI agents. Wire framework adapters, enforce policy on tool calls, and emit audit events with one init_assembly() call.">
+        <meta name="description" content="Python SDK for AI Agent Assembly — a governance-native runtime for AI agents. Wire framework adapters and enforce policy on tool calls with one init_assembly() call.">
       
       
         <meta name="author" content="Agent Assembly Team">
@@ -3076,12 +3076,12 @@ status string <code>"allow" | "deny" | "pending"</code>, or a mapping <code>{"st
 <tr>
 <td><code>record_result</code> / <code>on_tool_end</code></td>
 <td>adapter → interceptor, no return</td>
-<td>Report a completed tool call's output for audit.</td>
+<td>Offer a governed tool call's outcome for audit — allowed or denied. <strong>No interceptor this SDK ships resolves either name</strong>, so on the shipped path the <code>getattr</code> guard finds nothing and the outcome is not recorded; only a caller-supplied handler retains it (AAASM-5731).</td>
 </tr>
 <tr>
 <td><code>record</code></td>
 <td>adapter → interceptor, no return</td>
-<td>Generic structured event (e.g. <code>action="task_start"</code>).</td>
+<td>Generic structured event (e.g. <code>action="task_start"</code>). <strong>No interceptor this SDK ships resolves this name either</strong> — the CrewAI patch looks it up for task start/complete (<code>crewai/patch.py:429,445</code>) and finds nothing, so those events are not recorded on the shipped path (AAASM-5731).</td>
 </tr>
 </tbody>
 </table>
@@ -3262,7 +3262,7 @@ repos but should still meet this bar), confirm:</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="July 20, 2026 12:14:34 CST"><span class="timeago" datetime="2026-07-20T12:14:34+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="July 20, 2026 12:14:34 CST">2026-07-20</span> by Chisanan232</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 13, 2026 16:09:08 CST"><span class="timeago" datetime="2026-08-13T16:09:08+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 13, 2026 16:09:08 CST">2026-08-13</span> by Chisanan232</span>
 
     
     
