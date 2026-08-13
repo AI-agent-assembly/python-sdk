@@ -7,12 +7,24 @@ from typing import Any
 import httpx
 
 from agent_assembly.client.dispatch import DispatchToolResult
+from agent_assembly.core.audit_sink import AUDIT_SINK_ABSENT, AuditSinkDisposition
 from agent_assembly.core.transport_security import require_secure_http_url
 from agent_assembly.exceptions import GatewayError
 
 
 class GatewayClient:
-    """Client for communicating with the Agent Assembly governance gateway."""
+    """Client for communicating with the Agent Assembly governance gateway.
+
+    Under the ``observe`` / ``disabled`` postures this object is handed to the
+    framework adapters as the governance interceptor unchanged, so its surface is
+    also the audit surface — and it has no ``record_result`` and no
+    ``on_tool_end``, so the adapters' audit hook does not resolve and no record is
+    emitted for a governed tool call. Declared in :attr:`audit_sink`
+    (AAASM-5731). ``report_edge`` is topology metadata, not a tool-call audit
+    record, and does not close this gap.
+    """
+
+    audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
 
     def __init__(
         self,
