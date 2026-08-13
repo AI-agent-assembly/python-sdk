@@ -234,7 +234,12 @@ def _scanned_sentences() -> dict[str, str]:
     rather than opting them in, so a claim added to a section nobody thought
     about is still caught.
     """
-    body = re.sub(r"```.*?```", " ", _document(), flags=re.DOTALL)
+    # A fenced block becomes a PARAGRAPH break, not a space. Replacing it with a
+    # space glued the sentence before a code sample to the sentence after it —
+    # 18 such pairs in this document — and a binding quoting the glued pair
+    # would then cover two claims at once, which is fragment containment one
+    # level up.
+    body = re.sub(r"```.*?```", "\n\n", _document(), flags=re.DOTALL)
 
     sentences: dict[str, str] = {}
     section = "(preamble)"
@@ -246,10 +251,11 @@ def _scanned_sentences() -> dict[str, str]:
             continue
         if section in _EXCLUDED_SECTIONS:
             continue
-        for raw in re.split(r"(?<=\.)\s+", chunk):
-            flat = _flatten(raw)
-            if flat:
-                sentences[flat] = section
+        for paragraph in chunk.split("\n\n"):
+            for raw in re.split(r"(?<=\.)\s+", paragraph):
+                flat = _flatten(raw)
+                if flat:
+                    sentences[flat] = section
     return sentences
 
 
