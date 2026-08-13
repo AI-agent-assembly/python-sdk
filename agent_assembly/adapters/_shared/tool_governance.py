@@ -176,14 +176,22 @@ async def _record_async_tool_result(
     apart from a tool that ran and returned that same text.
 
     Whether anything is recorded depends entirely on the ``callback_handler``.
-    Both hooks are duck-typed, and on the interceptor the SDK builds today
-    *neither resolves*: ``RuntimeQueryInterceptor`` defines only
-    ``check_tool_start`` and delegates the rest to ``GatewayClient``, whose
-    surface has no ``record_result`` and no ``on_tool_end``. So on the shipped
-    path this function finds no hook and emits nothing — for allowed calls as
-    much as denied ones — leaving tool outcomes Unmeasured in audit evidence
-    (ADR 0033 §6). A caller that supplies its own handler does get the record;
-    wiring a sink into the SDK's own interceptor is a separate capability.
+    Both hooks are duck-typed, and on every interceptor the SDK ships *neither
+    resolves*: ``RuntimeQueryInterceptor`` defines only ``check_tool_start`` and
+    delegates the rest to ``GatewayClient``, whose surface has no
+    ``record_result`` and no ``on_tool_end``. Measured against the native and
+    HTTP boundaries, this function therefore finds no hook and emits nothing on
+    the shipped path — for allowed calls as much as denied ones.
+
+    Under ADR 0033 §6 that makes SDK-side recording **Planned** (AAASM-5731),
+    not *Unmeasured*: §6 reserves ``Unmeasured`` for an action no control
+    inspected, where nothing is known, and here exactly where the record stops
+    has been measured. It is certainly not *Observed*, which needs a durable
+    event attributed to the action. Every handler the SDK ships declares this in
+    ``audit_sink`` (see :mod:`agent_assembly.core.audit_sink`), ``init_assembly``
+    warns about it, and a caller that supplies its own handler does get the
+    record. Wiring a sink into the SDK's own interceptor is a separate
+    capability.
     """
     denial_flag = {"denied": denied} if denied else {}
 
@@ -286,8 +294,8 @@ async def run_governed_async_tool(
         # Previously this raised straight past the record call below, so a
         # denied call could not reach an audit sink even when the caller had
         # supplied one. See _record_async_tool_result on why the SDK's own
-        # interceptor still resolves no hook, leaving the shipped path
-        # Unmeasured.
+        # interceptor still resolves no hook, so the shipped path emits nothing
+        # here either (AAASM-5731).
         #
         # Best-effort, and the guard is load-bearing: the hook is duck-typed
         # from caller-supplied code, and inserting a call here where none used
