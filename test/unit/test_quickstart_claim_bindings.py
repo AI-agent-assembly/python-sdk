@@ -218,7 +218,16 @@ BINDINGS: tuple[ClaimBinding, ...] = (
 
 
 def _document() -> str:
-    return _QUICK_START.read_text(encoding="utf-8")
+    """Read the quick-start with line endings normalised to LF.
+
+    Without this the paragraph split never fires on a CRLF checkout: the whole
+    section collapses into one "sentence" that matches no binding. Node's four
+    Windows CI legs caught exactly that while Linux and macOS stayed green.
+    This repo's CI is Linux-only, so the bug is latent here — normalised anyway,
+    because a gate whose result depends on the checkout's line endings is not a
+    gate.
+    """
+    return _QUICK_START.read_text(encoding="utf-8").replace("\r\n", "\n")
 
 
 def _flatten(text: str) -> str:
