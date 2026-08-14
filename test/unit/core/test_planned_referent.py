@@ -118,8 +118,20 @@ def _deferral_sites() -> list[tuple[str, int, str, str]]:
         if _SKIPPED_DIRS.intersection(rel.parts) or str(rel) == _GATE_FILE:
             continue
 
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-        sites.extend(deferrals_in_lines(str(rel), lines))
+        try:
+            body = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            # Removed between the directory listing and the read — a build
+            # artefact, an editor temp file, a package manager's scratch
+            # directory. Letting it raise would abort the whole scan, turning a
+            # gate whose verdict is "no findings" into one that produced no
+            # verdict; the node SDK's equivalent walk hit exactly that in CI. A
+            # file that no longer exists carries no claim, so skipping it is
+            # safe; a scan that reaches nothing is the dangerous failure, and
+            # test_the_deferral_scan_can_see is what catches that.
+            continue
+
+        sites.extend(deferrals_in_lines(str(rel), body.splitlines()))
 
     return sites
 
