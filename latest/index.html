@@ -2648,8 +2648,8 @@ see the note under "Why use it" below.</p>
 <p>The framework adapters offer the outcome of every governed call to an audit hook
 on the governance interceptor. Over a connected runtime that hook resolves and
 writes the record to the native event channel — the same channel agent
-registration uses. On the <strong>allowed</strong> path that covers every governed adapter;
-on the denied path it covers three of eleven (see below).</p>
+registration uses. That covers the eleven governing adapters on the <strong>allowed</strong>
+path and, since AAASM-5787, on the denied one as well (see below).</p>
 <p>Without a reachable runtime there is no channel to send on, the hook does not
 resolve, and nothing is emitted; no claim of attributability or after-the-fact
 review holds on that path. Enforcement is unaffected either way: a policy DENY
@@ -2658,16 +2658,18 @@ still blocks the tool, and the proxy / eBPF layers remain authoritative.
 returned context. Delivery is best-effort: a failed send degrades to no record
 rather than to a failed tool call
 (<a href="https://lightning-dust-mite.atlassian.net/browse/AAASM-5750">AAASM-5750</a>).</p>
-<p><strong>A handoff is not evidence, and denied calls are mostly not covered.</strong> The send
+<p><strong>A handoff is not evidence.</strong> The send
 is unacknowledged, so this SDK cannot report that a record arrived and does not
 claim it did — and downstream,
 <a href="https://lightning-dust-mite.atlassian.net/browse/AAASM-5783">AAASM-5783</a> is open
 on <code>report_event</code> payloads reaching neither the live stream nor the durable
-entry, so no SDK can claim ADR 0033 §6 <em>Observed</em> until it lands. And only <code>google_adk</code>, <code>pydantic_ai</code> and <code>openai_agents</code> build a
-record on the <strong>denied</strong> path — the other eight governed adapters (<code>crewai</code>,
-<code>llamaindex</code>, <code>haystack</code>, <code>agno</code>, <code>smolagents</code>, <code>microsoft_agent_framework</code>,
-<code>mcp</code>, <code>langchain</code>) return or raise before their record helper, so a deny there
-produces no record for any sink to carry.</p>
+entry, so no SDK can claim ADR 0033 §6 <em>Observed</em> until it lands. That limit
+applies to the denied path as much as the allowed one: the eleven governing
+adapters build a record on both
+(<a href="https://lightning-dust-mite.atlassian.net/browse/AAASM-5787">AAASM-5787</a>),
+and the record carries a denial marker so a blocked call is distinguishable
+from a tool that ran and returned the denial text — but handing it over is
+still a handoff, not evidence.</p>
 </div>
 <ul>
 <li><strong>Native PyO3 fast path</strong> (optional) — drop into a Rust runtime client when you need
@@ -2741,7 +2743,7 @@ and <strong>latest</strong> (the head of <code>master</code>). Older versions re
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 14, 2026 14:39:58 CST"><span class="timeago" datetime="2026-08-14T14:39:58+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 14, 2026 14:39:58 CST">2026-08-14</span> by Bryant</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 14, 2026 16:40:59 CST"><span class="timeago" datetime="2026-08-14T16:40:59+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 14, 2026 16:40:59 CST">2026-08-14</span> by Bryant</span>
 
     
     
