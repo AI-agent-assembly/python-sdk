@@ -71,6 +71,35 @@ def accepts_keyword(method: Any, name: str) -> bool:
     return False
 
 
+def optional_audit_kwargs(method: Any, **candidates: Any) -> dict[str, Any]:
+    """Filter ``candidates`` to the keywords ``method`` can actually receive.
+
+    The allowed path in several adapters calls the audit hook with just
+    ``tool_name`` and ``result``, so a caller-supplied handler written to that
+    contract — ``def record_result(self, *, tool_name, result)`` — is entitled
+    to reject the rest. Passing them unconditionally raises ``TypeError``, which
+    the deny paths' suppression then swallows: the record is lost silently, in
+    exactly the population the "the governing adapters record on deny" claim is
+    about.
+
+    Shared rather than repeated because the same call shape exists in three
+    places — here, ``_shared.tool_governance`` and ``openai_agents`` — and the
+    first fix reached only this one.
+
+    An **unreadable** signature is not the same as a refusal. A C-implemented
+    callable exposes nothing to introspect, and dropping every optional keyword
+    there would silently narrow a call that has always carried ``agent_id`` and
+    ``run_id``. Those keep flowing; only ``denied``, which is newer than any
+    such handler, is withheld — the same reasoning
+    :func:`accepts_keyword` already documents for the flag.
+    """
+    try:
+        inspect.signature(method)
+    except (TypeError, ValueError):
+        return {name: value for name, value in candidates.items() if name != "denied"}
+    return {name: value for name, value in candidates.items() if accepts_keyword(method, name)}
+
+
 def _offer(
     callback_handler: Any,
     *,
@@ -84,29 +113,19 @@ def _offer(
     The return value matters to the async entry point, which has to await a
     coroutine hook. The sync entry point closes one instead — see there for why.
     """
-    denial_flag = {"denied": True}
     payload = truncate_result_for_audit(result)
+
+    def optional(method: Any) -> dict[str, Any]:
+        return optional_audit_kwargs(method, agent_id=agent_id, run_id=run_id, denied=True)
 
     record_method = getattr(callback_handler, "record_result", None)
     if callable(record_method):
-        returned: object = record_method(
-            tool_name=tool_name,
-            result=payload,
-            agent_id=agent_id,
-            run_id=run_id,
-            **(denial_flag if accepts_keyword(record_method, "denied") else {}),
-        )
+        returned: object = record_method(tool_name=tool_name, result=payload, **optional(record_method))
         return returned
 
     tool_end_method = getattr(callback_handler, "on_tool_end", None)
     if callable(tool_end_method):
-        ended: object = tool_end_method(
-            output=payload,
-            tool_name=tool_name,
-            agent_id=agent_id,
-            run_id=run_id,
-            **(denial_flag if accepts_keyword(tool_end_method, "denied") else {}),
-        )
+        ended: object = tool_end_method(output=payload, tool_name=tool_name, **optional(tool_end_method))
         return ended
 
     return None
@@ -134,6 +153,15 @@ def record_denied_tool_result(
             # abandon it: an un-awaited coroutine emits a RuntimeWarning at
             # collection time, from this module, in a run whose real problem is
             # that the handler and the adapter disagree about sync vs async.
+            #
+            # Be clear about what this costs, because it is the one case where
+            # this module does NOT deliver: closing throws GeneratorExit at the
+            # first suspension point, so an `async def` hook's body never runs
+            # and the record is dropped. Nothing here can fix that — the
+            # adapter's deny branch is synchronous — so an async-only handler
+            # has to be paired with an adapter whose deny branch is async
+            # (mcp, microsoft_agent_framework, and the `a`-suffixed paths of
+            # agno and llamaindex).
             returned.close()
 
 
