@@ -6,9 +6,10 @@ call is intercepted is identical: serialize the args, ask the interceptor for a
 verdict, honour a ``pending`` approval round-trip, deny by raising when the
 verdict is ``deny``, otherwise run the original inside a spawn-context scope.
 Either way the outcome is *offered* to the audit hook before the flow ends
-(AAASM-5665) — offered, not recorded: on every interceptor this SDK ships the hook
-does not resolve, so nothing is retained on either path. See
-:func:`_record_async_tool_result` for the measurement. That shared body — previously duplicated verbatim in both
+(AAASM-5665). Whether the hook resolves depends on the interceptor: over a
+connected runtime it does, and the record is forwarded to the runtime's evidence
+pipeline (AAASM-5750); without one it does not, and nothing is retained on either
+path. See :func:`_record_async_tool_result` for the measurement. That shared body — previously duplicated verbatim in both
 adapters (the cross-file duplication SonarCloud flagged on PR #269, AAASM-4746) —
 lives here so each adapter keeps only its framework-specific glue.
 
@@ -178,22 +179,19 @@ async def _record_async_tool_result(
     apart from a tool that ran and returned that same text.
 
     Whether anything is recorded depends entirely on the ``callback_handler``.
-    Both hooks are duck-typed, and on every interceptor the SDK ships *neither
-    resolves*: ``RuntimeQueryInterceptor`` defines only ``check_tool_start`` and
-    delegates the rest to ``GatewayClient``, whose surface has no
-    ``record_result`` and no ``on_tool_end``. Measured against the native and
-    HTTP boundaries, this function therefore finds no hook and emits nothing on
-    the shipped path — for allowed calls as much as denied ones.
+    Both hooks are duck-typed. Over a connected runtime
+    ``RuntimeQueryInterceptor.record_result`` resolves and ships the record
+    across the native event channel, so the event reaches the runtime's evidence
+    pipeline — ADR 0033 §6 *Observed* — for allowed calls as much as denied ones
+    (AAASM-5750). Without a runtime neither hook resolves and this function emits
+    nothing, measured against the native and HTTP boundaries; the control is
+    configured and its channel unavailable, which is §6 *Degraded* rather than
+    *Unmeasured* — §6 reserves ``Unmeasured`` for an action no control inspected,
+    and here exactly where the record stops has been measured.
 
-    Under ADR 0033 §6 that makes SDK-side recording **Planned** (AAASM-5750),
-    not *Unmeasured*: §6 reserves ``Unmeasured`` for an action no control
-    inspected, where nothing is known, and here exactly where the record stops
-    has been measured. It is certainly not *Observed*, which needs a durable
-    event attributed to the action. Every handler the SDK ships declares this in
-    ``audit_sink`` (see :mod:`agent_assembly.core.audit_sink`), ``init_assembly``
-    warns about it, and a caller that supplies its own handler does get the
-    record. Wiring a sink into the SDK's own interceptor is a separate
-    capability.
+    Which of the two a run is in is declared in ``audit_sink`` (see
+    :mod:`agent_assembly.core.audit_sink`) and warned about by ``init_assembly``;
+    a caller that supplies its own handler gets the record either way.
     """
     denial_flag = {"denied": denied} if denied else {}
 
