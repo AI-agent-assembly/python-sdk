@@ -75,7 +75,7 @@ see the note under "Why use it" below.
     rather than to a failed tool call
     ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
 
-    **A handoff is not evidence, and denied calls are mostly not covered.** The send
+    **A handoff is not evidence.** The send
     is unacknowledged, so this SDK cannot report that a record arrived and does not
     claim it did — and downstream,
     [AAASM-5783](https://lightning-dust-mite.atlassian.net/browse/AAASM-5783) is open
