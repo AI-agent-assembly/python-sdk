@@ -64,10 +64,10 @@ and does not earn ADR 0033 §6 *Observed*.** Closing that needs AAASM-5783, whic
 is open: today ``report_event`` payloads reach neither the live stream nor the
 durable entry.
 
-Its coverage is also uneven across adapters, which the disposition cannot express
-because it is a property of the client, not of the call site: every governed
-adapter reaches the hook on the **allowed** path, but only ``google_adk``,
-``pydantic_ai`` and ``openai_agents`` build a record on the **denied** one.
+The disposition is a property of the client, not of the call site, so it says
+nothing about which branch a record came from. The eleven governing adapters
+reach the hook on the **allowed** path and on the **denied** one, and a denied
+record carries ``denied=True`` for hooks that accept it (AAASM-5787).
 """
 
 AUDIT_SINK_ABSENT: AuditSinkDisposition = "absent"
