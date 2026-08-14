@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import sys
 import warnings
 from importlib import metadata
 from typing import Any
@@ -115,6 +116,40 @@ def _warn_sdk_enforcement_unavailable() -> None:
         "extension to enable the in-process allow/deny fast path, or set "
         "enforcement_mode='observe' to run advisory-only.",
         stacklevel=2,
+    )
+
+
+def _warn_sdk_enforcement_not_applied(reason: str) -> None:
+    """Warn (loudly) that this build applies no SDK-layer enforcement (AAASM-5661).
+
+    Emitted on the fail-open branch of :func:`_governance_unavailable`: an explicit
+    ``observe`` / ``disabled`` posture with no authoritative runtime to consult. The
+    bare ``GatewayClient`` returned there exposes no ``check_tool_start``, so the
+    adapters' missing-interceptor fallback allows and the governed call runs — the
+    genuine no-op path, and the quiet one. ``init_assembly`` already warns about
+    *registration* on the same configuration, and that warning has been mistaken for
+    the whole story: an agent can be registered and still run with no in-process
+    allow/deny.
+
+    Written straight to ``sys.stderr`` rather than through ``warnings`` for the same
+    reason as :func:`~agent_assembly.core.assembly._warn_agent_unregistered`: a
+    ``logging`` or ``warnings`` filter must not be able to silence a statement about
+    what the SDK is not doing. Once per interceptor build, so it cannot become
+    per-call noise.
+
+    :param reason: The clause naming why no authority was reachable, reused from the
+        deny reason the enforce branch would have carried (contains no credentials).
+    """
+    sys.stderr.write(
+        "[agent-assembly] WARNING: SDK-layer enforcement is NOT applied on this path "
+        f"({reason}). Under enforcement_mode='observe' / 'disabled' the SDK stays "
+        "advisory, so a governed tool call reaches its body with no in-process "
+        "allow/deny decision behind it, and a policy DENY does not block it here. This "
+        "is a separate gap from the registration warning: an agent can be registered "
+        "and still run with no SDK-layer enforcement. Use the default enforce posture "
+        "with the native agent_assembly._core extension installed to obtain the "
+        "in-process decision; the proxy / eBPF layers remain authoritative either way "
+        "(AAASM-5661).\n"
     )
 
 
@@ -562,8 +597,18 @@ def _governance_unavailable(client: Any, enforce: bool, reason: str, *, warn: bo
     ``warn`` gates the one-time loud warning to the native-missing case (a
     pure-Python install), matching the historical AAASM-4130 behavior; the
     unreachable-socket case denies without an extra warning.
+
+    The fail-open branch warns unconditionally (AAASM-5661). It is the one
+    remaining path on which a governed tool call reaches its body with no
+    in-process decision behind it, and until now it was the quietest: the bare
+    ``GatewayClient`` exposes no ``check_tool_start``, so the adapters fall back
+    to an allow and the session looks governed. The only loud signal a caller got
+    was :func:`~agent_assembly.core.assembly._warn_agent_unregistered`, which is
+    about *registration* — a reader who saw it and shrugged had no way to learn
+    that enforcement was gone too.
     """
     if not enforce:
+        _warn_sdk_enforcement_not_applied(reason)
         return client
     if warn:
         _warn_sdk_enforcement_unavailable()
