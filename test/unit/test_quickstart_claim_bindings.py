@@ -73,9 +73,16 @@ import pytest
 # makes a rename a *collection* error, aborting before the assertion meant to
 # catch it can run.
 
-#: The ticket this module implements. An unproven claim may not name it — see
-#: test_an_unproven_reason_does_not_name_the_implementing_ticket.
-IMPLEMENTING_TICKET = "AAASM-5529"
+#: Tickets whose work lands in this module. An unproven claim may not name any of
+#: them — see test_an_unproven_reason_does_not_name_an_implementing_ticket.
+#:
+#: A tuple rather than one string (AAASM-5661). As a single value the rule caught
+#: only the module's original author: AAASM-5661 edited these bindings and pointed
+#: three unproven claims at *itself*, and the gate stayed green through the whole
+#: PR because the banned name was still 5529. Every ticket that edits this module
+#: appends itself here, because every one of them closes on merge and none may be
+#: a referent afterwards.
+IMPLEMENTING_TICKETS: tuple[str, ...] = ("AAASM-5529", "AAASM-5661")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _QUICK_START = _REPO_ROOT / "docs" / "quick-start.md"
@@ -176,7 +183,7 @@ class ClaimBinding:
     #: ``ClassName::test_name`` or ``test_name`` ids from _CONTROL_MODULES.
     controls: tuple[str, ...] = ()
     #: Set when no control proves the claim. Must name a ticket, and must not
-    #: name IMPLEMENTING_TICKET.
+    #: name any of IMPLEMENTING_TICKETS.
     unproven_reason: str = ""
     #: Backticked SDK identifiers the claim names -> the module they live in.
     symbols: dict[str, str] = field(default_factory=dict)
@@ -1027,18 +1034,23 @@ class TestEveryBindingNamesSomethingReal:
             )
 
     @pytest.mark.parametrize("binding", BINDINGS, ids=lambda b: b.claim_id)
-    def test_an_unproven_reason_does_not_name_the_implementing_ticket(self, binding: ClaimBinding) -> None:
-        """An unproven claim may not point at the ticket that closes it.
+    def test_an_unproven_reason_does_not_name_an_implementing_ticket(self, binding: ClaimBinding) -> None:
+        """An unproven claim may not point at a ticket that closes it.
 
-        A reason naming this module's own ticket resolves to a *closed* issue the
-        moment this work merges, and nothing would notice: the ticket-shaped
-        check above is satisfied by any AAASM-nnnn, open or not.
+        A reason naming one of this module's own tickets resolves to a *closed*
+        issue the moment that work merges, and nothing would notice: the
+        ticket-shaped check above is satisfied by any AAASM-nnnn, open or not.
+
+        Checked against every entry, not only the first (AAASM-5661). A
+        single-value rule bans the author who wrote the rule and nobody after
+        them, which is the one author who was never going to break it.
         """
-        assert IMPLEMENTING_TICKET not in binding.unproven_reason, (
-            f"Claim {binding.claim_id!r} is registered unproven against {IMPLEMENTING_TICKET}, "
-            "the ticket this module implements. On merge that pointer resolves to a closed "
-            "issue and the claim is silently orphaned. Name the ticket that will actually "
-            "resolve it, or file one."
+        named = [ticket for ticket in IMPLEMENTING_TICKETS if ticket in binding.unproven_reason]
+        assert not named, (
+            f"Claim {binding.claim_id!r} is registered unproven against {named}, which this "
+            "module implements. On merge that pointer resolves to a closed issue and the "
+            "claim is silently orphaned. Name the ticket that will actually resolve it, or "
+            "file one."
         )
 
     @pytest.mark.parametrize("binding", BINDINGS, ids=lambda b: b.claim_id)
