@@ -52,9 +52,13 @@ from agent_assembly.core.audit_sink import (
     AUDIT_SINK_DISCARDED,
     AUDIT_SINK_FORWARDED,
     resolve_audit_sink,
+    resolve_delegated_audit_sink,
 )
 from agent_assembly.core.runtime_audit import build_tool_outcome_payload
-from agent_assembly.core.runtime_interceptor import build_governance_interceptor
+from agent_assembly.core.runtime_interceptor import (
+    RuntimeQueryInterceptor,
+    build_governance_interceptor,
+)
 
 from ._fake_core import FakeRuntimeClient, install_fake_core
 
@@ -254,17 +258,102 @@ def test_every_shipped_governance_handler_declares_its_audit_sink() -> None:
         "says what it does with the record (AAASM-5731)"
     )
 
-    undeclared = [
-        label
-        for label, handler in handlers.items()
-        if getattr(handler, "audit_sink", None)
-        not in {AUDIT_SINK_FORWARDED, AUDIT_SINK_ABSENT, AUDIT_SINK_DISCARDED, AUDIT_SINK_CALLER_SUPPLIED}
-    ]
-    assert not undeclared, (
-        f"handler(s) {undeclared} are shipped without declaring what they do with the "
-        "hook-layer audit record; the hook returns None either way, so a handler that "
-        "records and one that emits nothing are indistinguishable (AAASM-5731)"
+    # Assert the SET this matrix produces, not membership of the whole vocabulary.
+    # The four-value acceptance this replaces admitted `caller-supplied`, which the
+    # shipped matrix cannot produce and which is precisely the value `init_assembly`
+    # treats as "do not warn". Measured: under a mutation making both interceptors
+    # report `caller-supplied`, the old form passed on its own (five sibling tests
+    # caught it, so nothing shipped wrong — but this gate decided nothing).
+    #
+    # `discarded` and `caller-supplied` are real and reachable; they are simply not
+    # reachable from *this* matrix, so each has its own case below rather than a
+    # standing waiver here (AAASM-5752).
+    # Per LABEL, not as a union. Review measured why the union is not enough: it
+    # detects a NEW value but not a WRONG ASSIGNMENT within the set. Flipping
+    # `GatewayClient.audit_sink` from `absent` to `forwarded` — a false retention
+    # claim on two shipped configurations, the exact defect this type exists to
+    # prevent — left the whole suite green, because {absent, forwarded} was still
+    # the union. The mapping binds each branch to its own answer.
+    expected = {
+        "runtime reachable, enforce": AUDIT_SINK_FORWARDED,
+        "runtime reachable, observe": AUDIT_SINK_FORWARDED,
+        "runtime unreachable, enforce": AUDIT_SINK_ABSENT,
+        "runtime unreachable, observe": AUDIT_SINK_ABSENT,
+        "native missing, enforce": AUDIT_SINK_ABSENT,
+        "native missing, observe": AUDIT_SINK_ABSENT,
+        "langchain callback handler": AUDIT_SINK_FORWARDED,
+    }
+    observed = {label: getattr(handler, "audit_sink", None) for label, handler in handlers.items()}
+    assert observed == expected, (
+        f"the shipped handler matrix reported {observed}; it is pinned to {expected}. A changed "
+        "value is either a handler that stopped declaring what it does with the hook-layer audit "
+        "record, or a genuine new branch that needs its own case and its own reason "
+        "(AAASM-5731, AAASM-5752)"
     )
+
+
+def test_the_langchain_handler_reports_discarded_when_what_it_wraps_records_nothing() -> None:
+    """`discarded` is reachable, just not from the shipped matrix above.
+
+    The handler defines ``on_tool_end``, so the adapters' hook lookup resolves on
+    it and the record is built and handed over — then stops, because the wrapped
+    interceptor has nowhere to put it. That is `discarded`, and it is not
+    `absent`: `absent` says nothing constructs the event, and here something does.
+    """
+
+    # Driven from the shipped factory, not from a stub. Review measured the
+    # difference: with a 3-line `class RecordsNothing: audit_sink = "absent"`
+    # this case still passed under a mutation setting `GatewayClient.audit_sink`
+    # to `forwarded`, which removes `discarded` from two of the four shipped
+    # configurations that produce it. The stub pinned the substitution rule
+    # inside `AssemblyCallbackHandler`; these labels pin that shipped code
+    # reaches the value at all.
+    handlers = _shipped_handler_matrix([])
+    for label in ("runtime unreachable, observe", "native missing, observe"):
+        wrapped = AssemblyCallbackHandler(handlers[label])
+        assert wrapped.audit_sink == AUDIT_SINK_DISCARDED, (
+            f"the LangChain handler wrapping the '{label}' interceptor reported "
+            f"{wrapped.audit_sink!r}; `_register_adapters` performs exactly this substitution"
+        )
+
+
+def test_a_handler_that_declares_nothing_is_reported_as_caller_supplied() -> None:
+    """`caller-supplied` is the no-claim answer, and is likewise outside the matrix.
+
+    This SDK builds no handler that reaches it — it is what a caller's own object
+    resolves to. Pinned here so the value stays covered while the matrix assertion
+    above stays narrow.
+    """
+
+    class Bare:
+        pass
+
+    assert AssemblyCallbackHandler(Bare()).audit_sink == AUDIT_SINK_CALLER_SUPPLIED
+    assert resolve_audit_sink(Bare()) == AUDIT_SINK_CALLER_SUPPLIED
+
+
+def test_resolving_a_disposition_never_raises() -> None:
+    """A client whose ``__getattr__`` raises yields `absent`, not an exception.
+
+    ``audit_sink`` became a computed property under AAASM-5731; before this, a
+    wrapped client that raises on attribute access surfaced as
+    ``ConfigurationError: Failed to initialize assembly runtime: client is not
+    connected`` out of ``init_assembly``. Both resolvers are covered because the
+    reproduction reaches the delegating one — ``RuntimeQueryInterceptor.audit_sink``
+    calls it — while the other is what a caller-facing handler uses (AAASM-5752).
+    """
+
+    class Raises:
+        def __getattr__(self, name: str) -> object:
+            raise RuntimeError("client is not connected")
+
+    assert resolve_audit_sink(Raises()) == AUDIT_SINK_ABSENT
+    assert resolve_delegated_audit_sink(Raises()) == AUDIT_SINK_ABSENT
+    # The path the reproduction actually took: through the shipped interceptor's
+    # property rather than through the resolver directly.
+    assert RuntimeQueryInterceptor(Raises(), None, _AGENT_ID, enforce=True).audit_sink == AUDIT_SINK_ABSENT
+    # And with the raising object in the runtime-client slot, which is read first.
+    assert RuntimeQueryInterceptor(Raises(), Raises(), _AGENT_ID, enforce=True).audit_sink == AUDIT_SINK_ABSENT
 
 
 # Only the enforce labels: under observe with no runtime the factory returns the
@@ -582,3 +671,34 @@ def test_init_assembly_stays_quiet_when_the_record_is_forwarded(
     finally:
         context.shutdown()
         core_assembly._ACTIVE_CONTEXT = None
+
+
+def test_building_an_interceptor_over_a_raising_client_reports_absent_rather_than_failing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reachable form of the AAASM-5752 symptom, at the shipped factory.
+
+    The ticket is explicit that this is "unreachable on the shipped path —
+    ``init_assembly`` builds its own ``GatewayClient`` — and reachable only by
+    calling ``build_governance_interceptor`` directly with such a client". That
+    is measured, not assumed: an ``init_assembly``-level version of this test was
+    written first and *passed with every guard reverted*, because a client that
+    raises degrades the connect itself, so init reports ``absent`` for an
+    unrelated reason. It was dropped rather than shipped as a tautology.
+
+    So the binding is made where the defect actually lives. Reverting any of the
+    three guards reddens this.
+    """
+
+    class RaisesOnEveryLookup:
+        def __getattr__(self, name: str) -> Any:
+            raise RuntimeError("client is not connected")
+
+    interceptor = build_governance_interceptor(
+        RaisesOnEveryLookup(),
+        _AGENT_ID,
+        None,
+        runtime_client=RaisesOnEveryLookup(),
+        native_available=True,
+    )
+    assert interceptor.audit_sink == AUDIT_SINK_ABSENT
