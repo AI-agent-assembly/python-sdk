@@ -24,7 +24,7 @@ with init_assembly(
     mode="sdk-only",
 ):
     # Build and run your agent exactly as you normally would.
-    # Every tool call now passes through the policy gate, and its outcome is
+    # A call to a governed tool now passes through the policy gate, and its outcome is
     # offered to an audit hook. Over a connected runtime that hook forwards the
     # record to the runtime; without one nothing is recorded (AAASM-5750).
     ...
