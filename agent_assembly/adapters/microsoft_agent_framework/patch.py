@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Literal
 
+from agent_assembly.adapters._shared.audit_record import arecord_denied_tool_result
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
@@ -334,9 +335,17 @@ def _apply_function_tool_invoke_patch(function_tool_cls: type[Any], callback_han
         # non-decision, not a grant — blocking it here stops it from falling
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
-            if is_pending_flow:
-                raise _build_pending_rejected_error(tool_name, reason)
-            raise _build_denied_error(tool_name, reason)
+            error = (
+                _build_pending_rejected_error(tool_name, reason)
+                if is_pending_flow
+                else _build_denied_error(tool_name, reason)
+            )
+            # AAASM-5787: the deny used to raise straight past the record call
+            # below, so this adapter built nothing for the sink to forward.
+            await arecord_denied_tool_result(
+                callback_handler, tool_name=tool_name, result=str(error), agent_id=agent_id
+            )
+            raise error
 
         spawn_ctx = SpawnContext(
             parent_agent_id=agent_id or "",

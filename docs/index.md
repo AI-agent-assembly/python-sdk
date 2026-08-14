@@ -63,8 +63,8 @@ see the note under "Why use it" below.
     The framework adapters offer the outcome of every governed call to an audit hook
     on the governance interceptor. Over a connected runtime that hook resolves and
     writes the record to the native event channel — the same channel agent
-    registration uses. On the **allowed** path that covers every governed adapter;
-    on the denied path it covers three of eleven (see below).
+    registration uses. That covers the eleven governing adapters on the **allowed**
+    path and, since AAASM-5787, on the denied one as well (see below).
 
     Without a reachable runtime there is no channel to send on, the hook does not
     resolve, and nothing is emitted; no claim of attributability or after-the-fact
@@ -75,16 +75,18 @@ see the note under "Why use it" below.
     rather than to a failed tool call
     ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
 
-    **A handoff is not evidence, and denied calls are mostly not covered.** The send
+    **A handoff is not evidence.** The send
     is unacknowledged, so this SDK cannot report that a record arrived and does not
     claim it did — and downstream,
     [AAASM-5783](https://lightning-dust-mite.atlassian.net/browse/AAASM-5783) is open
     on `report_event` payloads reaching neither the live stream nor the durable
-    entry, so no SDK can claim ADR 0033 §6 *Observed* until it lands. And only `google_adk`, `pydantic_ai` and `openai_agents` build a
-    record on the **denied** path — the other eight governed adapters (`crewai`,
-    `llamaindex`, `haystack`, `agno`, `smolagents`, `microsoft_agent_framework`,
-    `mcp`, `langchain`) return or raise before their record helper, so a deny there
-    produces no record for any sink to carry.
+    entry, so no SDK can claim ADR 0033 §6 *Observed* until it lands. That limit
+    applies to the denied path as much as the allowed one: the eleven governing
+    adapters build a record on both
+    ([AAASM-5787](https://lightning-dust-mite.atlassian.net/browse/AAASM-5787)),
+    and the record carries a denial marker so a blocked call is distinguishable
+    from a tool that ran and returned the denial text — but handing it over is
+    still a handoff, not evidence.
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need
   sub-millisecond policy checks.
 - **Typed throughout** — typed models for every gateway payload; the package ships a

@@ -118,6 +118,11 @@ class _FaultInterceptor:
     def __init__(self, scenario: str, *, enforce: bool) -> None:
         self._scenario = scenario
         self._enforce = enforce
+        # Every offer made to either audit hook, in order. AAASM-5787 asserts over
+        # this: a deny that hands nothing over leaves it empty, and the allowed
+        # path populates it too, so the two are compared rather than one being
+        # read on its own.
+        self.records: list[dict[str, Any]] = []
 
     def check_tool_start(self, **_kwargs: Any) -> object:
         scenario = self._scenario
@@ -140,10 +145,14 @@ class _FaultInterceptor:
         # adapter must fail closed under enforce and open under observe.
         return None
 
-    def record_result(self, **_kwargs: Any) -> None:
+    def record_result(self, **kwargs: Any) -> None:
+        # Captured before the audit fault fires: an offer that reached the hook
+        # and then met a raising sink is still an offer the adapter made.
+        self.records.append(dict(kwargs))
         self._maybe_fail_audit()
 
-    def on_tool_end(self, **_kwargs: Any) -> None:
+    def on_tool_end(self, **kwargs: Any) -> None:
+        self.records.append(dict(kwargs))
         self._maybe_fail_audit()
 
     def _maybe_fail_audit(self) -> None:
@@ -163,12 +172,13 @@ class _MissingCheckInterceptor:
 
     def __init__(self, *, enforce: bool) -> None:
         self._enforce = enforce
+        self.records: list[dict[str, Any]] = []
 
-    def record_result(self, **_kwargs: Any) -> None:
-        return None
+    def record_result(self, **kwargs: Any) -> None:
+        self.records.append(dict(kwargs))
 
-    def on_tool_end(self, **_kwargs: Any) -> None:
-        return None
+    def on_tool_end(self, **kwargs: Any) -> None:
+        self.records.append(dict(kwargs))
 
 
 def make_fake_interceptor(scenario: str, *, enforce: bool) -> object:
@@ -279,8 +289,14 @@ async def _drive_langchain(interceptor: object, ran: list[bool]) -> None:
     # LangChain governs via a pre-execution callback: on_tool_start raises to abort the
     # tool. The tool "runs" iff the pre-hook returns without blocking.
     handler = AssemblyCallbackHandler(interceptor)
-    handler.on_tool_start({"name": "conformance_tool"}, "input", run_id=uuid4())
+    run_id = uuid4()
+    handler.on_tool_start({"name": "conformance_tool"}, "input", run_id=run_id)
     ran[0] = True
+    # LangChain calls this after the tool body; without it the driver models a
+    # framework that never completes a tool, and the allowed path would look
+    # like it records nothing (AAASM-5787). Unreachable on a blocked start,
+    # which is what makes the two paths comparable.
+    handler.on_tool_end("conformance output", run_id=run_id)
 
 
 async def _drive_llamaindex(interceptor: object, ran: list[bool]) -> None:
@@ -483,3 +499,26 @@ async def run_scenario(adapter_name: str, scenario: str, mode: str | None) -> bo
     with contextlib.suppress(AssemblyError):
         await DRIVERS[adapter_name](interceptor, ran)
     return ran[0]
+
+
+async def run_scenario_capturing_records(
+    adapter_name: str,
+    scenario: str,
+    mode: str | None,
+) -> tuple[bool, list[dict[str, Any]]]:
+    """Like :func:`run_scenario`, but also return what reached the audit hook.
+
+    Separate from ``run_scenario`` because that function's contract is "the
+    ``ran`` flag is the sole signal", and AAASM-5787 needs the other one. The
+    interceptor is the same fake, so a record here is one the adapter's own deny
+    branch built — not one synthesised by the harness.
+    """
+    from agent_assembly.exceptions import AssemblyError
+
+    enforce = _local_posture_is_enforce(mode)
+    interceptor = make_fake_interceptor(scenario, enforce=enforce)
+    ran = [False]
+    with contextlib.suppress(AssemblyError):
+        await DRIVERS[adapter_name](interceptor, ran)
+    records = getattr(interceptor, "records", [])
+    return ran[0], list(records)

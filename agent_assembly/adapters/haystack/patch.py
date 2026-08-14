@@ -15,8 +15,9 @@ a ``check_tool_start`` pre-execution gate that returns ``allow`` / ``deny`` /
 ``pending``, an optional ``wait_for_tool_approval`` for the pending flow, and a
 post-execution ``record_result`` / ``on_tool_end`` audit hook — which the SDK's own
 interceptor resolves over a connected runtime, handing the outcome to the
-runtime's event channel, and does not resolve without one. Note this adapter does
-not reach that hook on the denied path: it raises first (AAASM-5750).
+runtime's event channel, and does not resolve without one. The deny branch reaches
+the hook too, via ``_shared.audit_record`` (AAASM-5787); it used to return the
+blocked message without recording.
 Under the fail-closed
 ``enforce`` posture an unknown or malformed verdict denies (AAASM-3107).
 """
@@ -29,6 +30,7 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Literal, cast
 
+from agent_assembly.adapters._shared.audit_record import record_denied_tool_result
 from agent_assembly.adapters._shared.positional_args import merge_positional_tool_args
 
 _TOOL_PATCHED_FLAG = "_agent_assembly_haystack_tool_patched"
@@ -268,9 +270,11 @@ def _apply_tool_invoke_patch(tool_cls: type[Any], callback_handler: Any) -> None
         # non-decision, not a grant — blocking it here stops it from falling
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
-            if is_pending_flow:
-                return _format_approval_rejected_message(reason)
-            return _format_blocked_message(reason)
+            message = _format_approval_rejected_message(reason) if is_pending_flow else _format_blocked_message(reason)
+            # AAASM-5787: the deny used to return straight past the record call
+            # below, so this adapter built nothing for the sink to forward.
+            record_denied_tool_result(callback_handler, tool_name=tool_name, result=message)
+            return message
 
         result = original_invoke(self, *args, **kwargs)
         _record_tool_result(callback_handler, tool_name=tool_name, result=result)

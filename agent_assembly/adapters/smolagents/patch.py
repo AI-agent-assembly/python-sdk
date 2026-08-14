@@ -24,6 +24,7 @@ from typing import Any
 
 # Reuse the governance-decision plumbing proven by the CrewAI adapter so every
 # framework normalizes verdicts and fail-closed posture identically.
+from agent_assembly.adapters._shared.audit_record import record_denied_tool_result
 from agent_assembly.adapters.crewai.patch import (
     _format_approval_rejected_message,
     _format_blocked_message,
@@ -158,9 +159,11 @@ def _apply_tool_call_patch(tool_cls: type[Any], callback_handler: Any) -> None:
         # non-decision, not a grant — blocking it here stops it from falling
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
-            if is_pending_flow:
-                return _format_approval_rejected_message(reason)
-            return _format_blocked_message(reason)
+            message = _format_approval_rejected_message(reason) if is_pending_flow else _format_blocked_message(reason)
+            # AAASM-5787: the deny used to return straight past the record call
+            # below, so this adapter built nothing for the sink to forward.
+            record_denied_tool_result(callback_handler, tool_name=tool_name, result=message, agent_id=agent_id)
+            return message
 
         result = original_call(self, *args, **kwargs)
         _record_sync_tool_result(callback_handler, tool_name=tool_name, result=result)

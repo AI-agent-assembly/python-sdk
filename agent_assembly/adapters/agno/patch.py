@@ -24,6 +24,10 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Any
 
+from agent_assembly.adapters._shared.audit_record import (
+    arecord_denied_tool_result,
+    record_denied_tool_result,
+)
 from agent_assembly.adapters.crewai.patch import (
     _format_approval_rejected_message as _format_approval_rejected,
 )
@@ -200,6 +204,9 @@ def _apply_execute_patch(function_call_cls: type[Any], callback_handler: Any) ->
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
             message = _format_approval_rejected(reason) if is_pending_flow else _format_blocked(reason)
+            # AAASM-5787: the deny used to return straight past the record call
+            # below, so this adapter built nothing for the sink to forward.
+            record_denied_tool_result(callback_handler, tool_name=tool_name, result=message)
             return _build_denied_result(message)
 
         result = original_execute(self, *args, **kwargs)
@@ -227,6 +234,9 @@ def _apply_execute_patch(function_call_cls: type[Any], callback_handler: Any) ->
             # from falling through and running the tool, matching LangChain.
             if status != "allow":
                 message = _format_approval_rejected(reason) if is_pending_flow else _format_blocked(reason)
+                # AAASM-5787: as in ``patched_execute``, this branch returned
+                # past the record call below and built nothing to forward.
+                await arecord_denied_tool_result(callback_handler, tool_name=tool_name, result=message)
                 return _build_denied_result(message)
 
             result = await original_aexecute(self, *args, **kwargs)

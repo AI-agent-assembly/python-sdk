@@ -31,6 +31,11 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from agent_assembly.exceptions import PolicyViolationError
 
+from agent_assembly.adapters._shared.audit_record import (
+    accepts_keyword,
+    optional_audit_kwargs,
+    truncate_result_for_audit,
+)
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
@@ -41,13 +46,6 @@ from agent_assembly.adapters.crewai.patch import (
     _normalize_decision as _normalize_governance_decision,
 )
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
-
-_MAX_AUDIT_RESULT_CHARS = 2000
-
-_KEYWORD_PARAMETER_KINDS = (
-    inspect.Parameter.KEYWORD_ONLY,
-    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-)
 
 
 def _current_spawn_depth() -> int:
@@ -133,33 +131,11 @@ def _get_pending_tool_approval_timeout_seconds(callback_handler: Any) -> int:
     return _resolve_pending_timeout_seconds(callback_handler)
 
 
-def _truncate_result_for_audit(result: object) -> str:
-    return str(result)[:_MAX_AUDIT_RESULT_CHARS]
-
-
-def _accepts_keyword(method: Any, name: str) -> bool:
-    """Whether ``method`` can be called with the ``name`` keyword.
-
-    The audit hook is duck-typed — adapters and user code supply their own
-    ``record_result`` / ``on_tool_end`` — and every existing implementation was
-    written against the four-keyword call, so passing a new keyword
-    unconditionally would raise ``TypeError`` on all of them. The denial flag is
-    therefore offered only to handlers that can receive it (an explicit
-    parameter or a ``**kwargs`` catch-all); the rest still get the record, just
-    without the flag.
-    """
-    try:
-        signature = inspect.signature(method)
-    except (TypeError, ValueError):
-        # C-implemented callables expose no introspectable signature. Fall back
-        # to the narrow call so the record is still emitted.
-        return False
-    for parameter in signature.parameters.values():
-        if parameter.kind is inspect.Parameter.VAR_KEYWORD:
-            return True
-        if parameter.name == name and parameter.kind in _KEYWORD_PARAMETER_KINDS:
-            return True
-    return False
+# Both live in the leaf module the adapters' deny branches import (AAASM-5787),
+# so the two copies that would otherwise exist stay one. Re-exported under their
+# private names because this module's callers and tests already use those.
+_truncate_result_for_audit = truncate_result_for_audit
+_accepts_keyword = accepts_keyword
 
 
 async def _record_async_tool_result(
@@ -189,23 +165,31 @@ async def _record_async_tool_result(
 
     Note the scope of "allowed or denied" here: *this* shared flow calls the hook
     on both paths, which is why ``google_adk`` and ``pydantic_ai`` cover denies.
-    Most adapters do not route through it and return or raise before their own
-    record helper, so their denied calls produce no record at all.
+    The adapters that do not route through it reach their deny branch directly and
+    call :func:`agent_assembly.adapters._shared.audit_record.record_denied_tool_result`
+    there (AAASM-5787).
 
     Which of the two a run is in is declared in ``audit_sink`` (see
     :mod:`agent_assembly.core.audit_sink`) and warned about by ``init_assembly``;
     a caller that supplies its own handler gets the record either way.
     """
-    denial_flag = {"denied": denied} if denied else {}
+
+    # Every optional keyword is filtered to what the hook can receive, not just
+    # the denial flag. A caller-supplied handler written to the allowed-path
+    # contract — `(tool_name, result)` — otherwise raised TypeError here
+    # (AAASM-5787).
+    def optional(method: Any) -> dict[str, Any]:
+        candidates: dict[str, Any] = {"agent_id": agent_id, "run_id": run_id}
+        if denied:
+            candidates["denied"] = True
+        return optional_audit_kwargs(method, **candidates)
 
     record_method = getattr(callback_handler, "record_result", None)
     if callable(record_method):
         recorded = record_method(
             tool_name=tool_name,
             result=_truncate_result_for_audit(result),
-            agent_id=agent_id,
-            run_id=run_id,
-            **(denial_flag if _accepts_keyword(record_method, "denied") else {}),
+            **optional(record_method),
         )
         if inspect.isawaitable(recorded):
             await recorded
@@ -216,9 +200,7 @@ async def _record_async_tool_result(
         recorded = tool_end_method(
             output=_truncate_result_for_audit(result),
             tool_name=tool_name,
-            agent_id=agent_id,
-            run_id=run_id,
-            **(denial_flag if _accepts_keyword(tool_end_method, "denied") else {}),
+            **optional(tool_end_method),
         )
         if inspect.isawaitable(recorded):
             await recorded

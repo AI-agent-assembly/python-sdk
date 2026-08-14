@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from functools import wraps
 from typing import Any, Literal
 
+from agent_assembly.adapters._shared.audit_record import optional_audit_kwargs
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
@@ -416,17 +417,33 @@ async def _record_async_tool_result(
     result: object,
     agent_id: str | None,
     ctx: Any,
+    denied: bool = False,
 ) -> None:
+    # AAASM-5787: this adapter was already one of the three that recorded on the
+    # denied path, but the record it built was indistinguishable from a tool that
+    # ran and returned the denial text. The flag is offered only to hooks that can
+    # receive it, for the reason ``accepts_keyword`` documents.
     target = _resolve_governance_target(callback_handler)
+
+    # As in the shared flow: filter every optional keyword to what the hook can
+    # receive, so a handler written to the narrow allowed-path contract still
+    # gets the record instead of raising into a suppressed TypeError
+    # (AAASM-5787).
+    def optional(method: Any) -> dict[str, Any]:
+        # `args` is filtered too: this adapter is the only one that sends it, so
+        # a handler written against any other adapter's allowed path does not
+        # have it either.
+        candidates: dict[str, Any] = {"args": tool_input, "agent_id": agent_id, "run_context": ctx}
+        if denied:
+            candidates["denied"] = True
+        return optional_audit_kwargs(method, **candidates)
 
     record_method = getattr(target, "record_result", None)
     if callable(record_method):
         recorded = record_method(
             tool_name=tool_name,
-            args=tool_input,
             result=_truncate_result_for_audit(result),
-            agent_id=agent_id,
-            run_context=ctx,
+            **optional(record_method),
         )
         if inspect.isawaitable(recorded):
             await recorded
@@ -437,8 +454,7 @@ async def _record_async_tool_result(
         recorded = tool_end_method(
             output=_truncate_result_for_audit(result),
             tool_name=tool_name,
-            agent_id=agent_id,
-            run_context=ctx,
+            **optional(tool_end_method),
         )
         if inspect.isawaitable(recorded):
             await recorded
@@ -465,6 +481,7 @@ async def _record_denied_tool_result(
     try:
         await _record_async_tool_result(
             callback_handler,
+            denied=True,
             tool_name=tool_name,
             tool_input=tool_input,
             result=result,
