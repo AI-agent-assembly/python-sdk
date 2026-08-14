@@ -175,6 +175,27 @@ class TestTheConfigurationTheQuickStartHandsAReader:
         """``registered`` is the programmatic counterpart of the stderr warning."""
         assert documented_context.registered is False
 
+    def test_startup_reports_both_the_registration_and_the_enforcement_gap(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """The quick-start now tells a reader init warns about two things. This is both.
+
+        They travel on different channels — registration on ``sys.stderr`` so a
+        ``logging`` filter cannot drop it, the enforcement gap through
+        ``warnings`` — so asserting one and assuming the other would leave the
+        documented sentence half-covered.
+        """
+        with pytest.warns(UserWarning, match="native runtime extension"):
+            context = init_assembly(
+                gateway_url=_GATEWAY_URL,
+                api_key=_API_KEY,
+                agent_id=_AGENT_ID,
+                mode="sdk-only",
+            )
+        context.shutdown()
+
+        assert "the agent is NOT registered" in capsys.readouterr().err
+
     def test_falsification_the_same_agno_tool_ungoverned_writes_the_file(self, file_effect: FileSideEffect) -> None:
         """No ``init_assembly``, no hook. If this stops writing, the class above is vacuous."""
         result = _agno_tool_call(file_effect).execute()
@@ -182,3 +203,32 @@ class TestTheConfigurationTheQuickStartHandsAReader:
         assert file_effect.occurred() is True
         assert file_effect.content() == "the tool body ran"
         assert result.status == "success"
+
+
+class TestTheWorkaroundTheFrameworkTabsCarry:
+    """The tabs' revert-and-re-apply step, which the page now explains rather than hides.
+
+    Three tabs carried a comment saying ``init_assembly()`` installs a *no-op*
+    hook offline. That description predates AAASM-4760 — the hook installed there
+    is deny-all, not a no-op — and a workaround written down three times is the
+    strongest available evidence that the gap was known in practice. The tab
+    bodies are generated from ``quickstart_snippets/`` (vendored from the
+    ``examples`` repo), so their comments are not this repo's to rewrite; the
+    prose section this ticket added is. This control pins the step the prose now
+    describes, so an upstream snippet change that drops it turns the sentence red
+    instead of leaving it quietly false.
+    """
+
+    def test_the_tabs_still_revert_the_hook_init_assembly_installed(self) -> None:
+        quick_start = Path(__file__).resolve().parents[2] / "docs" / "quick-start.md"
+        generated = quick_start.read_text(encoding="utf-8").split("BEGIN GENERATED: quickstart-framework-tabs")[1]
+        generated = generated.split("END GENERATED: quickstart-framework-tabs")[0]
+
+        # "several" in the prose, pinned to a floor rather than an exact count —
+        # a fourth tab adopting the same workaround should not fail a sentence
+        # that stays true, and a drop to one should not pass under a word that
+        # says more than one.
+        assert generated.count(".revert()") >= 2, (
+            "the quick-start's generated tabs no longer revert the hook init_assembly() "
+            "installed; the 'What this offline example evaluates' section says they do"
+        )
