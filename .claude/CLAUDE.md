@@ -38,7 +38,8 @@ ordered by latency cost (lowest first) and detection authority (highest first):
    `RuntimeQueryInterceptor` writes it to the native event channel. Two limits are
    load-bearing and must not be dropped when describing this: the send is
    unacknowledged, so a handoff is **not** evidence and never ADR 0033 §6
-   *Observed*; and only `google_adk`, `pydantic_ai` and `openai_agents` record on the
+   *Observed* — AAASM-5783 is open on the downstream half and must land before
+   that changes; and only `google_adk`, `pydantic_ai` and `openai_agents` record on the
    **denied** path — the other eight governed adapters return or raise first. With no
    reachable runtime nothing is recorded at all (AAASM-5750). Never describe this
    layer as producing an audit trail.

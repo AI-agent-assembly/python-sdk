@@ -77,7 +77,10 @@ see the note under "Why use it" below.
 
     **A handoff is not evidence, and denied calls are mostly not covered.** The send
     is unacknowledged, so this SDK cannot report that a record arrived and does not
-    claim it did. And only `google_adk`, `pydantic_ai` and `openai_agents` build a
+    claim it did — and downstream,
+    [AAASM-5783](https://lightning-dust-mite.atlassian.net/browse/AAASM-5783) is open
+    on `report_event` payloads reaching neither the live stream nor the durable
+    entry, so no SDK can claim ADR 0033 §6 *Observed* until it lands. And only `google_adk`, `pydantic_ai` and `openai_agents` build a
     record on the **denied** path — the other eight governed adapters (`crewai`,
     `llamaindex`, `haystack`, `agno`, `smolagents`, `microsoft_agent_framework`,
     `mcp`, `langchain`) return or raise before their record helper, so a deny there

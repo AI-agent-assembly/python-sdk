@@ -24,7 +24,10 @@ The ADR 0033 §6 term follows the disposition rather than the SDK as a whole:
 
 * :data:`AUDIT_SINK_FORWARDED` — the event is handed to the runtime's event
   channel. **Not** *Observed*: the send is unacknowledged, so no durable event
-  attributed to the action is established from this side.
+  attributed to the action is established from this side. The downstream half of
+  that gap is tracked as AAASM-5783 and is unfixed — until ``report_event``
+  payloads reach the live stream and the durable entry, no SDK can claim
+  *Observed*.
 * :data:`AUDIT_SINK_ABSENT` — the control is configured and its channel is
   unavailable, which is *Degraded*; deliberately not *Unmeasured*, since §6
   reserves that for an action no control inspected, and here exactly where the
@@ -57,7 +60,9 @@ It says "forwarded", not "recorded", on purpose, and the gap between those two
 words is wider than it looks. The channel is fire-and-forget and unacknowledged,
 so this SDK never learns whether the runtime received the event; what the runtime
 and the gateway behind it retain is theirs to state. **This value is not evidence
-and does not earn ADR 0033 §6 *Observed*.**
+and does not earn ADR 0033 §6 *Observed*.** Closing that needs AAASM-5783, which
+is open: today ``report_event`` payloads reach neither the live stream nor the
+durable entry.
 
 Its coverage is also uneven across adapters, which the disposition cannot express
 because it is a property of the client, not of the call site: every governed

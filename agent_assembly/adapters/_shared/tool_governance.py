@@ -183,9 +183,9 @@ async def _record_async_tool_result(
     ``RuntimeQueryInterceptor.record_result`` resolves and writes the record to
     the native event channel (AAASM-5750). That is a handoff and **not** ADR 0033
     §6 *Observed*: the send is unacknowledged, so nothing here establishes a
-    durable event attributed to the action. Without a runtime neither hook
-    resolves and this function emits nothing, measured against the native and
-    HTTP boundaries.
+    durable event attributed to the action, and AAASM-5783 is open on the
+    downstream half of that. Without a runtime neither hook resolves and this
+    function emits nothing, measured against the native and HTTP boundaries.
 
     Note the scope of "allowed or denied" here: *this* shared flow calls the hook
     on both paths, which is why ``google_adk`` and ``pydantic_ai`` cover denies.

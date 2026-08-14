@@ -12,7 +12,9 @@ fire-and-forget over a bounded IPC channel: it hands the event to the runtime an
 returns, with no acknowledgement. **That handoff is the entire claim, and it is
 not ADR 0033 §6 *Observed*.** §6 requires a durable event attributed to the
 action; nothing observable from this side establishes one, so this module must
-not be cited as evidence that a governed call was recorded. Retention past the
+not be cited as evidence that a governed call was recorded. The downstream gap is
+tracked as AAASM-5783 — until ``report_event`` payloads reach the live stream and
+the durable entry, that will stay true no matter what this module sends. Retention past the
 boundary belongs to the runtime and the gateway behind it, and asserting their
 outcome from here would broaden a claim this layer cannot see (ADR 0034).
 
