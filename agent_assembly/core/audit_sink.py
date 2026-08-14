@@ -142,9 +142,24 @@ def resolve_delegated_audit_sink(delegate: Any) -> AuditSinkDisposition:
     ``caller-supplied`` where a record is in fact dropped withholds a claim; the
     reverse — reporting retention where there is none — is the defect this whole
     type exists to prevent, and this function cannot produce it.
+
+    A third branch keeps that property under a delegate that cannot be probed at
+    all. ``getattr(delegate, hook, None)`` swallows ``AttributeError`` and
+    nothing else, so a client whose ``__getattr__`` raises anything else — a
+    not-connected error, say — propagated out of what a caller reads as a
+    property lookup, and surfaced as ``ConfigurationError`` from
+    ``init_assembly``. This is the site the AAASM-5752 reproduction reaches:
+    ``RuntimeQueryInterceptor.audit_sink`` delegates here. An unreadable
+    delegate exposes no callable hook, so :data:`AUDIT_SINK_ABSENT` is both the
+    honest answer and the under-claiming one.
     """
-    if any(callable(getattr(delegate, hook, None)) for hook in AUDIT_HOOK_NAMES):
-        return AUDIT_SINK_CALLER_SUPPLIED
+    for hook in AUDIT_HOOK_NAMES:
+        try:
+            resolved = getattr(delegate, hook, None)
+        except Exception:
+            return AUDIT_SINK_ABSENT
+        if callable(resolved):
+            return AUDIT_SINK_CALLER_SUPPLIED
     return AUDIT_SINK_ABSENT
 
 
@@ -158,10 +173,24 @@ def resolve_audit_sink(handler: Any) -> AuditSinkDisposition:
 
     ``None`` is :data:`AUDIT_SINK_ABSENT` rather than caller-supplied: no handler
     means no hook to call, which is the same thing the shipped interceptors do.
+
+    Resolving never raises. ``audit_sink`` became a computed property under
+    AAASM-5731, which is the right fix for the false ``absent`` it replaced, but
+    it gave the lookup a failure mode the previous class attribute did not have:
+    a wrapped client whose ``__getattr__`` raises turned into a
+    ``ConfigurationError`` out of ``init_assembly``. A handler whose declaration
+    cannot be read has no readable hook either, so :data:`AUDIT_SINK_ABSENT` is
+    the answer — and note the direction, because it is the load-bearing part.
+    ``absent`` *under*-claims: it is the value ``init_assembly`` warns on, so a
+    handler this SDK cannot read is reported as making no record rather than
+    silently passing for one that does (AAASM-5752).
     """
     if handler is None:
         return AUDIT_SINK_ABSENT
-    declared = getattr(handler, AUDIT_SINK_ATTRIBUTE, None)
+    try:
+        declared = getattr(handler, AUDIT_SINK_ATTRIBUTE, None)
+    except Exception:
+        return AUDIT_SINK_ABSENT
     if isinstance(declared, str) and declared in _VALID_DISPOSITIONS:
         # Cast is safe: membership in _VALID_DISPOSITIONS is exactly the Literal.
         return declared  # type: ignore[return-value]

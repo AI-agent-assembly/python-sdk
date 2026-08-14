@@ -108,8 +108,18 @@ def runtime_can_record(runtime_client: Any) -> bool:
     native shim predates ``send_event``, or a caller-supplied stand-in that only
     answers policy queries, must declare that it records nothing rather than
     claim a channel it does not hold.
+
+    A client that raises on attribute access answers ``False`` rather than
+    propagating. ``getattr(..., None)`` swallows ``AttributeError`` and nothing
+    else, and this is read from a *property* — ``RuntimeQueryInterceptor.audit_sink``
+    — so anything else escaping here surfaces as ``ConfigurationError`` out of
+    ``init_assembly``. ``False`` is the under-claiming direction: no channel is
+    reported where one cannot be confirmed (AAASM-5752).
     """
-    return callable(getattr(runtime_client, "send_event", None))
+    try:
+        return callable(getattr(runtime_client, "send_event", None))
+    except Exception:
+        return False
 
 
 def send_tool_outcome(
