@@ -52,9 +52,13 @@ from agent_assembly.core.audit_sink import (
     AUDIT_SINK_DISCARDED,
     AUDIT_SINK_FORWARDED,
     resolve_audit_sink,
+    resolve_delegated_audit_sink,
 )
 from agent_assembly.core.runtime_audit import build_tool_outcome_payload
-from agent_assembly.core.runtime_interceptor import build_governance_interceptor
+from agent_assembly.core.runtime_interceptor import (
+    RuntimeQueryInterceptor,
+    build_governance_interceptor,
+)
 
 from ._fake_core import FakeRuntimeClient, install_fake_core
 
@@ -254,17 +258,77 @@ def test_every_shipped_governance_handler_declares_its_audit_sink() -> None:
         "says what it does with the record (AAASM-5731)"
     )
 
-    undeclared = [
-        label
-        for label, handler in handlers.items()
-        if getattr(handler, "audit_sink", None)
-        not in {AUDIT_SINK_FORWARDED, AUDIT_SINK_ABSENT, AUDIT_SINK_DISCARDED, AUDIT_SINK_CALLER_SUPPLIED}
-    ]
-    assert not undeclared, (
-        f"handler(s) {undeclared} are shipped without declaring what they do with the "
-        "hook-layer audit record; the hook returns None either way, so a handler that "
-        "records and one that emits nothing are indistinguishable (AAASM-5731)"
+    # Assert the SET this matrix produces, not membership of the whole vocabulary.
+    # The four-value acceptance this replaces admitted `caller-supplied`, which the
+    # shipped matrix cannot produce and which is precisely the value `init_assembly`
+    # treats as "do not warn". Measured: under a mutation making both interceptors
+    # report `caller-supplied`, the old form passed on its own (five sibling tests
+    # caught it, so nothing shipped wrong — but this gate decided nothing).
+    #
+    # `discarded` and `caller-supplied` are real and reachable; they are simply not
+    # reachable from *this* matrix, so each has its own case below rather than a
+    # standing waiver here (AAASM-5752).
+    observed = {getattr(handler, "audit_sink", None) for handler in handlers.values()}
+    assert observed == {AUDIT_SINK_FORWARDED, AUDIT_SINK_ABSENT}, (
+        f"the shipped handler matrix reported {sorted(map(str, observed))}; it is pinned to "
+        f"{sorted([AUDIT_SINK_ABSENT, AUDIT_SINK_FORWARDED])}. A new value here is either a "
+        "handler that stopped declaring what it does with the hook-layer audit record, or a "
+        "genuine new branch that needs its own case and its own reason (AAASM-5731, AAASM-5752)"
     )
+
+
+def test_the_langchain_handler_reports_discarded_when_what_it_wraps_records_nothing() -> None:
+    """`discarded` is reachable, just not from the shipped matrix above.
+
+    The handler defines ``on_tool_end``, so the adapters' hook lookup resolves on
+    it and the record is built and handed over — then stops, because the wrapped
+    interceptor has nowhere to put it. That is `discarded`, and it is not
+    `absent`: `absent` says nothing constructs the event, and here something does.
+    """
+
+    class RecordsNothing:
+        audit_sink = AUDIT_SINK_ABSENT
+
+    assert AssemblyCallbackHandler(RecordsNothing()).audit_sink == AUDIT_SINK_DISCARDED
+
+
+def test_a_handler_that_declares_nothing_is_reported_as_caller_supplied() -> None:
+    """`caller-supplied` is the no-claim answer, and is likewise outside the matrix.
+
+    This SDK builds no handler that reaches it — it is what a caller's own object
+    resolves to. Pinned here so the value stays covered while the matrix assertion
+    above stays narrow.
+    """
+
+    class Bare:
+        pass
+
+    assert AssemblyCallbackHandler(Bare()).audit_sink == AUDIT_SINK_CALLER_SUPPLIED
+    assert resolve_audit_sink(Bare()) == AUDIT_SINK_CALLER_SUPPLIED
+
+
+def test_resolving_a_disposition_never_raises() -> None:
+    """A client whose ``__getattr__`` raises yields `absent`, not an exception.
+
+    ``audit_sink`` became a computed property under AAASM-5731; before this, a
+    wrapped client that raises on attribute access surfaced as
+    ``ConfigurationError: Failed to initialize assembly runtime: client is not
+    connected`` out of ``init_assembly``. Both resolvers are covered because the
+    reproduction reaches the delegating one — ``RuntimeQueryInterceptor.audit_sink``
+    calls it — while the other is what a caller-facing handler uses (AAASM-5752).
+    """
+
+    class Raises:
+        def __getattr__(self, name: str) -> object:
+            raise RuntimeError("client is not connected")
+
+    assert resolve_audit_sink(Raises()) == AUDIT_SINK_ABSENT
+    assert resolve_delegated_audit_sink(Raises()) == AUDIT_SINK_ABSENT
+    # The path the reproduction actually took: through the shipped interceptor's
+    # property rather than through the resolver directly.
+    assert RuntimeQueryInterceptor(Raises(), None, _AGENT_ID, enforce=True).audit_sink == AUDIT_SINK_ABSENT
+    # And with the raising object in the runtime-client slot, which is read first.
+    assert RuntimeQueryInterceptor(Raises(), Raises(), _AGENT_ID, enforce=True).audit_sink == AUDIT_SINK_ABSENT
 
 
 # Only the enforce labels: under observe with no runtime the factory returns the
