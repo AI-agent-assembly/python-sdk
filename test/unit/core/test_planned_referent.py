@@ -13,30 +13,32 @@ to finished work. So the invariant is narrow and permanent — **AAASM-5731 may 
 cited as the ticket that measured the gap, never as the ticket that will fix
 it.**
 
-The assertion is two-tier, because one tier alone fails in one direction or the
-other and review caught both:
+**AAASM-5750 built the sink, so it joined the list it used to be the answer
+to.** This gate previously required a fixed set of guarded files to name
+AAASM-5750 as the ticket their ``Planned`` deferred to. Once the capability
+exists there is nothing left to defer: a site still calling SDK-side recording
+*Planned* under AAASM-5750 describes shipped behaviour as unbuilt, which is the
+same stale-pointer defect one ticket later. So the rule collapsed to a single
+tier — **no forward-looking claim in this repository may defer SDK-side audit
+recording to any of the three tickets that are done with it** — and applies
+repository-wide rather than to a named set.
 
-* a **guarded** site (one of :data:`EXPECTED_SITES`) must name AAASM-5750
-  exactly. Without this the gate stops asserting the thing the change made true
-  — repointing a guarded site to any other live ticket passed green, which is
-  precisely the drift the gate exists to catch.
-* **any other** site must merely not name a stale referent. Asserting
-  AAASM-5750 repository-wide was the first version's defect: §6 scopes
-  ``Planned`` to any decided-but-unbuilt capability with any ticket, so an
-  unrelated roadmap row — including
-  ``docs/examples/framework-support.md``'s docs-area maturity label, a
-  different axis entirely — is legitimate and must not fail this gate.
+§6 still scopes ``Planned`` to any decided-but-unbuilt capability with any
+ticket, so an unrelated roadmap row — including
+``docs/examples/framework-support.md``'s docs-area maturity label, a different
+axis entirely — is legitimate and must not fail this gate. Only the three named
+referents are forbidden.
 
-Two limits are disclosed rather than fixed, both measured as currently
-unreachable:
+A rule whose expected result is "no findings" needs the scan proved reachable, or
+a broken walk passes as loudly as a clean tree.
+:func:`test_the_deferral_scan_can_see` feeds the detector synthetic lines
+carrying exactly the shapes this file forbids and requires it to find them. The
+empty result is meaningful only because that control is green.
 
-* the reachability check is per **file**, not per site. A guarded file that
-  reflowed its real site out of the scan's reach *and* gained a second, correct
-  claim would keep its entry. Requires two coordinated edits; today no file in
-  this repository carries more than one site.
-* the gate file is excluded from its own scan, so it is a hiding place for a
-  stale referent. It is a test file that documents no SDK behaviour, and the
-  exclusion matches one exact path rather than a prefix.
+One limit is disclosed rather than fixed: the gate file is excluded from its own
+scan, so it is a hiding place for a stale referent. It is a test file that
+documents no SDK behaviour, and the exclusion matches one exact path rather than
+a prefix.
 """
 
 from __future__ import annotations
@@ -44,14 +46,17 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-#: The ticket that owns building the SDK-side audit sink. Guarded sites must
-#: name it exactly.
-CAPABILITY_REFERENT = "AAASM-5750"
+import pytest
 
-#: Tickets that *measured* the absence of an SDK-side audit sink. Backward
-#: citations to them are correct and are left alone; what this gate forbids is
-#: either one appearing as the ticket a forward-looking claim defers to.
-STALE_REFERENTS = frozenset({"AAASM-5731", "AAASM-5681"})
+#: Tickets a forward-looking claim about SDK-side audit recording may no longer
+#: defer to. Backward citations to any of them are correct and are left alone;
+#: what this gate forbids is one of them appearing as the ticket a *deferral*
+#: points at. The reason differs per entry, and the failure message says which.
+STALE_REFERENTS = {
+    "AAASM-5731": "measured the gap and never intended to fix it",
+    "AAASM-5681": "measured the gap and never intended to fix it",
+    "AAASM-5750": "built the sink; SDK-side recording is no longer deferred",
+}
 
 #: The two shapes a deferral takes: the ADR 0033 §6 term, and the plain
 #: "tracked as" pointer used where no term is stated.
@@ -64,16 +69,6 @@ _SKIPPED_DIRS = frozenset({".git", ".venv", "node_modules", "__pycache__", "buil
 #: file names AAASM-5750 in its own docstring, which padded the site count and
 #: let a floor be satisfied by the gate quoting itself.
 _GATE_FILE = "test/unit/core/test_planned_referent.py"
-
-#: Audit-sink deferrals that must remain reachable by the scan. A fixture
-#: compared against a walk of the tree, not a constant compared against another
-#: constant: if a site is deleted, renamed, or reflowed out of the scan's reach,
-#: the walk stops finding it and this fails.
-EXPECTED_SITES = (
-    "agent_assembly/core/audit_sink.py",
-    "agent_assembly/adapters/_shared/tool_governance.py",
-    "test/unit/test_quickstart_negative_control.py",
-)
 
 
 def _repo_root() -> Path:
@@ -124,64 +119,91 @@ def _deferral_sites() -> list[tuple[str, int, str, str]]:
             continue
 
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-        for index, line in enumerate(lines):
-            if not _FORWARD_CLAIM.search(line):
-                continue
-
-            # Extend to the next line only when this line carries no ticket of
-            # its own AND does not end a sentence. Without the sentence guard
-            # the window pairs a claim with a ticket belonging to the *next*
-            # sentence — review produced a real case where an inserted line of
-            # forward-looking prose was blamed for a correct backward citation
-            # beneath it. There are 33 such backward citations in this repo.
-            window = line
-            if not _TICKET_REF.search(line) and not _ends_sentence(line) and index + 1 < len(lines):
-                window = f"{line}\n{lines[index + 1]}"
-
-            ticket = _TICKET_REF.search(window)
-            if ticket is None:
-                continue
-
-            sites.append((str(rel), index + 1, ticket.group(0), line.strip()))
+        sites.extend(deferrals_in_lines(str(rel), lines))
 
     return sites
 
 
-def test_forward_claims_name_the_right_ticket() -> None:
-    guarded = set(EXPECTED_SITES)
-    problems = []
+def deferrals_in_lines(path: str, lines: list[str]) -> list[tuple[str, int, str, str]]:
+    """The detector, split out from the walk.
 
-    for path, lineno, ticket, text in _deferral_sites():
-        if path in guarded:
-            if ticket != CAPABILITY_REFERENT:
-                problems.append(
-                    f"{path}:{lineno} is a guarded audit-sink deferral and must "
-                    f"name {CAPABILITY_REFERENT}, not {ticket} — this is the site "
-                    f"the referent change corrected, and letting it drift to any "
-                    f"other ticket is what this gate exists to prevent: {text}"
-                )
-        elif ticket in STALE_REFERENTS:
-            problems.append(
-                f"{path}:{lineno} defers to {ticket}, which measured the gap and "
-                f"will not fix it — use the ticket that builds the sink "
-                f"(AAASM-5750, per its own description): {text}"
-            )
+    Separated so a control can drive it over input it constructs rather than over
+    whatever the tree happens to contain: a gate whose expected result is
+    "nothing found" is only as good as the proof that it can find something.
+    """
+    sites: list[tuple[str, int, str, str]] = []
+    for index, line in enumerate(lines):
+        if not _FORWARD_CLAIM.search(line):
+            continue
 
+        # Extend to the next line only when this line carries no ticket of its
+        # own AND does not end a sentence. Without the sentence guard the window
+        # pairs a claim with a ticket belonging to the *next* sentence — review
+        # produced a real case where an inserted line of forward-looking prose
+        # was blamed for a correct backward citation beneath it. There are 33
+        # such backward citations in this repo.
+        window = line
+        if not _TICKET_REF.search(line) and not _ends_sentence(line) and index + 1 < len(lines):
+            window = f"{line}\n{lines[index + 1]}"
+
+        ticket = _TICKET_REF.search(window)
+        if ticket is None:
+            continue
+
+        sites.append((path, index + 1, ticket.group(0), line.strip()))
+    return sites
+
+
+def test_no_forward_claim_defers_to_a_finished_ticket() -> None:
+    problems = [
+        f"{path}:{lineno} defers to {ticket}, which {STALE_REFERENTS[ticket]} — a "
+        f"forward-looking claim must not point at it: {text}"
+        for path, lineno, ticket, text in _deferral_sites()
+        if ticket in STALE_REFERENTS
+    ]
     assert not problems, "\n".join(problems)
 
 
-def test_every_expected_site_is_still_reachable() -> None:
-    """Anti-vacuity, and the reason it names paths rather than counting.
+@pytest.mark.parametrize(
+    ("lines", "ticket"),
+    [
+        (["# recording here is Planned (AAASM-5731), not Observed."], "AAASM-5731"),
+        (
+            [
+                "# Under ADR 0033 section 6 SDK-side recording is Planned",
+                "# (AAASM-5750), not Observed.",
+            ],
+            "AAASM-5750",
+        ),
+        (["# Wiring a sink that retains it is tracked as AAASM-5681."], "AAASM-5681"),
+    ],
+    ids=["one line", "wrapped onto two lines", "termless 'tracked as'"],
+)
+def test_the_deferral_scan_can_see(lines: list[str], ticket: str) -> None:
+    """Positive control for the assertion above.
 
-    A count can be held up by an unrelated site appearing as a real one is
-    deleted. Naming them makes that substitution visible.
+    That assertion expects to find nothing, and every way of breaking the scan —
+    a regex that stops matching, a walk that reaches no files, a window that
+    never extends across a wrapped comment — produces exactly the same green. So
+    the detector is fed input containing each shape it is supposed to catch and
+    required to catch it. If it stops seeing these, the repository-wide silence
+    stops meaning anything.
     """
-    seen = {site[0] for site in _deferral_sites()}
-    missing = [path for path in EXPECTED_SITES if path not in seen]
-    assert not missing, "\n".join(
-        f"{path} carries no forward claim the scan can pair with a ticket; it "
-        f"was deleted, renamed, or reflowed so the term and the ticket are more "
-        f"than one line apart — in which case a stale referent there would no "
-        f"longer be checked"
-        for path in missing
+    found = deferrals_in_lines("synthetic.py", lines)
+    assert len(found) == 1 and found[0][2] == ticket, (
+        f"the detector found {found} in {lines}; it must find exactly one deferral naming "
+        f"{ticket}, or the repository-wide empty result proves nothing"
     )
+    assert ticket in STALE_REFERENTS, f"{ticket} is not forbidden, so this control could not fail the gate"
+
+
+def test_an_unrelated_open_deferral_is_detected_and_permitted() -> None:
+    """The other direction: the gate must not forbid every ticket.
+
+    Without this it could pass by rejecting all deferrals, which would push
+    authors to drop the ticket reference §6 requires rather than to fix the
+    referent.
+    """
+    found = deferrals_in_lines("synthetic.py", ["# A curated example is Planned (AAASM-9999)."])
+    assert len(found) == 1, f"the detector missed an unrelated roadmap deferral: {found}"
+    assert found[0][2] not in STALE_REFERENTS
