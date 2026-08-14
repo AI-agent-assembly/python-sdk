@@ -4,7 +4,7 @@
 You wrap your existing agent in one `init_assembly()` call, and from that point on every
 tool call your agent makes is checked against a governance policy — allowed or denied —
 without you rewriting a single line of the agent itself. Over a connected runtime the
-outcome of each call is also forwarded to the runtime's audit pipeline (see below).
+outcome of each call is also handed to the runtime's event channel (see below).
 
 It is two things in one package:
 
@@ -62,18 +62,26 @@ see the note under "Why use it" below.
 
     The framework adapters offer the outcome of every governed call to an audit hook
     on the governance interceptor. Over a connected runtime that hook resolves and
-    forwards the record across the native event channel — the same channel agent
-    registration uses — so the event reaches the runtime's audit pipeline, for
-    **allowed** calls as much as denied ones.
+    writes the record to the native event channel — the same channel agent
+    registration uses. On the **allowed** path that covers every governed adapter;
+    on the denied path it covers three of eleven (see below).
 
     Without a reachable runtime there is no channel to send on, the hook does not
     resolve, and nothing is emitted; no claim of attributability or after-the-fact
     review holds on that path. Enforcement is unaffected either way: a policy DENY
     still blocks the tool, and the proxy / eBPF layers remain authoritative.
     `init_assembly()` warns when no record can be sent and reports `audit_sink` on the
-    returned context — `forwarded`, or `absent` / `discarded`. Delivery is
-    best-effort: a failed send degrades to no record rather than to a failed tool call
+    returned context. Delivery is best-effort: a failed send degrades to no record
+    rather than to a failed tool call
     ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
+
+    **A handoff is not evidence, and denied calls are mostly not covered.** The send
+    is unacknowledged, so this SDK cannot report that a record arrived and does not
+    claim it did. And only `google_adk`, `pydantic_ai` and `openai_agents` build a
+    record on the **denied** path — the other eight governed adapters (`crewai`,
+    `llamaindex`, `haystack`, `agno`, `smolagents`, `microsoft_agent_framework`,
+    `mcp`, `langchain`) return or raise before their record helper, so a deny there
+    produces no record for any sink to carry.
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need
   sub-millisecond policy checks.
 - **Typed throughout** — typed models for every gateway payload; the package ships a

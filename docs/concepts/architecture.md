@@ -69,7 +69,7 @@ flowchart LR
 
 Solid arrows are install-time; dashed arrows fire on every framework call after hooks are installed. The interceptor → gateway hop is the only network boundary in the data path.
 
-The audit edge on that hop runs to the runtime, not to the gateway. The adapters offer every governed outcome to an audit hook on the interceptor; over a connected runtime that hook resolves and ships the record across the native event channel, so it enters the runtime's audit pipeline — for allowed calls as much as denied ones. Without a reachable runtime the hook does not resolve and no record leaves the SDK ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
+The audit edge on that hop runs to the runtime, not to the gateway. The adapters offer a governed outcome to an audit hook on the interceptor; over a connected runtime that hook resolves and writes the record to the native event channel. It is a handoff — unacknowledged, so the SDK cannot report arrival — and it covers every governed adapter on the allowed path but only `google_adk`, `pydantic_ai` and `openai_agents` on the denied one; the other eight return or raise before their record helper. Without a reachable runtime the hook does not resolve and no record leaves the SDK ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
 
 ## PyO3 FFI layer
 
@@ -79,7 +79,7 @@ The pure-Python adapters described above are sufficient for governing most agent
 
 The native crate lives at `native/aa-ffi-python/` in the repository and is built with [`maturin`](https://www.maturin.rs/). When installed, it exposes a private `agent_assembly._core` module with two symbols:
 
-- `RuntimeClient` — a Rust-backed runtime client (a thin shim over the shared `aa-sdk-client` crate). `agent_assembly` uses it for `register`, `query_policy`, and — since AAASM-5750 — `send_event`, which is how a governed call's outcome reaches the runtime's audit pipeline (`core/runtime_audit.py`).
+- `RuntimeClient` — a Rust-backed runtime client (a thin shim over the shared `aa-sdk-client` crate). `agent_assembly` uses it for `register`, `query_policy`, and — since AAASM-5750 — `send_event`, which is how a governed call's outcome is handed to the runtime (`core/runtime_audit.py`) — a write to the channel, with no acknowledgement back.
 - `GovernanceEvent` — Rust-side wrapper for the events that channel carries. It validates its argument as `aa_core::AuditEntry` JSON, and `core/runtime_audit.py` constructs one per forwarded outcome.
 
 `agent_assembly/__init__.py` imports these symbols inside a `try / except ImportError` block. **If the native extension was never built, the SDK still works** — pure-Python `GatewayClient` is the fallback, and the `RuntimeClient` symbol simply is not present in `agent_assembly.__all__`.
