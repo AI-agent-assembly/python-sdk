@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from agent_assembly.exceptions import MCPToolBlockedError
 
+from agent_assembly.adapters._shared.audit_record import arecord_denied_tool_result
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
@@ -289,12 +290,18 @@ def _apply_client_session_patch(client_session_cls: type[Any], callback_handler:
         # non-decision, not a grant — blocking it here stops it from falling
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
-            raise _build_blocked_error(
+            error = _build_blocked_error(
                 tool_name=tool_name,
                 server_identifier=server_identifier,
                 reason=reason,
                 is_pending_rejection=is_pending_flow,
             )
+            # AAASM-5787: the deny used to raise straight past the record call
+            # below, so this adapter built nothing for the sink to forward.
+            await arecord_denied_tool_result(
+                callback_handler, tool_name=tool_name, result=str(error), agent_id=agent_id
+            )
+            raise error
 
         result = original_call_tool(self, *args, **kwargs)
         if inspect.isawaitable(result):
