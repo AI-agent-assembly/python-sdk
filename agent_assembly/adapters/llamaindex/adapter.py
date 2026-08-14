@@ -13,8 +13,9 @@ class LlamaIndexAdapter(FrameworkAdapter):
     tool-execution path (``FunctionTool.call`` / ``acall``), and offers each
     outcome to the audit hook — which the SDK's own interceptor resolves over a
     connected runtime, handing the record to the runtime's event channel, and
-    does not resolve without one. Only the *allowed* path reaches it here: a deny
-    raises before the record helper, so it produces no record (AAASM-5750). The
+    does not resolve without one. Both paths reach it: since AAASM-5787 the deny
+    branch records through ``_shared.audit_record`` before returning its denied
+    output, where it used to return past the record helper entirely. The
     framework package is imported as ``llama_index.core``; the patch targets the
     concrete tool methods the agent loop actually invokes (the base methods are
     abstract).

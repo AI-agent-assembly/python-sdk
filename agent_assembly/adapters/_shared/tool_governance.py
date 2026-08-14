@@ -168,8 +168,9 @@ async def _record_async_tool_result(
 
     Note the scope of "allowed or denied" here: *this* shared flow calls the hook
     on both paths, which is why ``google_adk`` and ``pydantic_ai`` cover denies.
-    Most adapters do not route through it and return or raise before their own
-    record helper, so their denied calls produce no record at all.
+    The adapters that do not route through it reach their deny branch directly and
+    call :func:`agent_assembly.adapters._shared.audit_record.record_denied_tool_result`
+    there (AAASM-5787).
 
     Which of the two a run is in is declared in ``audit_sink`` (see
     :mod:`agent_assembly.core.audit_sink`) and warned about by ``init_assembly``;
