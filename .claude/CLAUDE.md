@@ -39,10 +39,11 @@ ordered by latency cost (lowest first) and detection authority (highest first):
    load-bearing and must not be dropped when describing this: the send is
    unacknowledged, so a handoff is **not** evidence and never ADR 0033 §6
    *Observed* — AAASM-5783 is open on the downstream half and must land before
-   that changes; and only `google_adk`, `pydantic_ai` and `openai_agents` record on the
-   **denied** path — the other eight governed adapters return or raise first. With no
-   reachable runtime nothing is recorded at all (AAASM-5750). Never describe this
-   layer as producing an audit trail.
+   that changes. The eleven governing adapters record on the **denied** path as well
+   as the allowed one, with a denial marker on the record (AAASM-5787); `langgraph`
+   instruments nodes for lineage and has no tool-call gate. With no reachable runtime
+   nothing is recorded at all (AAASM-5750). Do not describe this layer as producing an
+   audit trail.
 2. **Sidecar proxy (`aa-proxy`)** — MitM of outbound HTTPS; enforces network-egress
    policy with no code changes. (Lives in the monorepo.)
 3. **eBPF (`aa-ebpf*`)** — kernel uprobes; catches everything, including bypass
