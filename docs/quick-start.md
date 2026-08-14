@@ -1,9 +1,24 @@
 # Quick Start
 
-Govern your first agent in about five minutes. By the end you'll have an agent — in whichever
-framework you already use — whose tool calls pass through the Agent Assembly policy gate, and it
-runs **offline** against a local policy, so you need no API keys and no network access to the
-outside world.
+Govern your first agent end-to-end in about ten minutes. By the end you will have stood up a
+real governance runtime, connected an agent to it, watched the **same** tool call be **allowed**,
+**denied**, and **held for approval** purely by changing policy, seen those decisions in the
+operator dashboard, and tuned a policy and re-run — all on your own machine.
+
+This page uses the current published pre-release, `{{ aa.python_sdk.package_name }}`
+**`{{ aa.python_sdk.version }}`**. Every command and import below is real and runs against that
+version.
+
+```mermaid
+flowchart LR
+    A["1. Install<br/>the SDK"] --> B["2. Start the<br/>governance runtime"]
+    B --> C["3. Connect &<br/>register the agent"]
+    C --> D["4. Govern a tool call<br/>allow · deny · approval"]
+    D --> E["5. Interpret<br/>the outcome"]
+    E --> F["6. Observe in<br/>the dashboard"]
+    F --> G["7. Tune a policy<br/>& re-run"]
+    G --> H["8. Explore<br/>framework examples"]
+```
 
 ## 1. Install
 
@@ -47,62 +62,253 @@ The package is published on PyPI as
     skips pre-releases unless you pass `--pre` (already included above). Drop the flag
     once a stable (non-pre-release) version is published.
 
-`{{ aa.python_sdk.package_name }}` is the pure-Python client.
-`{{ aa.python_sdk.package_name }}[runtime]` additionally pulls a platform wheel
-(`manylinux`, `macosx`) that bundles the `{{ aa.python_sdk.cli_name }}`
-gateway/runtime binary, so a local gateway is available without a separate install.
+`{{ aa.python_sdk.package_name }}` is the pure-Python client — everything in this guide imports
+from it. Confirm the version you installed:
 
-## 2. Point the SDK at a gateway
+```bash
+python -c "import agent_assembly; print(agent_assembly.__version__)"   # -> {{ aa.python_sdk.version }}
+```
 
-`init_assembly()` needs to reach a **gateway** — the policy brain that returns allow/deny
-decisions. You have three options:
+## 2. Start the governance runtime
 
-- **Let the SDK auto-start one.** Call `init_assembly()` with no `gateway_url`; the SDK probes
-  `http://localhost:7391` and, if nothing answers, runs `aasm start --mode local --foreground`
-  for you. This needs the `aasm` binary on your `PATH` (the `agent-assembly[runtime]` extra
-  provides it).
-- **Run one yourself** with `aasm start --mode local --foreground` in a separate terminal. For
-  a full gateway walkthrough, see the core
-  [Run the gateway](https://docs.agent-assembly.com/core/latest/quick-start/first-run.html) guide.
-- **Pass an explicit URL**, as the example below does.
+The SDK is only the fast in-process layer — it is **not a security boundary on its own**. The
+authoritative enforcement point is **`aa-runtime`**, a small sidecar that holds your policy and
+answers every allow/deny/approval decision. Start it once and every governed call in the rest of
+this guide is decided by it.
 
-See [Configuration](configuration.md) for the full URL/key resolution chain (`7391` is the
-local default port).
+!!! info "What is open-source, and what is SaaS"
+    You can self-host a **limited-function** stack from the published `aa-runtime` image: it
+    enforces a **local policy file** with no central service, which is exactly what this
+    quick-start uses. The full control plane — the central gateway brain, the populated HTTP/API,
+    team budgets, and the *data* behind the operator dashboard — is delivered as SaaS. Everything
+    below runs on the open-source `aa-runtime` alone.
 
-!!! note "Local-mode transports: `:7391` REST + `:50051` gRPC"
-    Starting local mode binds **two** loopback surfaces in one process:
+First, write a policy. The runtime reads a TOML file; each `[[rules]]` block names the action
+types it governs. Action strings match the wire protocol's `ActionType` enum
+(`FILE_OPERATION`, `NETWORK_CALL`, `PROCESS_EXEC`, `TOOL_CALL`, `LLM_CALL`, `MEMORY_ACCESS`).
+Anything **not** matched by a rule is allowed.
 
-    ```bash
-    aasm start --mode local
-    ```
+```toml title="policy.toml"
+# Deny anything that writes files or executes code outright...
+[[rules]]
+name = "block-file-and-exec"
+blocked_actions = ["FILE_OPERATION", "PROCESS_EXEC"]
 
-    This runs the REST/dashboard API on `http://localhost:7391` (what `gateway_url`
-    points to, and what the SDK probes and auto-starts) **and** the gRPC
-    `AgentLifecycleService` on `127.0.0.1:50051`, which is the endpoint the native SDK
-    uses to **register** your agent. You don't configure `:50051` yourself —
-    registration dials it automatically — so a no-argument `init_assembly()` both
-    connects and shows the agent in the dashboard. `:8080` is **not** the local gateway
-    port; ignore older docs or examples that point registration there.
+# ...but hold outbound network calls for a human to approve.
+[[rules]]
+name = "gate-network-on-approval"
+requires_approval_actions = ["NETWORK_CALL"]
+approval_timeout_secs = 300
+```
 
-    To confirm both surfaces are actually up rather than guessing from the SDK's
-    behavior, check them directly:
+Now run the runtime, mounting that policy and a directory for its IPC socket. The image tag is
+pinned to this release for reproducibility:
 
-    ```bash
-    curl http://localhost:7391/healthz   # REST — real JSON: mode, storage, version, uptime_secs
-    nc -z localhost 50051 && echo "gRPC port open"   # gRPC has no health endpoint yet; this only confirms the port accepts connections
-    ```
+```bash
+mkdir -p /tmp/aa-sock
 
-## 3. Govern your first agent
+docker run --rm \
+  -e AA_AGENT_ID=quickstart-agent \
+  -e AA_POLICY_PATH=/etc/aa/policy.toml \
+  -v "$PWD/policy.toml":/etc/aa/policy.toml:ro \
+  -v /tmp/aa-sock:/tmp \
+  -p 8080:8080 \
+  ghcr.io/ai-agent-assembly/aa-runtime:v0.0.1-rc.6
+```
 
-Agent Assembly governs whichever agent framework you already use. Pick your framework below —
-each tab is the **governance-wiring slice** (`init_assembly()` plus that framework's adapter
-hookup) taken verbatim from that framework's runnable example in the
-[examples repo](https://github.com/ai-agent-assembly/examples/tree/master/python). Copy the
-full, runnable script — imports, tools, and the agent run — from the linked example; the slice
-below is the part that wires in governance.
+The runtime exposes a readiness probe and its IPC socket. Confirm it is up, then point the SDK
+at the socket (the file name is `aa-runtime-<AA_AGENT_ID>.sock`):
 
-Every example runs **offline** in `mode="sdk-only"` against a local policy, so you can try it
-with no API keys and no outbound network.
+```bash
+curl -s http://localhost:8080/ready          # -> ok, once the runtime has loaded the policy
+export AA_RUNTIME_SOCKET=/tmp/aa-sock/aa-runtime-quickstart-agent.sock
+```
+
+!!! tip "Prefer Docker Compose, or no container at all?"
+    The core repo ships a ready-made [`examples/docker-compose`](https://github.com/ai-agent-assembly/agent-assembly/tree/master/examples/docker-compose)
+    stack that wires the same `aa-runtime` sidecar to a stub agent over a shared socket volume —
+    clone it and run `AA_API_KEY=dev-local-key docker compose up`. If you installed the
+    `[runtime]` extra, you also have the `aasm` binary locally and can run the fuller gRPC
+    gateway instead: `aasm gateway start --policy low-risk.yaml` (listens on
+    `grpc://127.0.0.1:50051`). Both paths enforce the same policy semantics; this guide uses the
+    container so no local build is required.
+
+## 3. Connect and register your agent
+
+`init_assembly()` is the one call that wires governance into your process — it registers the
+agent with the runtime and installs the interceptor for whichever framework you use, so from
+that point on tool calls are checked automatically. Import everything from the top-level
+`agent_assembly` package:
+
+```python
+from agent_assembly import init_assembly
+
+with init_assembly(
+    agent_id="quickstart-agent",
+    mode="auto",              # auto-detect your framework and wire its adapter
+) as ctx:
+    print("registered:", ctx.registered, "as", ctx.client.agent_id)
+    run_my_agent()            # your existing agent — unchanged
+```
+
+Under the hood `init_assembly()` speaks to the runtime through **`RuntimeClient`**, the native
+client you can also drive directly when you want to check a decision yourself rather than through
+a framework adapter. Its three methods are the whole governed loop:
+
+```python
+import json
+from agent_assembly import RuntimeClient
+
+# connect(socket_path, agent_id=..., sdk_version=...) opens the IPC channel to the runtime.
+client = RuntimeClient.connect(
+    "/tmp/aa-sock/aa-runtime-quickstart-agent.sock",
+    agent_id="quickstart-agent",
+    sdk_version="{{ aa.python_sdk.version }}",
+)
+client.register(agent_id="quickstart-agent", name="Quick Start Agent", framework="custom")
+```
+
+Your agent appears in the dashboard the moment it registers — the operator **Overview** picks it
+up right away, the fleet count ticks up, and its three-layer posture goes live. *(Real dashboard
+UI, rendered with sample fixture data — see the honest-status note in step 6.)*
+
+![Operator dashboard Overview (light theme): three-layer posture rings and a fleet snapshot showing six registered agents — verified, enforcing, and healthy.](images/dashboard/overview-light.png#only-light)
+![Operator dashboard Overview (dark theme): the same posture rings and fleet snapshot, re-themed to the dark palette.](images/dashboard/overview-dark.png#only-dark)
+
+## 4. Govern a tool call — allow, deny, approval
+
+`query_policy()` is the pre-execution check. It returns a decision dict whose `"decision"` is one
+of `allow`, `deny`, or `pending` (an approval hold) — exactly the three rules in your
+`policy.toml`:
+
+```python
+def decide(action_type: str, tool_name: str, **args: object) -> dict:
+    return client.query_policy(
+        agent_id="quickstart-agent",
+        action_type=action_type,
+        tool_name=tool_name,
+        tool_args_json=json.dumps(args),
+    )
+
+# ALLOWED — no rule matches TOOL_CALL, so it proceeds.
+print(decide("tool_call", "web_search", query="agent governance"))
+#   -> {'decision': 'allow', 'reason': ...}
+
+# DENIED — FILE_OPERATION is in blocked_actions.
+print(decide("file_operation", "write_file", path="/etc/hosts"))
+#   -> {'decision': 'deny', 'reason': 'block-file-and-exec'}
+
+# APPROVAL — NETWORK_CALL is in requires_approval_actions; the runtime holds it PENDING.
+print(decide("network_call", "http_post", url="https://example.com"))
+#   -> {'decision': 'pending', 'reason': 'gate-network-on-approval'}
+```
+
+When you go through a **framework adapter** instead of calling `query_policy()` yourself, a
+`deny` doesn't return a dict — the SDK raises it at the exact point the tool would have run, so
+governance is ordinary Python control flow:
+
+```python
+from agent_assembly import init_assembly, ToolExecutionBlockedError
+
+with init_assembly(agent_id="quickstart-agent", mode="auto"):
+    try:
+        run_my_agent()                      # a governed tool call happens somewhere inside
+    except ToolExecutionBlockedError as blocked:
+        print("policy denied a tool call:", blocked)
+```
+
+## 5. Interpret the outcome
+
+Every decision maps to a real, catchable outcome. The SDK's exception tree is rooted at
+`AssemblyError`, so a single `except AssemblyError:` is a safe backstop:
+
+| Decision / event | What you get | Import |
+| --- | --- | --- |
+| `allow` / `redact` | the call proceeds (secrets stripped for `redact`) | — |
+| `deny` | `ToolExecutionBlockedError` raised at the call site | `from agent_assembly import ToolExecutionBlockedError` |
+| `deny` (policy denial) | `PolicyViolationError` — a subtype of the above | `from agent_assembly.exceptions import PolicyViolationError` |
+| `deny` (MCP tool) | `MCPToolBlockedError` — carries `tool_name`, `server` | `from agent_assembly import MCPToolBlockedError` |
+| `pending` | the adapter's approval path runs (approve/deny/timeout) | — |
+| policy engine error | `PolicyError` | `from agent_assembly import PolicyError` |
+| runtime unreachable | `GatewayError` | `from agent_assembly import GatewayError` |
+| bad `init_assembly()` args | `ConfigurationError` | `from agent_assembly import ConfigurationError` |
+
+!!! note "A denial is the product working, not a bug"
+    Under the default `enforce` posture the SDK is a security control and **fails closed**: if the
+    runtime can't render an authoritative verdict, the call is denied rather than silently
+    allowed. Catch `ToolExecutionBlockedError` and decide what to do — log and fall back, surface
+    a message, or re-raise. See
+    [Handling allow/deny decisions](guides/handling-decisions.md) for the full pattern and the
+    [Exceptions reference](api-reference/exceptions.md) for the complete hierarchy.
+
+## 6. Observe your agent
+
+Every registration, tool call, and policy decision is recorded with full agent lineage. In the
+operator dashboard the **Fleet** view shows your registered agents and their live status, and the
+**Audit Log** view is the running record of decisions — including the `deny` you just triggered.
+
+The Fleet view — registered agents, their teams, and status at a glance:
+
+![Operator dashboard Fleet view (light theme): a table of registered agents with team, status, and last-seen columns.](images/dashboard/fleet-light.png#only-light)
+![Operator dashboard Fleet view (dark theme): a table of registered agents with team, status, and last-seen columns.](images/dashboard/fleet-dark.png#only-dark)
+
+The Topology view — the same agents laid out as a graph, grouped into team clusters, each with a per-team budget bar:
+
+![Operator dashboard Topology view (light theme): agent cards grouped into two team clusters (support, analytics), each cluster labelled with a budget bar; cards show name, framework, and spend.](images/dashboard/topology-light.png#only-light)
+![Operator dashboard Topology view (dark theme): the same team-clustered agent graph, with one card outlined in red for an errored agent.](images/dashboard/topology-dark.png#only-dark)
+
+The Audit Log view — one row per governed action; the highlighted row is a policy **`deny`**:
+
+![Operator dashboard Audit Log view (light theme): a chronological list of governed actions, one row showing a policy deny decision.](images/dashboard/audit-light.png#only-light)
+![Operator dashboard Audit Log view (dark theme): a chronological list of governed actions, one row showing a policy deny decision.](images/dashboard/audit-dark.png#only-dark)
+
+!!! info "Honest status"
+    These are the real operator dashboard views. The dashboard **shell** is served by the
+    open-source local runtime, but the **populated data API** behind these panels is part of the
+    hosted control plane (SaaS) — so on a purely local `aa-runtime` the panels render empty. The
+    screenshots above are from a control plane with live data, to show what the audit trail looks
+    like once it is wired.
+
+## 7. Tune a policy and re-run
+
+Governance is just the policy file. Flip the network rule from *approval* to *allow* and the
+same call that was held pending now proceeds:
+
+```toml title="policy.toml (edited)"
+[[rules]]
+name = "block-file-and-exec"
+blocked_actions = ["FILE_OPERATION", "PROCESS_EXEC"]
+
+# Was requires_approval_actions — now allowed outright.
+[[rules]]
+name = "allow-network"
+blocked_actions = []
+```
+
+Restart the runtime so it reloads the policy, then re-run step 4 — the `network_call` decision is
+now `allow`. To roll a policy out *safely* first, register in dry-run mode instead: every action
+proceeds and would-be violations are recorded as shadow audit events rather than blocking.
+
+```python
+with init_assembly(agent_id="quickstart-agent", enforcement_mode="observe"):
+    run_my_agent()   # nothing raises; the runtime records what it *would* have denied
+```
+
+Switch back to `enforcement_mode="enforce"` (or omit it — enforce is the default) once you trust
+the policy. See [Configuration → Enforcement modes](configuration.md#enforcement-modes).
+
+## 8. Explore framework examples
+
+You just drove the governed loop by hand. In practice `init_assembly()` wires it into the
+framework you already use — pick your framework below. Each tab is the **governance-wiring slice**
+(`init_assembly()` plus that framework's adapter hookup) taken verbatim from that framework's
+runnable example in the
+[examples repo](https://github.com/ai-agent-assembly/examples/tree/master/python). Copy the full,
+runnable script — imports, tools, and the agent run — from the linked example; the slice below is
+the part that wires in governance.
+
+Every example runs **offline** in `mode="sdk-only"` against a local policy, so you can try it with
+no API keys and no outbound network.
 
 <!-- BEGIN GENERATED: quickstart-framework-tabs -->
 
@@ -664,35 +870,31 @@ with no API keys and no outbound network.
 
 <!-- END GENERATED: quickstart-framework-tabs -->
 
-## What just happened
+## You've governed your first agent
 
-1. **`init_assembly()` wired in governance.** It registered the agent with the gateway and
-   auto-loaded the adapter for your framework — every tool call from this point on is routed
-   through the policy gate.
-2. **`mode="sdk-only"` kept it offline.** The in-process adapter enforces on tool calls with no
-   network sidecar, so the example runs deterministically with no real LLM or gateway
-   round-trip.
-3. **Tool calls were governed.** The adapter intercepts the framework's tool-invocation path and
-   asks the policy engine for an allow/deny verdict before the tool actually runs.
-4. **The `with` block tore everything down on exit** — adapter hooks were unwound and the
-   gateway connection closed, leaving the process exactly as it was before.
+In about ten minutes you:
 
-If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — the policy denied the
-call. That's the product working. See
-[Handling allow/deny decisions](guides/handling-decisions.md) for how to catch and respond to
-those, and [Troubleshooting](troubleshooting.md) if `init_assembly()` itself raised.
+1. **Installed** the SDK and stood up a real **`aa-runtime`** enforcement point from a policy file.
+2. **Connected and registered** an agent with a single `init_assembly()` call — no change to the
+   agent's own logic.
+3. Watched the same shape of tool call be **allowed**, **denied**, and **held for approval**,
+   decided entirely by policy.
+4. **Interpreted** each outcome through the SDK's exception hierarchy (`ToolExecutionBlockedError`
+   and friends), rooted at `AssemblyError`.
+5. **Observed** the fleet and the audit trail — including the denial — in the operator dashboard.
+6. **Tuned a policy and re-ran**, changing behavior without touching code.
 
-## `mode="sdk-only"` — why this example uses it
-
-`mode="sdk-only"` is the in-process-only interception layer: the framework adapter enforces on
-tool calls, with no network sidecar to start. It's the most portable mode and the best choice
-for deterministic, offline examples and tests. The other modes (`auto`, `proxy`, `ebpf`) add
-network/kernel interception — see [Core Concepts → Modes](concepts/index.md#runtime-modes).
+That is the core value: **a governed agent whose tool calls you can allow, deny, observe, and
+control — without rewriting the agent.**
 
 ## Next steps
 
-- **[Core Concepts](concepts/index.md)** — the adapter pattern, the `init_assembly()`
-  lifecycle, and the modes/enforcement model.
-- **[Examples](examples/index.md)** — wire the SDK into the framework you actually use.
-- **[Configuration](configuration.md)** — drop the hard-coded URL and key; let the resolver
-  chain find them.
+- **[Core Concepts](concepts/index.md)** — the adapter pattern, the `init_assembly()` lifecycle,
+  and the modes/enforcement model.
+- **[Handling allow/deny decisions](guides/handling-decisions.md)** — catch and respond to
+  denials and approvals in real code.
+- **[Configuration](configuration.md)** — the URL/key/socket resolver chain, runtime modes, and
+  enforcement modes.
+- **[Examples](examples/index.md)** — the full, runnable version of every framework slice above.
+- **[API Reference](api-reference/index.md)** — `init_assembly()`, `RuntimeClient`, the exception
+  hierarchy, and the data models.
