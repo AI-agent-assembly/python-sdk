@@ -32,8 +32,9 @@ print(f"Version: {agent_config.version}")
 # - Register the agent with the gateway
 # - Check policy compliance before executing actions
 #
-# Note: the SDK layer does NOT log audit events. Governed outcomes are offered to an
-# audit hook that no interceptor this SDK ships resolves (AAASM-5731).
+# Note: governed outcomes are offered to an audit hook on the interceptor. Over a
+# connected runtime the SDK's own interceptor resolves it and forwards the record;
+# without one the hook does not resolve and nothing is logged (AAASM-5750).
 
 # Don't forget to shutdown the runtime when done
 assembly.shutdown()

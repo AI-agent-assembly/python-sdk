@@ -79,8 +79,8 @@ The pure-Python adapters described above are sufficient for governing most agent
 
 The native crate lives at `native/aa-ffi-python/` in the repository and is built with [`maturin`](https://www.maturin.rs/). When installed, it exposes a private `agent_assembly._core` module with two symbols:
 
-- `RuntimeClient` — a Rust-backed runtime client (a thin shim over the shared `aa-sdk-client` crate). `agent_assembly` uses it for `register` and `query_policy` only. It also exposes `send_event`, which **nothing in `agent_assembly` calls** — the capability exists in the shim and the SDK never reaches it, so no governance event is shipped from here (AAASM-5731).
-- `GovernanceEvent` — Rust-side dataclass for the events that channel would carry. Exported from `agent_assembly`, and never constructed by it.
+- `RuntimeClient` — a Rust-backed runtime client (a thin shim over the shared `aa-sdk-client` crate). `agent_assembly` uses it for `register`, `query_policy`, and — since AAASM-5750 — `send_event`, which is how a governed call's outcome reaches the runtime's audit pipeline (`core/runtime_audit.py`).
+- `GovernanceEvent` — Rust-side wrapper for the events that channel carries. It validates its argument as `aa_core::AuditEntry` JSON, and `core/runtime_audit.py` constructs one per forwarded outcome.
 
 `agent_assembly/__init__.py` imports these symbols inside a `try / except ImportError` block. **If the native extension was never built, the SDK still works** — pure-Python `GatewayClient` is the fallback, and the `RuntimeClient` symbol simply is not present in `agent_assembly.__all__`.
 

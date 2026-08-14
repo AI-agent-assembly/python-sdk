@@ -293,9 +293,9 @@ async def run_governed_async_tool(
         # Offer the deny to the audit hook before raising (AAASM-5665).
         # Previously this raised straight past the record call below, so a
         # denied call could not reach an audit sink even when the caller had
-        # supplied one. See _record_async_tool_result on why the SDK's own
-        # interceptor still resolves no hook, so the shipped path emits nothing
-        # here either (AAASM-5731).
+        # supplied one. See _record_async_tool_result for where the record then
+        # goes: the SDK's own interceptor resolves the hook over a connected
+        # runtime and forwards it, and resolves nothing without one (AAASM-5750).
         #
         # Best-effort, and the guard is load-bearing: the hook is duck-typed
         # from caller-supplied code, and inserting a call here where none used

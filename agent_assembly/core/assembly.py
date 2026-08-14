@@ -124,12 +124,15 @@ class AssemblyContext:
     # (AAASM-4547, mirroring the Node SDK's ``ctx.registered``).
     registered: bool = True
     # What the governance interceptor the adapters were handed does with the
-    # hook-layer audit record for a governed tool call (AAASM-5731). Anything
-    # other than ``"caller-supplied"`` means governed actions produce NO audit
-    # evidence from this SDK, so no claim of attributability or after-the-fact
-    # review holds on the SDK path. The programmatic counterpart of the stderr
-    # warning ``_warn_audit_not_recorded`` emits, so the gap is detectable in
-    # code and not only by reading stderr.
+    # hook-layer audit record for a governed tool call (AAASM-5731).
+    # ``"forwarded"`` means the record reaches the runtime's audit pipeline;
+    # ``"absent"`` and ``"discarded"`` both mean governed actions produce NO
+    # audit evidence from this SDK, so no claim of attributability or
+    # after-the-fact review holds on that path; ``"caller-supplied"`` means this
+    # SDK makes no claim. The programmatic counterpart of the stderr warning
+    # ``_warn_audit_not_recorded`` emits for the two evidence-free values, so
+    # which case a run is in is detectable in code and not only by reading
+    # stderr.
     audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
     _lock: Lock = field(default_factory=Lock, init=False, repr=False)
     _is_shutdown: bool = field(default=False, init=False, repr=False)
@@ -404,7 +407,7 @@ def _warn_agent_unregistered(detail: str) -> None:
 
 
 def _warn_audit_not_recorded(disposition: AuditSinkDisposition) -> None:
-    """Emit a loud, unconditional stderr warning that no audit record is kept.
+    """Emit a loud stderr warning that no audit record is kept on this run.
 
     The framework adapters offer the outcome of every governed tool call to an
     audit hook on the interceptor they were handed. Over a connected runtime that
