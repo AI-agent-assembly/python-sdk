@@ -2843,14 +2843,14 @@
     Framework -.-&gt;|every tool call| Interceptor
     Interceptor -.-&gt;|allow/deny| Gateway</code></pre>
 <p>Solid arrows are install-time; dashed arrows fire on every framework call after hooks are installed. The interceptor → gateway hop is the only network boundary in the data path.</p>
-<p>There is deliberately no audit edge on that hop. The adapters offer every governed outcome to an audit hook on the interceptor, but on every interceptor this SDK ships the hook does not resolve, so no record leaves the SDK — for allowed calls as much as denied ones (<a href="https://lightning-dust-mite.atlassian.net/browse/AAASM-5731">AAASM-5731</a>).</p>
+<p>The audit edge on that hop runs to the runtime, not to the gateway. The adapters offer a governed outcome to an audit hook on the interceptor; over a connected runtime that hook resolves and writes the record to the native event channel. It is a handoff — unacknowledged, so the SDK cannot report arrival — and it covers every governed adapter on the allowed path but only <code>google_adk</code>, <code>pydantic_ai</code> and <code>openai_agents</code> on the denied one; the other eight return or raise before their record helper. Without a reachable runtime the hook does not resolve and no record leaves the SDK (<a href="https://lightning-dust-mite.atlassian.net/browse/AAASM-5750">AAASM-5750</a>). Downstream of the handoff, <a href="https://lightning-dust-mite.atlassian.net/browse/AAASM-5783">AAASM-5783</a> is open on <code>report_event</code> payloads reaching neither the live stream nor the durable entry — until it lands, no SDK can claim ADR 0033 §6 <em>Observed</em>.</p>
 <h2 id="pyo3-ffi-layer">PyO3 FFI layer<a class="headerlink" href="#pyo3-ffi-layer" title="Permanent link">&para;</a></h2>
 <p>The pure-Python adapters described above are sufficient for governing most agent frameworks. For deployments where every microsecond of policy-check latency matters — typically gateways under heavy multi-tenant load — the SDK ships an <strong>optional</strong> native runtime client written in Rust and exposed to Python via <a href="https://pyo3.rs/">PyO3</a>.</p>
 <h3 id="what-ships-in-the-wheel">What ships in the wheel<a class="headerlink" href="#what-ships-in-the-wheel" title="Permanent link">&para;</a></h3>
 <p>The native crate lives at <code>native/aa-ffi-python/</code> in the repository and is built with <a href="https://www.maturin.rs/"><code>maturin</code></a>. When installed, it exposes a private <code>agent_assembly._core</code> module with two symbols:</p>
 <ul>
-<li><code>RuntimeClient</code> — a Rust-backed runtime client (a thin shim over the shared <code>aa-sdk-client</code> crate). <code>agent_assembly</code> uses it for <code>register</code> and <code>query_policy</code> only. It also exposes <code>send_event</code>, which <strong>nothing in <code>agent_assembly</code> calls</strong> — the capability exists in the shim and the SDK never reaches it, so no governance event is shipped from here (AAASM-5731).</li>
-<li><code>GovernanceEvent</code> — Rust-side dataclass for the events that channel would carry. Exported from <code>agent_assembly</code>, and never constructed by it.</li>
+<li><code>RuntimeClient</code> — a Rust-backed runtime client (a thin shim over the shared <code>aa-sdk-client</code> crate). <code>agent_assembly</code> uses it for <code>register</code>, <code>query_policy</code>, and — since AAASM-5750 — <code>send_event</code>, which is how a governed call's outcome is handed to the runtime (<code>core/runtime_audit.py</code>) — a write to the channel, with no acknowledgement back.</li>
+<li><code>GovernanceEvent</code> — Rust-side wrapper for the events that channel carries. It validates its argument as <code>aa_core::AuditEntry</code> JSON, and <code>core/runtime_audit.py</code> constructs one per forwarded outcome.</li>
 </ul>
 <p><code>agent_assembly/__init__.py</code> imports these symbols inside a <code>try / except ImportError</code> block. <strong>If the native extension was never built, the SDK still works</strong> — pure-Python <code>GatewayClient</code> is the fallback, and the <code>RuntimeClient</code> symbol simply is not present in <code>agent_assembly.__all__</code>.</p>
 <h3 id="when-to-build-it">When to build it<a class="headerlink" href="#when-to-build-it" title="Permanent link">&para;</a></h3>
@@ -2866,14 +2866,14 @@
 <li><strong>Create the gateway client</strong> — pure-Python <code>GatewayClient</code> by default. If <code>mode != "sdk-only"</code> and the native extension is available, the assembly may switch to the Rust <code>RuntimeClient</code> (transparent to the caller).</li>
 <li><strong>Discover adapters</strong> via <code>AdapterRegistry.get_available_adapters_by_priority()</code>. Adapters whose underlying framework is not importable are silently skipped — no warning noise.</li>
 <li><strong>Install hooks</strong> by calling <code>adapter.register_hooks(interceptor)</code> for each available adapter, in priority order. Each adapter records the patches it owns so they can be reverted in step 9.</li>
-<li><strong>Start the network layer.</strong> This is the seam reserved for the sidecar handshake under <code>mode="ebpf"</code> / <code>mode="proxy"</code>; in this SDK all three branches currently return a no-op shutdown and start nothing, so no side-channel streams audit events from here (AAASM-5731).</li>
+<li><strong>Start the network layer.</strong> This is the seam reserved for the sidecar handshake under <code>mode="ebpf"</code> / <code>mode="proxy"</code>; in this SDK all three branches currently return a no-op shutdown and start nothing, so no side-channel streams audit events from here — the record path is the native event channel opened at step 3, not this seam (AAASM-5750).</li>
 <li><strong>Register the active context</strong> in a process-global slot under a lock — <code>init_assembly()</code> is idempotent within a process: a second call returns the active context unchanged rather than double-installing hooks.</li>
 <li>Return the <a href="../../api-reference/"><code>AssemblyContext</code></a> to the caller.</li>
 </ol>
 <h3 id="shutdown-order-reverse">Shutdown order (reverse)<a class="headerlink" href="#shutdown-order-reverse" title="Permanent link">&para;</a></h3>
 <p>The returned <code>AssemblyContext</code> doubles as a context manager (<code>__enter__</code> / <code>__exit__</code>). On <code>shutdown()</code>:</p>
 <ol>
-<li><strong>Stop the network layer</strong> — a no-op today, matching step 5; there are no in-flight audit events to flush.</li>
+<li><strong>Stop the network layer</strong> — a no-op today, matching step 5; it holds no audit buffer to flush. Records already handed to the native channel are the runtime's; a send still in flight at process exit can be lost.</li>
 <li><strong><code>unregister_hooks()</code> on every adapter, in reverse install order</strong> — guarantees that nested patches (e.g. LangGraph wrapping LangChain) come off in the order opposite to install.</li>
 <li><strong>Close the gateway client</strong> — drain the HTTP keep-alive pool.</li>
 <li><strong>Clear the process-global active-context slot</strong> — the next <code>init_assembly()</code> call starts clean.</li>
@@ -2899,7 +2899,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 13, 2026 15:31:11 CST"><span class="timeago" datetime="2026-08-13T15:31:11+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 13, 2026 15:31:11 CST">2026-08-13</span> by Chisanan232</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 14, 2026 14:39:58 CST"><span class="timeago" datetime="2026-08-14T14:39:58+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 14, 2026 14:39:58 CST">2026-08-14</span> by Chisanan232</span>
 
     
     
