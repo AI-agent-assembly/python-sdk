@@ -5,6 +5,11 @@
 __pycache__
 ## UV
 .venv/
+# Also match a SYMLINK named `.venv`. `.venv/` matches a directory only, so a
+# symlink pointing at another worktree's environment slipped past it and was
+# committed — CI then failed at `uv sync` with
+# `failed to create directory .venv: File exists (os error 17)` (AAASM-5752).
+.venv
 ## PyEnv
 .python-version
 ## PyTest
