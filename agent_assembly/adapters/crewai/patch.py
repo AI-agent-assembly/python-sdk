@@ -9,6 +9,7 @@ from functools import wraps
 from threading import local
 from typing import Any, Literal, cast
 
+from agent_assembly.adapters._shared.audit_record import record_denied_tool_result
 from agent_assembly.adapters._shared.positional_args import merge_positional_tool_args
 from agent_assembly.core.spawn import _SPAWN_CTX, SpawnContext, spawn_context_scope
 
@@ -397,9 +398,16 @@ def _apply_basetool_run_patch(base_tool_cls: type[Any], callback_handler: Any) -
         # non-decision, not a grant — blocking it here stops it from falling
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
-            if is_pending_flow:
-                return _format_approval_rejected_message(reason)
-            return _format_blocked_message(reason)
+            message = _format_approval_rejected_message(reason) if is_pending_flow else _format_blocked_message(reason)
+            # AAASM-5787: the deny used to return straight past the record call
+            # below, so this adapter built nothing for the sink to forward.
+            record_denied_tool_result(
+                callback_handler,
+                tool_name=str(tool_name),
+                result=message,
+                agent_id=agent_id,
+            )
+            return message
 
         result = original_run(self, *args, **kwargs)
         _record_sync_tool_result(callback_handler, tool_name=str(tool_name), result=result)

@@ -420,8 +420,12 @@ def test_terminal_pending_blocks_tool_and_does_not_run(
 
     assert isinstance(result, str)
     assert result.startswith("[APPROVAL REJECTED]")
-    # The original tool never executed, so its result was never recorded.
-    assert recorded_results == []
+    # The original tool never executed, so its output was never recorded. This
+    # used to read `recorded_results == []`, which said the same thing only for
+    # as long as the deny branch recorded nothing at all; since AAASM-5787 it
+    # records the rejection, so the assertion is now about *what* was recorded.
+    assert recorded_results == ["[APPROVAL REJECTED] Action was reviewed and denied: still pending"]
+    assert not any(isinstance(entry, dict) for entry in recorded_results)
 
 
 def test_task_start_and_complete_events_are_recorded(
