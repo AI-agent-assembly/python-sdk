@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Literal, cast
 
+from agent_assembly.adapters._shared.audit_record import record_denied_tool_result
 from agent_assembly.adapters._shared.positional_args import merge_positional_tool_args
 
 _TOOL_PATCHED_FLAG = "_agent_assembly_haystack_tool_patched"
@@ -268,9 +269,11 @@ def _apply_tool_invoke_patch(tool_cls: type[Any], callback_handler: Any) -> None
         # non-decision, not a grant — blocking it here stops it from falling
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
-            if is_pending_flow:
-                return _format_approval_rejected_message(reason)
-            return _format_blocked_message(reason)
+            message = _format_approval_rejected_message(reason) if is_pending_flow else _format_blocked_message(reason)
+            # AAASM-5787: the deny used to return straight past the record call
+            # below, so this adapter built nothing for the sink to forward.
+            record_denied_tool_result(callback_handler, tool_name=tool_name, result=message)
+            return message
 
         result = original_invoke(self, *args, **kwargs)
         _record_tool_result(callback_handler, tool_name=tool_name, result=result)
