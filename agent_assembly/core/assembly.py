@@ -125,7 +125,8 @@ class AssemblyContext:
     registered: bool = True
     # What the governance interceptor the adapters were handed does with the
     # hook-layer audit record for a governed tool call (AAASM-5731).
-    # ``"forwarded"`` means the record reaches the runtime's audit pipeline;
+    # ``"forwarded"`` means the record is handed to the runtime's event channel
+    # (a handoff, not evidence — the send is unacknowledged);
     # ``"absent"`` and ``"discarded"`` both mean governed actions produce NO
     # audit evidence from this SDK, so no claim of attributability or
     # after-the-fact review holds on that path; ``"caller-supplied"`` means this

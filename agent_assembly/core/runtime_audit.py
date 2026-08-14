@@ -1,4 +1,4 @@
-"""Ship a governed tool call's outcome to the runtime's evidence pipeline.
+"""Hand a governed tool call's outcome to the runtime's event channel.
 
 The framework adapters build an audit record for every governed call — allowed
 or denied — and offer it to an audit hook on the interceptor they were handed.
@@ -8,14 +8,13 @@ outcome and hands it to the native ``RuntimeClient.send_event``, the same
 primitive and the same connected session that ``register_agent`` already uses.
 
 **What the SDK can and cannot say about the result.** ``send_event`` is
-fire-and-forget over a bounded IPC channel: it hands the event to the runtime
-and returns. The runtime enriches the frame with the connection's
-handshake-verified identity, re-scans it unconditionally, and admits it to its
-audit pipeline. So under ADR 0033 §6 what this earns is *Observed* — an event
-reached the evidence pipeline — for records that arrive. It is deliberately not
-described as "recorded": retention past the boundary belongs to the runtime and
-the gateway behind it, and asserting their outcome from here would broaden a
-claim this layer cannot see (ADR 0034).
+fire-and-forget over a bounded IPC channel: it hands the event to the runtime and
+returns, with no acknowledgement. **That handoff is the entire claim, and it is
+not ADR 0033 §6 *Observed*.** §6 requires a durable event attributed to the
+action; nothing observable from this side establishes one, so this module must
+not be cited as evidence that a governed call was recorded. Retention past the
+boundary belongs to the runtime and the gateway behind it, and asserting their
+outcome from here would broaden a claim this layer cannot see (ADR 0034).
 
 **The identity fields are placeholders, not attribution.** The native
 ``GovernanceEvent`` constructor validates its argument as ``aa_core::AuditEntry``
@@ -43,9 +42,17 @@ _UNSET_ID: Final = [0] * 16
 _UNSET_HASH: Final = [0] * 32
 
 #: `aa_core::AuditEventType` variants for the two outcomes the adapters report.
-#: A denied call is a policy violation, not an intercepted call that ran, and the
-#: runtime keys its own handling off this tag — collapsing the two would make
-#: every deny indistinguishable from an allow in the evidence pipeline.
+#: A denied call is a policy violation, not an intercepted call that ran.
+#:
+#: **The tag does not currently reach anything that acts on it.** An earlier
+#: version of this comment said the runtime "keys its own handling off this tag";
+#: it does not — it keys off ``action_type`` / ``detail``, and
+#: ``aa_sdk_client::report_event`` puts this tag into proto ``labels`` while
+#: leaving ``action_type``, ``detail`` and ``decision`` at their proto3 zero. So
+#: the runtime's ``is_policy_violation`` is false for every hook-layer record and
+#: a deny is batched exactly like an allow. The distinction is preserved here
+#: because collapsing it would be wrong at the source too, but it is carried, not
+#: honoured — do not build a claim on it.
 _EVENT_TYPE_ALLOWED: Final = "ToolCallIntercepted"
 _EVENT_TYPE_DENIED: Final = "PolicyViolation"
 

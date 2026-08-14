@@ -270,9 +270,11 @@ class RuntimeQueryInterceptor:
     proceed (fail open), preserving the observe / disabled behavior.
 
     The audit hook is the one thing besides the check that this class owns
-    rather than delegates. ``record_result`` sends the outcome of every governed
-    call — allowed or denied — to the runtime over the native event channel
-    (AAASM-5750). Before that it delegated like everything else, to a
+    rather than delegates. ``record_result`` hands a governed call's outcome to
+    the runtime over the native event channel — a write with no acknowledgement,
+    so it is not evidence the record survived (AAASM-5750). Whether the *denied*
+    path reaches it is the adapter's business, not this class's: most adapters
+    raise first. Before that it delegated like everything else, to a
     ``GatewayClient`` that has neither ``record_result`` nor ``on_tool_end``, so
     the adapters' ``getattr`` lookup found nothing and no record was emitted on
     either path (AAASM-5731).

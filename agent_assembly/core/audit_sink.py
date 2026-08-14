@@ -22,8 +22,9 @@ context.
 
 The ADR 0033 §6 term follows the disposition rather than the SDK as a whole:
 
-* :data:`AUDIT_SINK_FORWARDED` — the event reaches the runtime's evidence
-  pipeline, which is what *Observed* asks for.
+* :data:`AUDIT_SINK_FORWARDED` — the event is handed to the runtime's event
+  channel. **Not** *Observed*: the send is unacknowledged, so no durable event
+  attributed to the action is established from this side.
 * :data:`AUDIT_SINK_ABSENT` — the control is configured and its channel is
   unavailable, which is *Degraded*; deliberately not *Unmeasured*, since §6
   reserves that for an action no control inspected, and here exactly where the
@@ -50,13 +51,18 @@ AUDIT_SINK_FORWARDED: AuditSinkDisposition = "forwarded"
 
 The record crosses the native event channel — the same
 ``RuntimeClient.send_event`` primitive and the same connected session the agent
-registration already uses — into the runtime's audit pipeline, on the allowed
-path and the denied one alike.
+registration already uses.
 
-It says "forwarded", not "recorded", on purpose. This SDK can observe that the
-event crossed the boundary; what the runtime and the gateway behind it retain is
-theirs to state. Delivery is also best-effort: the channel is fire-and-forget, so
-a failed send degrades to no record rather than to a failed tool call.
+It says "forwarded", not "recorded", on purpose, and the gap between those two
+words is wider than it looks. The channel is fire-and-forget and unacknowledged,
+so this SDK never learns whether the runtime received the event; what the runtime
+and the gateway behind it retain is theirs to state. **This value is not evidence
+and does not earn ADR 0033 §6 *Observed*.**
+
+Its coverage is also uneven across adapters, which the disposition cannot express
+because it is a property of the client, not of the call site: every governed
+adapter reaches the hook on the **allowed** path, but only ``google_adk``,
+``pydantic_ai`` and ``openai_agents`` build a record on the **denied** one.
 """
 
 AUDIT_SINK_ABSENT: AuditSinkDisposition = "absent"
@@ -74,8 +80,12 @@ AUDIT_SINK_DISCARDED: AuditSinkDisposition = "discarded"
 
 The call site is correct and the sink is not. This is what the LangChain
 :class:`~agent_assembly.adapters.langchain.callback_handler.AssemblyCallbackHandler`
-does when the interceptor it wraps has no ``on_tool_end`` to forward to, and it
-is what the Go and Node SDKs' shipped clients do (AAASM-5731 / AAASM-5681).
+does when the interceptor it wraps has no ``on_tool_end`` to forward to.
+
+It used to add that the Go and Node SDKs' shipped clients do the same. That was
+true when AAASM-5731 / AAASM-5681 measured it and stops being true when their
+AAASM-5750 counterparts land, so the cross-SDK comparison is dropped rather than
+left to go stale — each SDK's own ``AuditSinkDisposition`` is the answer for it.
 """
 
 AUDIT_SINK_CALLER_SUPPLIED: AuditSinkDisposition = "caller-supplied"
