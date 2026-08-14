@@ -134,7 +134,7 @@ status string `"allow" | "deny" | "pending"`, or a mapping `{"status": ..., "rea
 | `check_tool_start` / `check_tool_call` | adapter → interceptor, returns decision | Pre-execution gate for a tool call; `deny` blocks it. |
 | `wait_for_tool_approval` | adapter → interceptor, returns decision | Block until a `pending` tool call is approved or rejected (human-in-the-loop). |
 | `get_pending_tool_approval_timeout_seconds` | adapter → interceptor | Configurable timeout for the approval wait. |
-| `record_result` / `on_tool_end` | adapter → interceptor, no return | Offer a governed tool call's outcome for audit — allowed or denied. **No interceptor this SDK ships resolves either name**, so on the shipped path the `getattr` guard finds nothing and the outcome is not recorded; only a caller-supplied handler retains it (AAASM-5731). |
+| `record_result` / `on_tool_end` | adapter → interceptor, no return | Offer a governed tool call's outcome for audit — allowed or denied. Over a connected runtime the SDK's interceptor resolves both names and forwards the record to the runtime; without one neither resolves and the `getattr` guard finds nothing, so only a caller-supplied handler retains it (AAASM-5750). |
 | `record` | adapter → interceptor, no return | Generic structured event (e.g. `action="task_start"`). **No interceptor this SDK ships resolves this name either** — the CrewAI patch looks it up for task start/complete (`crewai/patch.py:429,445`) and finds nothing, so those events are not recorded on the shipped path (AAASM-5731). |
 
 !!! note "These are conventions, not a typed contract"

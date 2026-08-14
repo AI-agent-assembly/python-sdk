@@ -13,13 +13,13 @@
 
 Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agents. One `init_assembly()` call wires your agent into the policy gateway and applies pre-execution allow/deny on tool calls, without changing how the agent itself is written.
 
-> **The SDK layer produces no audit evidence of its own.** The framework adapters offer the outcome of every governed call to an audit hook on the governance interceptor — but on every interceptor this SDK ships, that hook **does not resolve**, so nothing is emitted. This covers **allowed** calls as much as denied ones. Enforcement is unaffected: a policy DENY still blocks the tool. `init_assembly()` warns about it and reports `audit_sink` on the returned context; supply your own handler with a `record_result` or `on_tool_end` to retain the record ([AAASM-5731](https://lightning-dust-mite.atlassian.net/browse/AAASM-5731)).
+> **Audit evidence depends on a reachable runtime.** The framework adapters offer the outcome of every governed call to an audit hook on the governance interceptor. Over a connected runtime that hook resolves and forwards the record across the native event channel — the same one agent registration uses — so the event reaches the runtime's audit pipeline, for **allowed** calls as much as denied ones. Without a reachable runtime there is no channel to send on and nothing is emitted. Enforcement is unaffected either way: a policy DENY still blocks the tool. `init_assembly()` warns when no record can be sent and reports `audit_sink` on the returned context — `forwarded`, or `absent` / `discarded` ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
 
 ## Why use it
 
 - **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, Google ADK, Haystack, Smolagents, Agno, LlamaIndex, Microsoft Agent Framework, and MCP servers — drop in, no SDK rewrites required.
 - **Pre-execution policy enforcement** via the `FrameworkAdapter` ABC — block disallowed tool calls before they hit the LLM.
-- **Agent lineage** — parent / root / team identity is registered with the gateway and carried on every policy check. (An audit *trail* is not part of what this SDK layer delivers — see the note above.)
+- **Agent lineage** — parent / root / team identity is registered with the gateway and carried on every policy check. (An audit *trail* from this SDK layer depends on a reachable runtime — see the note above.)
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need sub-millisecond policy checks.
 - **Typed throughout** — Pydantic models for every gateway payload, mypy strict on adapter base and registry.
 

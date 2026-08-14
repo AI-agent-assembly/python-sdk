@@ -69,7 +69,7 @@ flowchart LR
 
 Solid arrows are install-time; dashed arrows fire on every framework call after hooks are installed. The interceptor → gateway hop is the only network boundary in the data path.
 
-There is deliberately no audit edge on that hop. The adapters offer every governed outcome to an audit hook on the interceptor, but on every interceptor this SDK ships the hook does not resolve, so no record leaves the SDK — for allowed calls as much as denied ones ([AAASM-5731](https://lightning-dust-mite.atlassian.net/browse/AAASM-5731)).
+The audit edge on that hop runs to the runtime, not to the gateway. The adapters offer every governed outcome to an audit hook on the interceptor; over a connected runtime that hook resolves and ships the record across the native event channel, so it enters the runtime's audit pipeline — for allowed calls as much as denied ones. Without a reachable runtime the hook does not resolve and no record leaves the SDK ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
 
 ## PyO3 FFI layer
 
@@ -104,7 +104,7 @@ For most contributors, this is unnecessary — the pure-Python SDK is the defaul
 2. **Create the gateway client** — pure-Python `GatewayClient` by default. If `mode != "sdk-only"` and the native extension is available, the assembly may switch to the Rust `RuntimeClient` (transparent to the caller).
 3. **Discover adapters** via `AdapterRegistry.get_available_adapters_by_priority()`. Adapters whose underlying framework is not importable are silently skipped — no warning noise.
 4. **Install hooks** by calling `adapter.register_hooks(interceptor)` for each available adapter, in priority order. Each adapter records the patches it owns so they can be reverted in step 9.
-5. **Start the network layer.** This is the seam reserved for the sidecar handshake under `mode="ebpf"` / `mode="proxy"`; in this SDK all three branches currently return a no-op shutdown and start nothing, so no side-channel streams audit events from here (AAASM-5731).
+5. **Start the network layer.** This is the seam reserved for the sidecar handshake under `mode="ebpf"` / `mode="proxy"`; in this SDK all three branches currently return a no-op shutdown and start nothing, so no side-channel streams audit events from here — the record path is the native event channel opened at step 3, not this seam (AAASM-5750).
 6. **Register the active context** in a process-global slot under a lock — `init_assembly()` is idempotent within a process: a second call returns the active context unchanged rather than double-installing hooks.
 7. Return the [`AssemblyContext`](../api-reference/index.md) to the caller.
 
@@ -112,7 +112,7 @@ For most contributors, this is unnecessary — the pure-Python SDK is the defaul
 
 The returned `AssemblyContext` doubles as a context manager (`__enter__` / `__exit__`). On `shutdown()`:
 
-8. **Stop the network layer** — a no-op today, matching step 5; there are no in-flight audit events to flush.
+8. **Stop the network layer** — a no-op today, matching step 5; it holds no audit buffer to flush. Records already handed to the native channel are the runtime's; a send still in flight at process exit can be lost.
 9. **`unregister_hooks()` on every adapter, in reverse install order** — guarantees that nested patches (e.g. LangGraph wrapping LangChain) come off in the order opposite to install.
 10. **Close the gateway client** — drain the HTTP keep-alive pool.
 11. **Clear the process-global active-context slot** — the next `init_assembly()` call starts clean.
