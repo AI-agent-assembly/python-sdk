@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import Mapping
-from typing import Any, Literal, cast
+from typing import Any, Literal, NoReturn, cast
 from uuid import UUID
 
+from agent_assembly.adapters._shared.audit_record import record_denied_tool_result
 from agent_assembly.core.audit_sink import (
     AUDIT_SINK_ABSENT,
     AUDIT_SINK_DISCARDED,
@@ -164,6 +165,7 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
         run_id: UUID,
         **kwargs: Any,
     ) -> None:
+        tool_name = self._tool_name(serialized)
         method = getattr(self._interceptor, "check_tool_start", None)
         if not callable(method):
             # Mirrors the other adapters' ``_missing_interceptor_decision``
@@ -173,7 +175,7 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
             # ``enforce``, so fail closed there and only fail open under
             # observe / disabled, consistent with ``_unknown_decision``.
             if self._enforce:
-                raise ToolExecutionBlockedError(self._MISSING_CHECK_TOOL_START_REASON)
+                self._deny(tool_name, run_id, self._MISSING_CHECK_TOOL_START_REASON)
             return None
 
         decision = method(
@@ -184,7 +186,7 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
         )
         status, reason = self._normalize_decision(decision)
         if status == "deny":
-            raise ToolExecutionBlockedError(reason or "Tool execution blocked by governance.")
+            self._deny(tool_name, run_id, reason or "Tool execution blocked by governance.")
         if status == "pending":
             approval = self._resolve_pending_approval(
                 serialized=serialized,
@@ -194,11 +196,45 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
             )
             approval_status, approval_reason = self._normalize_decision(approval)
             if approval_status != "allow":
-                raise ToolExecutionBlockedError(
-                    approval_reason or reason or "Tool execution was not approved by governance."
+                self._deny(
+                    tool_name,
+                    run_id,
+                    approval_reason or reason or "Tool execution was not approved by governance.",
                 )
 
         return None
+
+    @staticmethod
+    def _tool_name(serialized: dict[str, Any]) -> str:
+        """The tool's name as LangChain reports it on the start callback.
+
+        LangChain puts it in ``serialized["name"]``. It is absent for a tool
+        constructed without one, and the record is worth more with an empty
+        name than not at all, so this does not raise.
+        """
+        name = serialized.get("name")
+        return name if isinstance(name, str) else ""
+
+    def _deny(self, tool_name: str, run_id: UUID, reason: str) -> NoReturn:
+        """Record the denial, then block the call by raising.
+
+        AAASM-5787: ``on_tool_start`` raised straight out with nothing recorded,
+        and ``on_tool_end`` — the hook AAASM-5750 wired to the sink — fires only
+        after a tool has run, so a denied tool never reached it. This adapter
+        therefore built no record on any of its three deny paths.
+
+        The record is offered first and the raise is unconditional: the helper
+        suppresses a raising audit hook so it cannot replace a decided deny with
+        its own exception, and a caller matching on ``ToolExecutionBlockedError``
+        keeps recognising the deny.
+        """
+        record_denied_tool_result(
+            self._interceptor,
+            tool_name=tool_name,
+            result=reason,
+            run_id=str(run_id),
+        )
+        raise ToolExecutionBlockedError(reason)
 
     def _resolve_pending_approval(
         self,
