@@ -13,13 +13,15 @@
 
 Python SDK for **AI Agent Assembly** — a governance-native runtime for AI agents. One `init_assembly()` call wires your agent into the policy gateway and applies pre-execution allow/deny on tool calls, without changing how the agent itself is written.
 
-> **The SDK layer produces no audit evidence of its own.** The framework adapters offer the outcome of every governed call to an audit hook on the governance interceptor — but on every interceptor this SDK ships, that hook **does not resolve**, so nothing is emitted. This covers **allowed** calls as much as denied ones. Enforcement is unaffected: a policy DENY still blocks the tool. `init_assembly()` warns about it and reports `audit_sink` on the returned context; supply your own handler with a `record_result` or `on_tool_end` to retain the record ([AAASM-5731](https://lightning-dust-mite.atlassian.net/browse/AAASM-5731)).
+> **The SDK hands records to the runtime; it does not give you an audit trail.** The framework adapters offer a governed call's outcome to an audit hook on the governance interceptor, and over a connected runtime that hook writes it to the native event channel — the same one agent registration uses. That is a handoff, **not** evidence: the send is unacknowledged, so this SDK cannot tell you the record arrived, and does not claim it did. Downstream, [AAASM-5783](https://lightning-dust-mite.atlassian.net/browse/AAASM-5783) is open on `report_event` payloads reaching neither the live stream nor the durable entry — until it lands, no SDK can claim ADR 0033 §6 *Observed*. Without a reachable runtime there is no channel at all and nothing is emitted.
+>
+> **Denied calls are mostly not covered.** Only `google_adk`, `pydantic_ai` and `openai_agents` build a record on the denied path. The other eight governed adapters — `crewai`, `llamaindex`, `haystack`, `agno`, `smolagents`, `microsoft_agent_framework`, `mcp` and `langchain` — return or raise before their record helper, so a deny there produces no record for any sink to carry. Enforcement is unaffected either way: a policy DENY still blocks the tool. `init_assembly()` warns when no record can be sent and reports `audit_sink` on the returned context ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
 
 ## Why use it
 
 - **Framework adapters** for LangChain, LangGraph, CrewAI, OpenAI Agents, Pydantic AI, Google ADK, Haystack, Smolagents, Agno, LlamaIndex, Microsoft Agent Framework, and MCP servers — drop in, no SDK rewrites required.
 - **Pre-execution policy enforcement** via the `FrameworkAdapter` ABC — block disallowed tool calls before they hit the LLM.
-- **Agent lineage** — parent / root / team identity is registered with the gateway and carried on every policy check. (An audit *trail* is not part of what this SDK layer delivers — see the note above.)
+- **Agent lineage** — parent / root / team identity is registered with the gateway and carried on every policy check. (An audit *trail* from this SDK layer depends on a reachable runtime — see the note above.)
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need sub-millisecond policy checks.
 - **Typed throughout** — Pydantic models for every gateway payload, mypy strict on adapter base and registry.
 

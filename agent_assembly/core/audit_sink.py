@@ -6,31 +6,41 @@ or denied — to an audit hook on the interceptor they were handed
 and both return ``None``, so a handler that retains the record and one that does
 nothing with it are indistinguishable at the call site.
 
-On every interceptor this SDK ships, neither hook **resolves at all**:
-``RuntimeQueryInterceptor`` defines only ``check_tool_start`` and delegates the
-rest to :class:`~agent_assembly.client.gateway.GatewayClient`, whose surface has
-no ``record_result`` and no ``on_tool_end``. The adapters' ``getattr`` guard
-therefore finds nothing and returns without emitting — for **allowed** calls as
-much as denied ones. Nothing in ``agent_assembly`` calls the native
-``RuntimeClient.send_event`` either, so no tool-call event reaches the runtime by
-any other route.
+``RuntimeQueryInterceptor`` defines ``record_result``, which forwards the record
+to the runtime over the native event channel (AAASM-5750). Until that landed
+neither hook resolved at all on any interceptor this SDK ships — the ``getattr``
+guard found nothing and returned without emitting, for **allowed** calls as much
+as denied ones.
 
-This module is how that stops being invisible. Every handler the SDK ships
-declares its disposition; :func:`resolve_audit_sink` reads it; ``init_assembly``
-warns about it and reports it on the returned context.
+Which of the two a given run is in still depends on the run, so the declaration
+is not decoration. An interceptor built without a native runtime — the
+fail-closed one, or a build with no extension — has no channel to send on and
+still resolves no hook. This module is how the difference stops being invisible:
+every handler the SDK ships declares its disposition; :func:`resolve_audit_sink`
+reads it; ``init_assembly`` warns about it and reports it on the returned
+context.
 
-Under ADR 0033 §6 this makes SDK-side recording **Planned** (AAASM-5750), not
-*Observed* — *Observed* requires a durable event attributed to the action, and
-there is none. It is deliberately not *Unmeasured*: §6 reserves that for an
-action no control inspected, where nothing is known, and here exactly where the
-record stops has been measured against the native boundary.
+The ADR 0033 §6 term follows the disposition rather than the SDK as a whole:
+
+* :data:`AUDIT_SINK_FORWARDED` — the event is handed to the runtime's event
+  channel. **Not** *Observed*: the send is unacknowledged, so no durable event
+  attributed to the action is established from this side. The downstream half of
+  that gap is tracked as AAASM-5783 and is unfixed — until ``report_event``
+  payloads reach the live stream and the durable entry, no SDK can claim
+  *Observed*.
+* :data:`AUDIT_SINK_ABSENT` — the control is configured and its channel is
+  unavailable, which is *Degraded*; deliberately not *Unmeasured*, since §6
+  reserves that for an action no control inspected, and here exactly where the
+  record stops has been measured against the native boundary.
+* :data:`AUDIT_SINK_DISCARDED` — a hook resolves and drops the record, so no
+  evidence exists on that path either.
 """
 
 from __future__ import annotations
 
 from typing import Any, Literal, get_args
 
-type AuditSinkDisposition = Literal["absent", "discarded", "caller-supplied"]
+type AuditSinkDisposition = Literal["forwarded", "absent", "discarded", "caller-supplied"]
 """What a governance handler does with the hook-layer audit record.
 
 The vocabulary separates *how* a record fails to survive, not merely that it
@@ -39,10 +49,32 @@ does, because the two failures have different blast radii and different remedies
 misdescribe at least one of them.
 """
 
+AUDIT_SINK_FORWARDED: AuditSinkDisposition = "forwarded"
+"""An audit hook resolves and hands the record to the runtime.
+
+The record crosses the native event channel — the same
+``RuntimeClient.send_event`` primitive and the same connected session the agent
+registration already uses.
+
+It says "forwarded", not "recorded", on purpose, and the gap between those two
+words is wider than it looks. The channel is fire-and-forget and unacknowledged,
+so this SDK never learns whether the runtime received the event; what the runtime
+and the gateway behind it retain is theirs to state. **This value is not evidence
+and does not earn ADR 0033 §6 *Observed*.** Closing that needs AAASM-5783, which
+is open: today ``report_event`` payloads reach neither the live stream nor the
+durable entry.
+
+Its coverage is also uneven across adapters, which the disposition cannot express
+because it is a property of the client, not of the call site: every governed
+adapter reaches the hook on the **allowed** path, but only ``google_adk``,
+``pydantic_ai`` and ``openai_agents`` build a record on the **denied** one.
+"""
+
 AUDIT_SINK_ABSENT: AuditSinkDisposition = "absent"
 """No audit hook resolves on this handler, so no record is even attempted.
 
-This is what every interceptor this SDK ships does. It is strictly worse than
+This is what an interceptor built without a reachable native runtime does — the
+fail-closed one, and any build with no extension. It is strictly worse than
 ``"discarded"``: nothing constructs the event, so supplying a sink downstream is
 not sufficient on its own — the call site finds no hook to call. It is also why
 the gap covers the **allowed** path and not only the denied one.
@@ -53,16 +85,20 @@ AUDIT_SINK_DISCARDED: AuditSinkDisposition = "discarded"
 
 The call site is correct and the sink is not. This is what the LangChain
 :class:`~agent_assembly.adapters.langchain.callback_handler.AssemblyCallbackHandler`
-does when the interceptor it wraps has no ``on_tool_end`` to forward to, and it
-is what the Go and Node SDKs' shipped clients do (AAASM-5731 / AAASM-5681).
+does when the interceptor it wraps has no ``on_tool_end`` to forward to.
+
+It used to add that the Go and Node SDKs' shipped clients do the same. That was
+true when AAASM-5731 / AAASM-5681 measured it and stops being true when their
+AAASM-5750 counterparts land, so the cross-SDK comparison is dropped rather than
+left to go stale — each SDK's own ``AuditSinkDisposition`` is the answer for it.
 """
 
 AUDIT_SINK_CALLER_SUPPLIED: AuditSinkDisposition = "caller-supplied"
 """The handler did not come from this SDK, so this SDK claims nothing about it.
 
-The **absence of a claim, not an assurance** that the record is retained. An
-*Observed* claim for the hook layer is available only on this branch, and only
-if the caller's own handler actually keeps what it is given.
+The **absence of a claim, not an assurance** that the record is retained.
+Whichever §6 term the caller's own handler earns is the caller's to establish,
+not this SDK's to assert.
 """
 
 AUDIT_HOOK_NAMES = ("record_result", "on_tool_end")
@@ -97,8 +133,9 @@ def resolve_delegated_audit_sink(delegate: Any) -> AuditSinkDisposition:
 
     * no hook resolves on ``delegate`` — nothing can be attempted through this
       interceptor either, so :data:`AUDIT_SINK_ABSENT`;
-    * a hook resolves — this SDK ships no client that has one, so the hook came
-      from the caller and this SDK makes no claim about it:
+    * a hook resolves — this SDK builds no *client* that has one (the sink lives
+      on the interceptor, not on the wrapped client), so the hook came from the
+      caller and this SDK makes no claim about it:
       :data:`AUDIT_SINK_CALLER_SUPPLIED`.
 
     Note the failure direction if this is ever wrong: it under-claims. Reporting

@@ -6,9 +6,10 @@ call is intercepted is identical: serialize the args, ask the interceptor for a
 verdict, honour a ``pending`` approval round-trip, deny by raising when the
 verdict is ``deny``, otherwise run the original inside a spawn-context scope.
 Either way the outcome is *offered* to the audit hook before the flow ends
-(AAASM-5665) — offered, not recorded: on every interceptor this SDK ships the hook
-does not resolve, so nothing is retained on either path. See
-:func:`_record_async_tool_result` for the measurement. That shared body — previously duplicated verbatim in both
+(AAASM-5665). Whether the hook resolves depends on the interceptor: over a
+connected runtime it does, and the record is forwarded to the runtime's evidence
+pipeline (AAASM-5750); without one it does not, and nothing is retained on either
+path. See :func:`_record_async_tool_result` for the measurement. That shared body — previously duplicated verbatim in both
 adapters (the cross-file duplication SonarCloud flagged on PR #269, AAASM-4746) —
 lives here so each adapter keeps only its framework-specific glue.
 
@@ -178,22 +179,22 @@ async def _record_async_tool_result(
     apart from a tool that ran and returned that same text.
 
     Whether anything is recorded depends entirely on the ``callback_handler``.
-    Both hooks are duck-typed, and on every interceptor the SDK ships *neither
-    resolves*: ``RuntimeQueryInterceptor`` defines only ``check_tool_start`` and
-    delegates the rest to ``GatewayClient``, whose surface has no
-    ``record_result`` and no ``on_tool_end``. Measured against the native and
-    HTTP boundaries, this function therefore finds no hook and emits nothing on
-    the shipped path — for allowed calls as much as denied ones.
+    Both hooks are duck-typed. Over a connected runtime
+    ``RuntimeQueryInterceptor.record_result`` resolves and writes the record to
+    the native event channel (AAASM-5750). That is a handoff and **not** ADR 0033
+    §6 *Observed*: the send is unacknowledged, so nothing here establishes a
+    durable event attributed to the action, and AAASM-5783 is open on the
+    downstream half of that. Without a runtime neither hook resolves and this
+    function emits nothing, measured against the native and HTTP boundaries.
 
-    Under ADR 0033 §6 that makes SDK-side recording **Planned** (AAASM-5750),
-    not *Unmeasured*: §6 reserves ``Unmeasured`` for an action no control
-    inspected, where nothing is known, and here exactly where the record stops
-    has been measured. It is certainly not *Observed*, which needs a durable
-    event attributed to the action. Every handler the SDK ships declares this in
-    ``audit_sink`` (see :mod:`agent_assembly.core.audit_sink`), ``init_assembly``
-    warns about it, and a caller that supplies its own handler does get the
-    record. Wiring a sink into the SDK's own interceptor is a separate
-    capability.
+    Note the scope of "allowed or denied" here: *this* shared flow calls the hook
+    on both paths, which is why ``google_adk`` and ``pydantic_ai`` cover denies.
+    Most adapters do not route through it and return or raise before their own
+    record helper, so their denied calls produce no record at all.
+
+    Which of the two a run is in is declared in ``audit_sink`` (see
+    :mod:`agent_assembly.core.audit_sink`) and warned about by ``init_assembly``;
+    a caller that supplies its own handler gets the record either way.
     """
     denial_flag = {"denied": denied} if denied else {}
 
@@ -295,9 +296,9 @@ async def run_governed_async_tool(
         # Offer the deny to the audit hook before raising (AAASM-5665).
         # Previously this raised straight past the record call below, so a
         # denied call could not reach an audit sink even when the caller had
-        # supplied one. See _record_async_tool_result on why the SDK's own
-        # interceptor still resolves no hook, so the shipped path emits nothing
-        # here either (AAASM-5731).
+        # supplied one. See _record_async_tool_result for where the record then
+        # goes: the SDK's own interceptor resolves the hook over a connected
+        # runtime and forwards it, and resolves nothing without one (AAASM-5750).
         #
         # Best-effort, and the guard is load-bearing: the hook is duck-typed
         # from caller-supplied code, and inserting a call here where none used

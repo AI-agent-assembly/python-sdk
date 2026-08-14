@@ -59,10 +59,14 @@ class AssemblyCallbackHandler(_CallbackHandlerBase):  # type: ignore[valid-type,
         wrapped, and this handler sits on the *other* side of the split from the
         interceptors it wraps. ``on_tool_end`` is defined here, so the adapters'
         audit-hook lookup **does** resolve on this object — the record is built
-        and handed over. It is then forwarded to the interceptor's own
-        ``on_tool_end``, and on every interceptor this SDK ships there is none,
-        so the record stops here: accepted and dropped, which is ``discarded``,
-        not ``absent``.
+        and handed over — and it is then forwarded to the interceptor's own
+        ``on_tool_end``.
+
+        So the answer is the wrapped interceptor's, with one substitution: when
+        the wrapped one resolves no hook at all, the record still reaches *this*
+        object before stopping, which is ``discarded`` and not ``absent``. The
+        distinction is not cosmetic — ``absent`` says nothing constructs the
+        event, and here something does.
 
         A caller-supplied interceptor that really records is reported as such:
         this SDK does not claim anything about a handler it did not build, in

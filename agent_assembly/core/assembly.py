@@ -124,12 +124,16 @@ class AssemblyContext:
     # (AAASM-4547, mirroring the Node SDK's ``ctx.registered``).
     registered: bool = True
     # What the governance interceptor the adapters were handed does with the
-    # hook-layer audit record for a governed tool call (AAASM-5731). Anything
-    # other than ``"caller-supplied"`` means governed actions produce NO audit
-    # evidence from this SDK, so no claim of attributability or after-the-fact
-    # review holds on the SDK path. The programmatic counterpart of the stderr
-    # warning ``_warn_audit_not_recorded`` emits, so the gap is detectable in
-    # code and not only by reading stderr.
+    # hook-layer audit record for a governed tool call (AAASM-5731).
+    # ``"forwarded"`` means the record is handed to the runtime's event channel
+    # (a handoff, not evidence — the send is unacknowledged);
+    # ``"absent"`` and ``"discarded"`` both mean governed actions produce NO
+    # audit evidence from this SDK, so no claim of attributability or
+    # after-the-fact review holds on that path; ``"caller-supplied"`` means this
+    # SDK makes no claim. The programmatic counterpart of the stderr warning
+    # ``_warn_audit_not_recorded`` emits for the two evidence-free values, so
+    # which case a run is in is detectable in code and not only by reading
+    # stderr.
     audit_sink: AuditSinkDisposition = AUDIT_SINK_ABSENT
     _lock: Lock = field(default_factory=Lock, init=False, repr=False)
     _is_shutdown: bool = field(default=False, init=False, repr=False)
@@ -325,7 +329,14 @@ def init_assembly(
         # AAASM-5731 — surface an audit path that retains nothing, on the
         # default path with nothing opted into. Emitted after registration so it
         # reflects the interceptor the adapters were actually handed.
-        if audit_sink != AUDIT_SINK_CALLER_SUPPLIED:
+        #
+        # The condition enumerates the dispositions that warrant a warning rather
+        # than excluding the one that does not (AAASM-5750). Written as
+        # ``!= AUDIT_SINK_CALLER_SUPPLIED`` it warned about every value that was
+        # not the caller's own, which silently included ``forwarded`` the moment
+        # that value existed — telling a caller whose records do reach the runtime
+        # that they produce none.
+        if audit_sink in (AUDIT_SINK_ABSENT, AUDIT_SINK_DISCARDED):
             _warn_audit_not_recorded(audit_sink)
 
         context = AssemblyContext(
@@ -397,15 +408,18 @@ def _warn_agent_unregistered(detail: str) -> None:
 
 
 def _warn_audit_not_recorded(disposition: AuditSinkDisposition) -> None:
-    """Emit a loud, unconditional stderr warning that no audit record is kept.
+    """Emit a loud stderr warning that no audit record is kept on this run.
 
     The framework adapters offer the outcome of every governed tool call to an
-    audit hook on the interceptor they were handed. On every interceptor this SDK
-    ships that hook does not resolve, so nothing is emitted — for **allowed**
-    calls as much as denied ones — and the caller had no way to learn that short
-    of reading the interceptor. Enforcement is genuinely unaffected, which is
-    exactly why the gap is easy to miss: denies still deny, and the governed call
-    returns normally.
+    audit hook on the interceptor they were handed. Over a connected runtime that
+    hook resolves and forwards the record (AAASM-5750); without one it does not
+    resolve at all, so nothing is emitted — for **allowed** calls as much as
+    denied ones — and the caller had no way to learn that short of reading the
+    interceptor. Enforcement is genuinely unaffected, which is exactly why the gap
+    is easy to miss: denies still deny, and the governed call returns normally.
+
+    Fires only for the dispositions that leave no evidence; see the enumeration at
+    the call site in :func:`init_assembly`.
 
     Written straight to ``sys.stderr`` for the same reason as
     :func:`_warn_agent_unregistered`: ``logging`` configuration cannot silence it.
@@ -425,7 +439,8 @@ def _warn_audit_not_recorded(disposition: AuditSinkDisposition) -> None:
         "the interceptor it forwards to exposes no on_tool_end"
         if disposition == AUDIT_SINK_DISCARDED
         else "no audit hook (record_result / on_tool_end) resolves on the governance "
-        "interceptor this SDK builds, so no record is even attempted"
+        "interceptor this SDK built, because no runtime is reachable for it to "
+        "send a record to, so no record is even attempted"
     )
     sys.stderr.write(
         "[agent-assembly] WARNING: hook-layer audit records are NOT retained "
@@ -433,10 +448,11 @@ def _warn_audit_not_recorded(disposition: AuditSinkDisposition) -> None:
         "ones as well as denied ones — therefore produce NO audit evidence from "
         "this SDK, and nothing on this path can be attributed or reviewed after "
         "the fact. Enforcement is unaffected: a policy DENY still blocks a tool "
-        "call, and the proxy / eBPF layers remain authoritative. Supply your own "
-        "handler with a record_result or on_tool_end to retain the record, and "
-        "inspect the 'audit_sink' attribute on the returned assembly context to "
-        "detect this programmatically (AAASM-5731).\n"
+        "call, and the proxy / eBPF layers remain authoritative. Connect a runtime so "
+        "the SDK's own sink resolves, or supply your own handler with a "
+        "record_result or on_tool_end, and inspect the 'audit_sink' attribute on "
+        "the returned assembly context to detect this programmatically "
+        "(AAASM-5731, AAASM-5750).\n"
     )
 
 

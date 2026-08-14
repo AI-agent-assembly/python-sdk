@@ -11,8 +11,10 @@ class LlamaIndexAdapter(FrameworkAdapter):
 
     Wires the SDK-layer pre-execution allow/deny onto the LlamaIndex
     tool-execution path (``FunctionTool.call`` / ``acall``), and offers each
-    outcome to the audit hook — which no interceptor this SDK ships resolves, so
-    nothing is recorded from here (AAASM-5731). The
+    outcome to the audit hook — which the SDK's own interceptor resolves over a
+    connected runtime, handing the record to the runtime's event channel, and
+    does not resolve without one. Only the *allowed* path reaches it here: a deny
+    raises before the record helper, so it produces no record (AAASM-5750). The
     framework package is imported as ``llama_index.core``; the patch targets the
     concrete tool methods the agent loop actually invokes (the base methods are
     abstract).

@@ -9,6 +9,7 @@ query_policy path without a built extension or a running ``aa-runtime``: the
 
 from __future__ import annotations
 
+import json
 import sys
 import types
 from collections.abc import Callable
@@ -26,6 +27,7 @@ class FakeRuntimeClient:
         self.register_calls: list[tuple[str, str, str, str | None, str | None, str | None]] = []
         self.query_calls: list[tuple[Any, ...]] = []
         self.register_should_raise: Exception | None = None
+        self.sent_events: list[Any] = []
         # Set by install_fake_core's connect to the (socket_path, agent_id,
         # sdk_version) it was called with (AAASM-3683).
         self.connect_args: tuple[str, str | None, str | None] | None = None
@@ -53,6 +55,16 @@ class FakeRuntimeClient:
     ) -> dict[str, str]:
         self.query_calls.append((agent_id, action_type, tool_name, tool_args_json))
         return {"decision": self._decision, "reason": self._reason}
+
+    def send_event(self, event: Any) -> None:
+        """The native audit channel (AAASM-5750).
+
+        Present because the real shim has it and the SDK reads for it by name to
+        decide whether it can record at all: a double missing it makes every
+        interceptor built over it declare ``absent``, which would quietly turn
+        the forwarding path off in any test using this fake.
+        """
+        self.sent_events.append(getattr(event, "payload_json", event))
 
     def close(self) -> None:
         return None
@@ -84,6 +96,48 @@ class LegacyRuntimeClient:
         return None
 
 
+#: Fields ``aa_core::AuditEntry`` requires, mirrored from the struct the real
+#: ``GovernanceEvent`` constructor deserializes into. Everything else on that
+#: struct is ``Option`` / ``default``; these are not, so a payload missing one is
+#: rejected by the native extension.
+AUDIT_ENTRY_REQUIRED_FIELDS = frozenset(
+    {"seq", "timestamp_ns", "event_type", "agent_id", "session_id", "payload", "previous_hash", "entry_hash"}
+)
+
+
+class FakeGovernanceEvent:
+    """Stand-in for the native ``GovernanceEvent`` wrapper.
+
+    It replicates the one behaviour the SDK depends on and could get wrong: the
+    real constructor deserializes its argument as ``aa_core::AuditEntry`` JSON and
+    raises ``ValueError`` when that fails, so a payload builder that emits the
+    wrong shape fails at the boundary rather than silently. A double that
+    accepted any string would make every "the record crossed" assertion pass over
+    a payload the real extension rejects.
+
+    It is a **replica of the contract, not the validator**. It checks the
+    required field set, not serde's full type discipline, so it cannot prove the
+    real constructor accepts a given payload — only that an obviously wrong one
+    is caught. The real constructor is exercised against this SDK's builder in
+    ``test/integration/test_native_core_runtime.py``, which runs only where the
+    extension is built.
+    """
+
+    def __init__(self, payload_json: str) -> None:
+        try:
+            decoded = json.loads(payload_json)
+        except ValueError as error:
+            raise ValueError(f"GovernanceEvent payload must be serialized aa_core::AuditEntry JSON: {error}") from error
+        if not isinstance(decoded, dict):
+            raise ValueError("GovernanceEvent payload must be serialized aa_core::AuditEntry JSON: not an object")
+        missing = AUDIT_ENTRY_REQUIRED_FIELDS - decoded.keys()
+        if missing:
+            raise ValueError(
+                f"GovernanceEvent payload must be serialized aa_core::AuditEntry JSON: missing {sorted(missing)}"
+            )
+        self.payload_json = payload_json
+
+
 def install_fake_core(
     monkeypatch: pytest.MonkeyPatch,
     runtime_client: Any,
@@ -104,6 +158,7 @@ def install_fake_core(
 
     fake_core = types.ModuleType("agent_assembly._core")
     fake_core.RuntimeClient = _ConnectingRuntimeClient  # type: ignore[attr-defined]
+    fake_core.GovernanceEvent = FakeGovernanceEvent  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
     return runtime_client
 
@@ -128,4 +183,5 @@ def install_fake_core_with_connect(
 
     fake_core = types.ModuleType("agent_assembly._core")
     fake_core.RuntimeClient = runtime_client_cls  # type: ignore[attr-defined]
+    fake_core.GovernanceEvent = FakeGovernanceEvent  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)

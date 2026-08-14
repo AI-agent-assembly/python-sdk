@@ -296,13 +296,12 @@ class TestDenyIsAttributable:
         # straight past the hook, so a denied call offered it nothing.
         #
         # Scope of the evidence: the record is captured by this fixture's
-        # handler. The interceptor the SDK builds resolves no audit hook at all
-        # (RuntimeQueryInterceptor + GatewayClient expose neither
-        # record_result nor on_tool_end), so tool outcomes produce no audit
-        # evidence on the shipped path — Planned under ADR 0033 §6
-        # (AAASM-5750), not Unmeasured, since where the record stops has been
-        # measured. What this pins is the governance flow's call — the part
-        # fixable without wiring a sink.
+        # handler, so what this pins is the governance flow's CALL and its
+        # contents — nothing about where the record ends up. A fixture that
+        # receives what it supplied cannot decide that in either direction.
+        # That the shipped interceptor then forwards the record across the
+        # native boundary is measured where it can be, against that boundary,
+        # in test/unit/core/test_audit_sink_disposition.py (AAASM-5750).
         assert len(quickstart.interceptor.records) == 1
         record = quickstart.interceptor.records[0]
         assert record.tool_name == "write_to_disk"

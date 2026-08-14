@@ -319,3 +319,38 @@ def test_wired_check_fails_open_when_runtime_unreachable(native_core: Any) -> No
     finally:
         client.close()
         socket_dir.cleanup()
+
+
+@pytest.mark.integration
+def test_the_audit_payload_builder_is_accepted_by_the_real_governance_event(native_core: Any) -> None:
+    """The SDK's audit payload must satisfy the REAL native constructor (AAASM-5750).
+
+    ``GovernanceEvent.__new__`` deserializes its argument as
+    ``aa_core::AuditEntry`` JSON and raises ``ValueError`` on anything else, so a
+    builder emitting the wrong shape produces no record at all — silently, since
+    ``send_tool_outcome`` swallows the failure to keep a degraded audit channel
+    from breaking a governed tool call.
+
+    The unit suite substitutes a double for this constructor and can therefore
+    only catch an obviously wrong payload; it cannot establish that the real one
+    accepts a given payload. This test is where that is established, so it lives
+    behind the same native gate as the rest of this module.
+    """
+    from agent_assembly.core.runtime_audit import build_tool_outcome_payload
+
+    for denied in (False, True):
+        payload = build_tool_outcome_payload(
+            tool_name="web_search",
+            result="RESULT" if not denied else "blocked by policy",
+            agent_id="agent-1",
+            run_id="run-1",
+            denied=denied,
+        )
+        # Constructing it IS the assertion: a rejected payload raises ValueError.
+        event = native_core.GovernanceEvent(payload)
+        assert event.payload_json == payload
+
+    # Negative control on the same constructor: it must reject a payload that is
+    # not an AuditEntry, or "it accepted ours" would say nothing.
+    with pytest.raises(ValueError):
+        native_core.GovernanceEvent(json.dumps({"event_type": "ToolCallIntercepted"}))

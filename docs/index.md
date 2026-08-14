@@ -3,8 +3,8 @@
 **In plain terms:** this SDK is how a Python agent asks for permission before it acts.
 You wrap your existing agent in one `init_assembly()` call, and from that point on every
 tool call your agent makes is checked against a governance policy — allowed or denied —
-without you rewriting a single line of the agent itself. Recording is *not* a third
-outcome: the SDK layer produces no audit evidence of its own (see below).
+without you rewriting a single line of the agent itself. Over a connected runtime the
+outcome of each call is also handed to the runtime's event channel (see below).
 
 It is two things in one package:
 
@@ -47,8 +47,8 @@ flowchart LR
 - **Operators** who need agents to run under a policy gate they control, with identity and
   lineage registered against the gateway.
 
-Note that an **audit trail of governed tool calls is not something this SDK layer
-produces** — see the warning under "Why use it" below.
+Note that an **audit trail of governed tool calls depends on a reachable runtime** —
+see the note under "Why use it" below.
 
 ## Why use it
 
@@ -58,19 +58,33 @@ produces** — see the warning under "Why use it" below.
 - **Agent lineage** — parent / root / team identity is registered with the gateway and
   carried on every policy check.
 
-!!! warning "The SDK layer keeps no audit trail of its own"
+!!! note "Audit evidence depends on a reachable runtime"
 
     The framework adapters offer the outcome of every governed call to an audit hook
-    on the governance interceptor. On every interceptor this SDK ships that hook
-    **does not resolve**, so nothing is emitted — for **allowed** calls as much as
-    denied ones — and no claim of attributability or after-the-fact review holds on
-    the SDK path.
+    on the governance interceptor. Over a connected runtime that hook resolves and
+    writes the record to the native event channel — the same channel agent
+    registration uses. On the **allowed** path that covers every governed adapter;
+    on the denied path it covers three of eleven (see below).
 
-    Enforcement is unaffected: a policy DENY still blocks the tool, and the proxy /
-    eBPF layers remain authoritative. `init_assembly()` warns at startup and reports
-    `audit_sink` on the returned context; supply your own handler exposing
-    `record_result` or `on_tool_end` to retain the record
-    ([AAASM-5731](https://lightning-dust-mite.atlassian.net/browse/AAASM-5731)).
+    Without a reachable runtime there is no channel to send on, the hook does not
+    resolve, and nothing is emitted; no claim of attributability or after-the-fact
+    review holds on that path. Enforcement is unaffected either way: a policy DENY
+    still blocks the tool, and the proxy / eBPF layers remain authoritative.
+    `init_assembly()` warns when no record can be sent and reports `audit_sink` on the
+    returned context. Delivery is best-effort: a failed send degrades to no record
+    rather than to a failed tool call
+    ([AAASM-5750](https://lightning-dust-mite.atlassian.net/browse/AAASM-5750)).
+
+    **A handoff is not evidence, and denied calls are mostly not covered.** The send
+    is unacknowledged, so this SDK cannot report that a record arrived and does not
+    claim it did — and downstream,
+    [AAASM-5783](https://lightning-dust-mite.atlassian.net/browse/AAASM-5783) is open
+    on `report_event` payloads reaching neither the live stream nor the durable
+    entry, so no SDK can claim ADR 0033 §6 *Observed* until it lands. And only `google_adk`, `pydantic_ai` and `openai_agents` build a
+    record on the **denied** path — the other eight governed adapters (`crewai`,
+    `llamaindex`, `haystack`, `agno`, `smolagents`, `microsoft_agent_framework`,
+    `mcp`, `langchain`) return or raise before their record helper, so a deny there
+    produces no record for any sink to carry.
 - **Native PyO3 fast path** (optional) — drop into a Rust runtime client when you need
   sub-millisecond policy checks.
 - **Typed throughout** — typed models for every gateway payload; the package ships a

@@ -1,6 +1,6 @@
 # CrewAI — multi-agent research crew
 
-A three-agent CrewAI-style research crew (researcher → writer → critic) governed by Agent Assembly, where every governed tool call is attributed to the acting agent with the full delegation chain captured on each audit event by the demo's own `CrewPolicyEngine`. The SDK layer records nothing itself (AAASM-5731).
+A three-agent CrewAI-style research crew (researcher → writer → critic) governed by Agent Assembly, where every governed tool call is attributed to the acting agent with the full delegation chain captured on each audit event by the demo's own `CrewPolicyEngine`. The delegation-aware call stack shown here is the demo's; the SDK layer's own record carries the tool, run and outcome (AAASM-5750).
 
 ## What this example demonstrates
 
@@ -177,7 +177,7 @@ Running crew delegation trajectory:
     → write_file({"path": "report.md"})
        ❌ BLOCKED  — Approval for 'write_file' by 'critic' was rejected — the crew may not persist files without sign-off.
 
-Delegation-aware audit events recorded this run (by the demo's own handler — the SDK layer produces none, AAASM-5731):
+Delegation-aware audit events recorded this run (by the demo's own handler — this example supplies its own, so the SDK's runtime sink is not what produces these):
 ----------------------------------------------
   ✅ allow web_search      chain: researcher → web_search
   ✅ allow web_search      chain: researcher → web_search

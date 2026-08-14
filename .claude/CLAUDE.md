@@ -33,10 +33,16 @@ ordered by latency cost (lowest first) and detection authority (highest first):
 
 1. **SDK layer (in-process)** — *this repo*. The SDK applies pre-execution allow/deny
    on tool calls via the native shim over `aa-sdk-client`. Fastest path; requires SDK
-   adoption. It does **not** emit audit events: the adapters offer every governed
-   outcome to an audit hook, but on every interceptor this SDK ships that hook does not
-   resolve, so nothing is recorded — for allowed calls as much as denied ones
-   (AAASM-5731). Do not describe this layer as producing an audit trail.
+   adoption. It hands audit events to the runtime **only over a connected runtime**:
+   the adapters offer a governed outcome to an audit hook, and
+   `RuntimeQueryInterceptor` writes it to the native event channel. Two limits are
+   load-bearing and must not be dropped when describing this: the send is
+   unacknowledged, so a handoff is **not** evidence and never ADR 0033 §6
+   *Observed* — AAASM-5783 is open on the downstream half and must land before
+   that changes; and only `google_adk`, `pydantic_ai` and `openai_agents` record on the
+   **denied** path — the other eight governed adapters return or raise first. With no
+   reachable runtime nothing is recorded at all (AAASM-5750). Never describe this
+   layer as producing an audit trail.
 2. **Sidecar proxy (`aa-proxy`)** — MitM of outbound HTTPS; enforces network-egress
    policy with no code changes. (Lives in the monorepo.)
 3. **eBPF (`aa-ebpf*`)** — kernel uprobes; catches everything, including bypass

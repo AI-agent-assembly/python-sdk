@@ -8,7 +8,7 @@ This example initializes Agent Assembly with `init_assembly()` in `sdk-only` mod
 
 - **Network allowlist** — outbound egress is only allowed to `*.openai.com`.
 - **Daily budget** — tool calls are metered against a `$1.00 / day` cap.
-- **Tool-call logging** — the demo appends every governed call to its own in-process `audit_log`. That log is the demo's, not the SDK's: the SDK layer produces no audit evidence (AAASM-5731).
+- **Tool-call logging** — the demo appends every governed call to its own in-process `audit_log`. That log is the demo's, not the SDK's: this example supplies its own handler and runs without a runtime, so the SDK's own sink is not what fills it (AAASM-5750).
 - **Credential-leak block** — any tool input carrying a secret is denied.
 
 It also includes a credential-leak demo that uses a **SAFE, FAKE** key (`sk-FAKE...`) — never a real secret — to show the leak rule firing. Finally, `--mock` mode runs the whole demo offline with no API keys, so CI can run it.

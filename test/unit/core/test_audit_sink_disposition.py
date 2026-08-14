@@ -1,30 +1,33 @@
-"""AAASM-5731 — a shipped governance handler must not swallow the audit record silently.
+"""AAASM-5731 / AAASM-5750 — what a shipped governance handler does with the audit record.
 
 The adapters' audit hook is duck-typed and returns ``None``, so a handler that
-retains the record, one that drops it, and one that never resolves the hook at
-all are indistinguishable at the call site. On every interceptor this SDK ships
-the hook does not resolve, so **nothing is emitted for an allowed call either** —
-not just for a denied one — and before this suite there was no signal of that at
-all.
+forwards the record, one that drops it, and one that never resolves the hook at
+all are indistinguishable at the call site. Over a connected runtime the SDK's
+interceptor now resolves the hook and sends the record across the native
+boundary; without one no hook resolves and **nothing is emitted for an allowed
+call either** — not just for a denied one.
 
-Three things are pinned separately, because any one of them alone passes while
-the defect is present:
+Three things are pinned separately, because any one of them alone passes while a
+defect is present:
 
 1. every handler ``build_governance_interceptor`` can return, plus the LangChain
    handler that replaces it, *declares* a disposition;
 2. the declaration matches behaviour in **both** directions — a handler
-   declaring ``absent`` must resolve no hook and reach nothing, a handler
-   declaring ``discarded`` must resolve a hook and still reach nothing, and a
-   handler that genuinely records must be reported as caller-supplied;
-3. ``init_assembly`` surfaces it on the DEFAULT path, with nothing opted into.
+   declaring ``forwarded`` must reach the native boundary with the record, one
+   declaring ``absent`` must resolve no hook and reach nothing, one declaring
+   ``discarded`` must resolve a hook and still reach nothing, and a handler that
+   genuinely records must be reported as caller-supplied;
+3. ``init_assembly`` surfaces the gap on the DEFAULT path, with nothing opted
+   into, and stays quiet when there is no gap.
 
 The stubs here sit at the **downstream boundaries** — the native
 ``RuntimeClient`` and the ``GatewayClient``'s HTTP transport — not in place of
-the code under test. The point is to prove nothing crosses them. Every
-"reached nothing" assertion is paired with a positive control on the same
-boundary, because otherwise it is indistinguishable from a probe that never ran,
-and with a forwarding control, because otherwise it is indistinguishable from a
-probe that cannot see a record at all.
+the code under test. Nothing here injects a sink into the SDK's own path: a suite
+that supplies its own recording handler proves that handler records and stays
+green over an interceptor wired to nothing, which is the defect AAASM-5749 found
+one row over. Every claim about a boundary is paired with a positive control on
+the same boundary, because otherwise it is indistinguishable from a probe that
+never ran.
 """
 
 from __future__ import annotations
@@ -47,8 +50,10 @@ from agent_assembly.core.audit_sink import (
     AUDIT_SINK_ABSENT,
     AUDIT_SINK_CALLER_SUPPLIED,
     AUDIT_SINK_DISCARDED,
+    AUDIT_SINK_FORWARDED,
     resolve_audit_sink,
 )
+from agent_assembly.core.runtime_audit import build_tool_outcome_payload
 from agent_assembly.core.runtime_interceptor import build_governance_interceptor
 
 from ._fake_core import FakeRuntimeClient, install_fake_core
@@ -83,9 +88,11 @@ class _RecordingRuntimeClient(FakeRuntimeClient):
         return super().register(*args, **kwargs)
 
     def send_event(self, *args: Any, **kwargs: Any) -> None:
-        # Exposed by the native shim and never called from ``agent_assembly``.
-        # Recorded so a future wiring change shows up here rather than silently.
-        self.crossings.append(f"send_event:{args!r}")
+        # The audit sink. Recorded as its payload JSON rather than the wrapper's
+        # repr, because the assertions below look for the probe INSIDE the
+        # record and a default object repr would hide it.
+        payloads = [getattr(arg, "payload_json", arg) for arg in args]
+        self.crossings.append(f"send_event:{payloads!r}")
 
     def __getattr__(self, name: str) -> Any:
         # Any attribute the SDK reaches for that is not defined above is still an
@@ -251,7 +258,7 @@ def test_every_shipped_governance_handler_declares_its_audit_sink() -> None:
         label
         for label, handler in handlers.items()
         if getattr(handler, "audit_sink", None)
-        not in {AUDIT_SINK_ABSENT, AUDIT_SINK_DISCARDED, AUDIT_SINK_CALLER_SUPPLIED}
+        not in {AUDIT_SINK_FORWARDED, AUDIT_SINK_ABSENT, AUDIT_SINK_DISCARDED, AUDIT_SINK_CALLER_SUPPLIED}
     ]
     assert not undeclared, (
         f"handler(s) {undeclared} are shipped without declaring what they do with the "
@@ -260,13 +267,22 @@ def test_every_shipped_governance_handler_declares_its_audit_sink() -> None:
     )
 
 
-@pytest.mark.parametrize("label", ["runtime reachable, enforce", "runtime unreachable, enforce"])
+# Only the enforce labels: under observe with no runtime the factory returns the
+# bare GatewayClient, which declares 'absent' but has no check_tool_start for the
+# positive control below to stand on. That branch's declaration is covered by the
+# exhaustiveness sweep instead.
+@pytest.mark.parametrize("label", ["runtime unreachable, enforce"])
 def test_a_handler_declaring_absent_resolves_no_audit_hook(label: str) -> None:
     """``absent`` means the hook does not resolve — not merely that it records nothing.
 
     The distinction is load-bearing: it is why the gap covers the ALLOWED path.
     The controls are on the same objects, so a blanket ``getattr`` failure cannot
     masquerade as the finding.
+
+    Every label here is a run with no reachable runtime, which is what makes the
+    branch real rather than the only branch: the reachable labels resolve the
+    hook and declare ``forwarded``, and
+    :func:`test_the_disposition_moves_with_the_runtime` compares the two.
     """
     handlers = _shipped_handler_matrix([])
     handler = handlers[label]
@@ -279,32 +295,128 @@ def test_a_handler_declaring_absent_resolves_no_audit_hook(label: str) -> None:
         )
 
     # Positive controls on the same objects: attribute resolution works, and
-    # delegation to the wrapped GatewayClient works. Without these, the four
+    # delegation to the wrapped GatewayClient works. Without these, the
     # `is None` assertions above are consistent with a broken probe.
     assert callable(handler.check_tool_start)
     assert callable(handler.report_edge)
 
 
+@pytest.mark.parametrize("label", ["runtime reachable, enforce", "runtime reachable, observe"])
+def test_a_handler_declaring_forwarded_resolves_the_audit_hook(label: str) -> None:
+    """The other side of the same split, on the same matrix.
+
+    The disposition is computed from the runtime client, so a constant would pass
+    every reachable case here. Pairing this with the ``absent`` cases above is
+    what shows the computation moving rather than agreeing by luck.
+    """
+    handlers = _shipped_handler_matrix([])
+    handler = handlers[label]
+    assert handler.audit_sink == AUDIT_SINK_FORWARDED
+
+    for hook in _AUDIT_HOOKS:
+        assert callable(getattr(handler, hook, None)), (
+            f"{label} declares {AUDIT_SINK_FORWARDED!r} but {hook!r} does not resolve on it; "
+            "the adapters look the hook up by name, so an unresolved one records nothing"
+        )
+
+
+def test_the_disposition_moves_with_the_runtime() -> None:
+    """Two constructions of the same code, not two constants compared.
+
+    ``build_governance_interceptor`` is driven twice over inputs that differ in
+    exactly one thing — whether a runtime client is present — and the two
+    dispositions must differ. Without this, ``audit_sink`` could return a fixed
+    literal and every case above would still be green on its own side.
+    """
+    reachable = _shipped_interceptor(_RecordingRuntimeClient(), [])
+    unreachable = _shipped_interceptor(None, [])
+    assert reachable.audit_sink == AUDIT_SINK_FORWARDED
+    assert unreachable.audit_sink == AUDIT_SINK_ABSENT
+    assert reachable.audit_sink != unreachable.audit_sink
+
+
 @pytest.mark.parametrize("decision", ["allow", "deny"])
-def test_the_shipped_path_reaches_no_boundary_with_the_record(decision: str) -> None:
-    native = _RecordingRuntimeClient(decision=decision, reason="policy forbids this")
+def test_the_shipped_path_forwards_the_record_across_the_native_boundary(
+    monkeypatch: pytest.MonkeyPatch, decision: str
+) -> None:
+    """The load-bearing measurement, end to end and on both branches (AAASM-5750).
+
+    It is the inversion of the assertion this suite shipped with. Nothing here
+    injects a sink: the handler is the one ``build_governance_interceptor``
+    returns, driven through the SDK's real governed-tool chain, and the only
+    substitution is the native extension itself — which is the boundary being
+    measured, not the code under test.
+
+    Deleting the ``send_tool_outcome`` call from ``record_result`` turns both
+    parametrisations red.
+    """
+    install_fake_core(monkeypatch, FakeRuntimeClient())
+    native = _RecordingRuntimeClient(decision=decision, reason=f"policy forbids this {_PROBE_RESULT}")
     http_crossings: list[str] = []
     handler = _shipped_interceptor(native, http_crossings)
+    assert handler.audit_sink == AUDIT_SINK_FORWARDED
 
     outcome, _value = _run_governed(handler)
     assert outcome == ("raised" if decision == "deny" else "returned")
 
     # Positive control: the check crossed the native boundary carrying the probe.
-    assert any(_PROBE in crossing for crossing in native.crossings), (
-        f"nothing carrying the probe crossed the native boundary (crossings: "
-        f"{native.crossings}); the probe never ran, so the absence below proves nothing"
+    # Without it an empty event list is indistinguishable from a probe that never
+    # ran — and it stays a control rather than the finding because the assertion
+    # below looks only at the send_event channel.
+    assert any(crossing.startswith("query_policy") and _PROBE in crossing for crossing in native.crossings), (
+        f"no policy query carrying the probe crossed the native boundary (crossings: "
+        f"{native.crossings}); the probe never ran, so nothing below proves anything"
     )
 
-    all_crossings = native.crossings + http_crossings
-    leaked = [crossing for crossing in all_crossings if _PROBE_RESULT in crossing]
-    assert not leaked, (
-        f"the tool outcome reached a boundary on the shipped path: {leaked}; the "
-        f"handler declares {handler.audit_sink!r}, so the declaration is wrong"
+    # The record channel specifically. On the denied branch the discriminator is
+    # the deny reason rather than the tool result, because the tool never ran and
+    # asserting on its output there is an assertion that cannot fail.
+    sends = [crossing for crossing in native.crossings if crossing.startswith("send_event")]
+    carrying = [crossing for crossing in sends if _PROBE_RESULT in crossing]
+    assert carrying, (
+        f"the {decision} branch sent no audit record carrying {_PROBE_RESULT!r} across the "
+        f"native boundary; send_event crossings were {sends}, and the handler declares "
+        f"{handler.audit_sink!r} — the declaration and the behaviour disagree"
+    )
+
+    # The record must be tagged as the outcome it describes, or a deny and an
+    # allow are the same event downstream.
+    expected_type = "PolicyViolation" if decision == "deny" else "ToolCallIntercepted"
+    assert any(expected_type in crossing for crossing in carrying), (
+        f"the {decision} branch's record is not tagged {expected_type!r}: {carrying}"
+    )
+
+    # The HTTP boundary must stay out of it: the record rides the native channel,
+    # and a copy going out over the gateway's HTTP surface would be a second,
+    # unaccounted path for tool output to leave the process.
+    assert not [crossing for crossing in http_crossings if _PROBE_RESULT in crossing], (
+        f"the record also crossed the HTTP boundary: {http_crossings}"
+    )
+
+
+def test_a_malformed_record_payload_is_rejected_at_the_native_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The boundary double must be able to say no, or crossing it proves little.
+
+    The real ``GovernanceEvent`` constructor validates its argument as
+    ``aa_core::AuditEntry`` JSON and raises on anything else, so a builder that
+    emits the wrong shape produces no record at all. If the double accepted
+    everything, the assertions above would pass over a payload the shipped
+    extension rejects.
+    """
+    install_fake_core(monkeypatch, FakeRuntimeClient())
+    from agent_assembly._core import GovernanceEvent
+
+    with pytest.raises(ValueError):
+        GovernanceEvent(json.dumps({"event_type": "ToolCallIntercepted"}))
+
+    # And the builder's real output is accepted, so the check above is a
+    # discriminator rather than a double that rejects everything.
+    assert GovernanceEvent(
+        build_tool_outcome_payload(
+            tool_name="web_search", result=_PROBE_RESULT, agent_id=_AGENT_ID, run_id="run-1", denied=False
+        )
     )
 
 
@@ -341,12 +453,12 @@ def test_a_handler_that_records_does_reach_the_probe() -> None:
 def test_a_caller_supplied_recording_client_is_not_reported_as_absent() -> None:
     """A false ``absent`` is a claim about the caller's code that this SDK cannot make.
 
-    ``RuntimeQueryInterceptor`` owns no audit hook — ``__getattr__`` hands both
-    names to the wrapped client — so its disposition is the client's. When it was
-    a fixed class attribute, a caller-supplied client whose ``record_result``
-    resolves still reported ``absent``, contradicting the very hook the adapters
-    would have called, and the LangChain handler on top compounded it to
-    ``discarded``.
+    Without a runtime, ``RuntimeQueryInterceptor`` owns no audit hook —
+    ``__getattr__`` hands both names to the wrapped client — so its disposition is
+    the client's. When it was a fixed class attribute, a caller-supplied client
+    whose ``record_result`` resolves still reported ``absent``, contradicting the
+    very hook the adapters would have called, and the LangChain handler on top
+    compounded it to ``discarded``.
 
     The direction of the old error matters and is why this is a correctness fix
     rather than a severity one: it under-claimed. It never reported retention
@@ -360,9 +472,11 @@ def test_a_caller_supplied_recording_client_is_not_reported_as_absent() -> None:
 
     client = _RecordingClient(_GW_URL, _AGENT_ID, api_key=_API_KEY)
     client._client = httpx.Client(base_url=client.gateway_url, transport=_RecordingTransport(http_crossings))
-    interceptor = build_governance_interceptor(
-        client, _AGENT_ID, None, runtime_client=_RecordingRuntimeClient(), native_available=True
-    )
+    # No runtime client: the SDK contributes no sink of its own here, so what the
+    # adapters would find is the caller's hook and nothing else. With a runtime
+    # the SDK's own sink resolves first and the answer is 'forwarded', which is a
+    # claim about this SDK rather than about the caller's client.
+    interceptor = build_governance_interceptor(client, _AGENT_ID, None, runtime_client=None, native_available=True)
 
     # Precondition: the hook really does resolve through the delegation, or this
     # test is asserting about a situation that cannot arise.
@@ -371,66 +485,100 @@ def test_a_caller_supplied_recording_client_is_not_reported_as_absent() -> None:
     assert resolve_audit_sink(interceptor) == AUDIT_SINK_CALLER_SUPPLIED
     assert resolve_audit_sink(AssemblyCallbackHandler(interceptor)) == AUDIT_SINK_CALLER_SUPPLIED
 
-    # Control on the same shapes: the client this SDK actually ships still reads
-    # 'absent', so the fix did not simply stop reporting the real gap.
-    shipped = _shipped_interceptor(_RecordingRuntimeClient(), http_crossings)
+    # Control on the same shapes: an interceptor with no runtime still reads
+    # 'absent', so the caller-supplied answer above is a discrimination rather
+    # than a blanket one.
+    shipped = _shipped_interceptor(None, http_crossings)
     assert resolve_audit_sink(shipped) == AUDIT_SINK_ABSENT
     assert resolve_audit_sink(AssemblyCallbackHandler(shipped)) == AUDIT_SINK_DISCARDED
 
 
-def test_the_langchain_handler_resolves_the_hook_and_still_drops_the_record() -> None:
-    """``discarded`` is a different failure from ``absent``, and both are shipped.
+def test_the_langchain_handler_forwards_or_drops_with_its_interceptor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The LangChain callback path is a second, separate hop the record must survive.
 
-    The handler defines ``on_tool_end``, so the adapters' lookup DOES resolve and
-    the record is handed over. It is then forwarded to the interceptor's own
-    ``on_tool_end``, which does not exist — so the record stops here.
+    The handler defines ``on_tool_end``, so the adapters' lookup resolves on it —
+    and it then forwards to the *interceptor's* ``on_tool_end`` by that name
+    specifically, not by the ``record_result``-first order every other adapter
+    uses. Until AAASM-5750 no interceptor had one, so the record was accepted here
+    and dropped one hop later: ``discarded``, not ``absent``.
+
+    Both directions are driven, because the handler's disposition is its
+    interceptor's and a single direction cannot show that.
     """
+    install_fake_core(monkeypatch, FakeRuntimeClient())
     native = _RecordingRuntimeClient()
     http_crossings: list[str] = []
-    handler = AssemblyCallbackHandler(_shipped_interceptor(native, http_crossings))
+    forwarding = AssemblyCallbackHandler(_shipped_interceptor(native, http_crossings))
 
-    assert handler.audit_sink == AUDIT_SINK_DISCARDED
-    assert callable(handler.on_tool_end), (
-        "the LangChain handler declares 'discarded', which asserts the hook RESOLVES "
-        "and the record is dropped after being accepted; if no hook resolves the "
-        "honest declaration is 'absent'"
+    assert forwarding.audit_sink == AUDIT_SINK_FORWARDED
+    assert callable(forwarding.on_tool_end)
+    forwarding.on_tool_end(_PROBE_RESULT, run_id=uuid.uuid4())
+    assert any(crossing.startswith("send_event") and _PROBE_RESULT in crossing for crossing in native.crossings), (
+        f"the LangChain callback path sent no record carrying the probe: {native.crossings}"
     )
 
-    baseline = len(native.crossings) + len(http_crossings)
-    handler.on_tool_end(_PROBE_RESULT, run_id=uuid.uuid4())
-    assert len(native.crossings) + len(http_crossings) == baseline, (
-        f"on_tool_end crossed a boundary: native={native.crossings} http={http_crossings}"
-    )
-
-    # Positive control on the same handler and the same boundary.
-    handler.on_tool_start({"name": "web_search"}, _PROBE, run_id=uuid.uuid4())
-    assert any(_PROBE in crossing for crossing in native.crossings), (
-        "the positive control did not cross either; the probe never ran"
-    )
+    # The other direction, on the same class: with no runtime under it the hop
+    # still ends here, and the handler must say 'discarded' rather than 'absent'
+    # — something did construct and accept the record.
+    dropping_native = _RecordingRuntimeClient()
+    dropping = AssemblyCallbackHandler(_shipped_interceptor(None, []))
+    assert dropping.audit_sink == AUDIT_SINK_DISCARDED
+    dropping.on_tool_end(_PROBE_RESULT, run_id=uuid.uuid4())
+    assert not [c for c in dropping_native.crossings if _PROBE_RESULT in c]
 
 
-def test_init_assembly_warns_and_reports_the_audit_sink_on_the_default_path(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """The signal must arrive with nothing opted into.
-
-    A caller who has to already suspect the problem in order to discover it has
-    not been told.
-    """
-    install_fake_core(monkeypatch, FakeRuntimeClient(decision="allow"))
+def _init_sdk_only(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(
         core_assembly,
         "_start_network_layer",
         lambda **_kwargs: ("sdk-only", core_assembly._noop_shutdown),
     )
     core_assembly._ACTIVE_CONTEXT = None
+    return init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id=_AGENT_ID, mode="sdk-only")
 
-    context = init_assembly(gateway_url=_GW_URL, api_key=_API_KEY, agent_id=_AGENT_ID, mode="sdk-only")
+
+def test_init_assembly_warns_about_the_audit_gap_only_when_there_is_one(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The signal must arrive with nothing opted into — and only when it is true.
+
+    A caller who has to already suspect the problem in order to discover it has
+    not been told. A caller warned on every run, including the ones whose records
+    do reach the runtime, stops reading the warning — which costs the real case
+    its signal too. So both directions are driven through the same ``init_assembly``.
+    """
+    # No runtime: connect_runtime_client returns None, so no hook resolves.
+    monkeypatch.setattr(core_assembly, "connect_runtime_client", lambda _agent_id: None)
+    context = _init_sdk_only(monkeypatch)
     try:
         stderr = capsys.readouterr().err
-        assert context.audit_sink != AUDIT_SINK_CALLER_SUPPLIED
+        assert context.audit_sink == AUDIT_SINK_ABSENT
         for expected in ("audit", "NOT retained", context.audit_sink, "ALLOWED", "AAASM-5731"):
             assert expected in stderr, f"{expected!r} missing from init stderr: {stderr!r}"
+    finally:
+        context.shutdown()
+        core_assembly._ACTIVE_CONTEXT = None
+
+
+def test_init_assembly_stays_quiet_when_the_record_is_forwarded(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other arm of the warning, through the same ``init_assembly``.
+
+    Without it the assertions in the test above are satisfied by a build that
+    warns unconditionally — which is what the condition at the call site used to
+    do, and what made the warning worth nothing on the run that has no gap.
+    """
+    install_fake_core(monkeypatch, FakeRuntimeClient(decision="allow"))
+    context = _init_sdk_only(monkeypatch)
+    try:
+        stderr = capsys.readouterr().err
+        assert context.audit_sink == AUDIT_SINK_FORWARDED
+        assert "NOT retained" not in stderr, (
+            f"init warned that records are not retained on a run that forwards them: {stderr!r}"
+        )
     finally:
         context.shutdown()
         core_assembly._ACTIVE_CONTEXT = None
