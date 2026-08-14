@@ -27,6 +27,10 @@ from functools import wraps
 from threading import local
 from typing import Any
 
+from agent_assembly.adapters._shared.audit_record import (
+    arecord_denied_tool_result,
+    record_denied_tool_result,
+)
 from agent_assembly.adapters._shared.positional_args import merge_positional_tool_args
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
@@ -291,6 +295,9 @@ def _apply_tool_call_patch(tool_cls: type[Any], callback_handler: Any) -> bool:
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
             message = _format_approval_rejected_message(reason) if is_pending_flow else _format_blocked_message(reason)
+            # AAASM-5787: the deny used to return straight past the record call
+            # below, so this adapter built nothing for the sink to forward.
+            record_denied_tool_result(callback_handler, tool_name=tool_name, result=message, agent_id=agent_id)
             return _denied_tool_output(self, tool_name=tool_name, message=message)
 
         # Invoke the original via the descriptor protocol so the instance binds
@@ -337,6 +344,9 @@ def _apply_tool_acall_patch(tool_cls: type[Any], callback_handler: Any) -> bool:
         # through and running the tool, matching the LangChain handler.
         if status != "allow":
             message = _format_approval_rejected_message(reason) if is_pending_flow else _format_blocked_message(reason)
+            # AAASM-5787: as in ``patched_call``, this branch returned past the
+            # record call below and built nothing for the sink to forward.
+            await arecord_denied_tool_result(callback_handler, tool_name=tool_name, result=message, agent_id=agent_id)
             return _denied_tool_output(self, tool_name=tool_name, message=message)
 
         # See ``patched_call`` for why the original is invoked via the
