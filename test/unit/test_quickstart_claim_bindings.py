@@ -349,10 +349,19 @@ BINDINGS: tuple[ClaimBinding, ...] = (
     ClaimBinding(
         claim_id="sdk-only-enforces-on-tool-calls",
         quote=(
-            "The in-process adapter enforces on tool calls with no network sidecar, so the "
-            "example runs deterministically with no real LLM or gateway round-trip."
+            "No network sidecar starts in that mode, so the example runs deterministically "
+            "with no real LLM or gateway round-trip."
         ),
-        controls=_DENY_CONTROLS,
+        # AAASM-5661, second pass. This said "the in-process adapter enforces on
+        # tool calls with no network sidecar" — the same claim as the
+        # `mode="sdk-only"` section further down, which that pass qualified while
+        # leaving this one unconditional, and rested on _DENY_CONTROLS, both of
+        # which call install_fake_core(). Two sentences making one claim is one
+        # sentence too many; the enforcement half now lives only in the qualified
+        # one, and what is left here is what `sdk-only` actually buys the example.
+        # Bound to the control that runs the real _start_network_layer rather than
+        # monkeypatching it away.
+        controls=("TestTheConfigurationTheQuickStartHandsAReader::test_no_network_sidecar_starts_in_sdk_only_mode",),
     ),
     ClaimBinding(
         claim_id="verdict-precedes-execution",
@@ -383,8 +392,15 @@ BINDINGS: tuple[ClaimBinding, ...] = (
     ),
     ClaimBinding(
         claim_id="tool-calls-were-governed-label",
-        quote="**Tool calls were governed.**",
-        controls=_ALLOW_AND_DENY_CONTROLS,
+        quote="**Tool calls went through the adapter.**",
+        # AAASM-5661, second pass. Found by sweeping the page for the claim class
+        # rather than the sites review named — nobody flagged this one. "were
+        # governed" is a bare past-tense assertion about *this* example, in the
+        # undifferentiated register ADR 0033 §6 rules out, and it rested on
+        # controls that install a fake native core. On the configuration the page
+        # hands a reader the calls were refused without a policy governing them,
+        # so the label now says the part that held: they reached the adapter.
+        controls=_DOCUMENTED_CONFIGURATION_CONTROLS,
     ),
     ClaimBinding(
         claim_id="with-block-tears-everything-down",
@@ -398,13 +414,48 @@ BINDINGS: tuple[ClaimBinding, ...] = (
     ),
     ClaimBinding(
         claim_id="deny-surfaces-as-tool-execution-blocked",
-        quote=("If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — the policy denied the call."),
+        quote=(
+            "If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — something "
+            "refused the call before it ran."
+        ),
+        # AAASM-5661, second pass. This read "— the policy denied the call",
+        # which a reader meets at the moment their tool blocks. On the documented
+        # configuration every governed call raises this and no policy denied any
+        # of them. The tell was in the binding: it already named
+        # test_an_unavailable_native_runtime_denies_rather_than_silently_allowing,
+        # a control whose whole point is that there is no verdict source — the
+        # named evidence was the counter-example to the clause.
+        #
+        # "something refused" is the claim both halves support: a policy deny
+        # (the fake-core controls) and a no-authority refusal (the documented
+        # ones) each raise it.
         controls=(
             *_DENY_CONTROLS,
+            *_DOCUMENTED_CONFIGURATION_CONTROLS,
             "TestDegradedRuntimeCannotLookProtected"
             "::test_an_unavailable_native_runtime_denies_rather_than_silently_allowing",
         ),
         symbols={"ToolExecutionBlockedError": "agent_assembly.exceptions"},
+    ),
+    ClaimBinding(
+        claim_id="the-exception-reason-says-what-refused",
+        quote=(
+            "Read the exception's reason to see what refused it: a policy rule that denied the "
+            "call, or — as in this offline example — an SDK that had no authority to ask and "
+            "refused rather than run ungoverned."
+        ),
+        # AAASM-5661, second pass. The replacement for what "the policy denied the
+        # call" used to assert, and stronger than it: each disjunct has its own
+        # control reading the reason string. The deny controls assert the policy
+        # text reaches it ("policy forbids disk writes"); the documented-path
+        # control asserts the other branch names the absent extension. Binding
+        # only one of the two would leave the sentence half-evidenced in exactly
+        # the direction that misleads.
+        controls=(
+            *_DENY_CONTROLS,
+            "TestTheConfigurationTheQuickStartHandsAReader"
+            "::test_the_refusal_is_the_fail_closed_posture_rather_than_a_policy_decision",
+        ),
     ),
     ClaimBinding(
         claim_id="sdk-only-is-the-in-process-interception-layer",

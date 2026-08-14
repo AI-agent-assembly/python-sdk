@@ -669,17 +669,18 @@ with no API keys and no outbound network.
 1. **`init_assembly()` installed the governance hook.** It attempted to register the agent with
    the gateway and auto-loaded the adapter for your framework, which patches that framework's
    tool-invocation path.
-2. **`mode="sdk-only"` kept it offline.** The in-process adapter enforces on tool calls with no
-   network sidecar, so the example runs deterministically with no real LLM or gateway
-   round-trip.
-3. **Tool calls were governed.** The adapter intercepts the framework's tool-invocation path
-   and, when a policy authority is reachable, asks it for an allow/deny verdict before the tool
-   actually runs.
+2. **`mode="sdk-only"` kept it offline.** No network sidecar starts in that mode, so the example
+   runs deterministically with no real LLM or gateway round-trip.
+3. **Tool calls went through the adapter.** The adapter intercepts the framework's
+   tool-invocation path and, when a policy authority is reachable, asks it for an allow/deny
+   verdict before the tool actually runs.
 4. **The `with` block tore everything down on exit** — adapter hooks were unwound and the
    gateway connection closed, leaving the process exactly as it was before.
 
-If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — the policy denied the
-call. That's the product working. See
+If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — something refused the
+call before it ran. Read the exception's reason to see what refused it: a policy rule that denied
+the call, or — as in this offline example — an SDK that had no authority to ask and refused
+rather than run ungoverned. That's the product working. See
 [Handling allow/deny decisions](guides/handling-decisions.md) for how to catch and respond to
 those, and [Troubleshooting](troubleshooting.md) if `init_assembly()` itself raised.
 
