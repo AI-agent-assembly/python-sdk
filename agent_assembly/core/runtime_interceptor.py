@@ -44,7 +44,12 @@ import warnings
 from importlib import metadata
 from typing import Any
 
-from agent_assembly.core.audit_sink import AuditSinkDisposition, resolve_delegated_audit_sink
+from agent_assembly.core.audit_sink import (
+    AUDIT_SINK_FORWARDED,
+    AuditSinkDisposition,
+    resolve_delegated_audit_sink,
+)
+from agent_assembly.core.runtime_audit import runtime_can_record, send_tool_outcome
 from agent_assembly.exceptions import OpTerminatedError
 
 ENV_RUNTIME_SOCKET = "AA_RUNTIME_SOCKET"
@@ -264,27 +269,33 @@ class RuntimeQueryInterceptor:
     ``decision`` — maps to ``deny`` (fail closed). When ``False`` those paths
     proceed (fail open), preserving the observe / disabled behavior.
 
-    The "delegates everything else" clause is doing more work than it looks:
-    ``record_result`` and ``on_tool_end`` — the adapters' audit hook — delegate to
-    a ``GatewayClient`` that has neither, so neither resolves and the adapters
-    emit **no** audit record for a governed call, allowed or denied. That is
-    declared in :attr:`audit_sink` rather than left to be discovered by reading
-    this class (AAASM-5731).
+    The audit hook is the one thing besides the check that this class owns
+    rather than delegates. ``record_result`` sends the outcome of every governed
+    call — allowed or denied — to the runtime over the native event channel
+    (AAASM-5750). Before that it delegated like everything else, to a
+    ``GatewayClient`` that has neither ``record_result`` nor ``on_tool_end``, so
+    the adapters' ``getattr`` lookup found nothing and no record was emitted on
+    either path (AAASM-5731).
     """
 
     @property
     def audit_sink(self) -> AuditSinkDisposition:
-        """What this interceptor does with the audit record (AAASM-5731).
+        """What this interceptor does with the audit record (AAASM-5750).
 
-        Computed from the wrapped client rather than fixed, because this class
-        owns no audit hook of its own — ``__getattr__`` hands both names
-        straight to the client, so the client's surface *is* the answer. With
-        the ``GatewayClient`` this SDK builds, neither resolves and the record is
-        never attempted; with a caller-supplied client that has one, this SDK
-        makes no claim. Declared on this class rather than inherited through
-        ``__getattr__`` so a test can require the interceptor to speak for
-        itself.
+        Computed from the runtime client, not fixed, because the two branches of
+        :meth:`record_result` genuinely differ: with the native event channel the
+        record is forwarded, and without it there is nothing to send on. A
+        constant here would be a claim about a channel this interceptor may not
+        hold — which is the shape of defect this whole type exists to catch.
+
+        Falls back to the delegated answer rather than to ``discarded``: with no
+        channel this class contributes no sink of its own, so what the adapters
+        would find is again whatever the wrapped client exposes. Declared on this
+        class rather than inherited through ``__getattr__`` so a test can require
+        the interceptor to speak for itself.
         """
+        if runtime_can_record(self._runtime_client):
+            return AUDIT_SINK_FORWARDED
         return resolve_delegated_audit_sink(self._client)
 
     def __init__(
@@ -388,6 +399,82 @@ class RuntimeQueryInterceptor:
         # mirroring the error-sentinel handling above (AAASM-4014).
         return self._on_query_failure(reason or f"runtime returned unrecognized decision {decision!r}")
 
+    def record_result(
+        self,
+        *,
+        tool_name: str,
+        result: Any = None,
+        agent_id: str | None = None,
+        run_id: str | None = None,
+        denied: bool = False,
+        **_kwargs: Any,
+    ) -> bool:
+        """Forward one governed call's outcome to the runtime (AAASM-5750).
+
+        This is the first audit hook any interceptor this SDK ships resolves.
+        Before it, ``getattr(handler, "record_result", None)`` fell through
+        ``__getattr__`` to a ``GatewayClient`` that has neither audit hook, so the
+        adapters found nothing to call and every governed call — allowed as well
+        as denied — produced no evidence.
+
+        The signature mirrors what the adapters pass positionally by keyword
+        (``adapters/_shared/tool_governance.py`` and the per-framework record
+        helpers), including the ``denied`` flag they only supply when the callee
+        accepts it. ``**_kwargs`` absorbs anything a future adapter adds so a new
+        keyword degrades to an unused field rather than a ``TypeError`` raised
+        inside a governed tool call.
+
+        Returns whether the record was sent, which is what the declaration in
+        :attr:`audit_sink` is about. Nothing on the adapter path reads it — the
+        adapters discard the return — so it exists for a caller, and a test, that
+        wants the distinction. Failures never raise; see
+        :func:`~agent_assembly.core.runtime_audit.send_tool_outcome` for why that
+        is load-bearing rather than defensive.
+        """
+        return send_tool_outcome(
+            self._runtime_client,
+            tool_name=tool_name,
+            result=result,
+            agent_id=agent_id if agent_id is not None else self._agent_id,
+            run_id=run_id,
+            denied=denied,
+        )
+
+    def on_tool_end(
+        self,
+        *,
+        output: Any = None,
+        tool_name: str = "",
+        agent_id: str | None = None,
+        run_id: Any = None,
+        denied: bool = False,
+        **_kwargs: Any,
+    ) -> bool:
+        """Second audit-hook name, for callers that only know that one.
+
+        ``AUDIT_HOOK_NAMES`` lists ``record_result`` first and ``on_tool_end``
+        second, and every adapter that looks the hook up takes the first that
+        resolves — so this exists for the one caller that does not look: the
+        LangChain callback handler forwards its own ``on_tool_end`` to the
+        interceptor's, by that name specifically. Without this the record built on
+        LangChain's callback path was accepted by the handler and dropped one hop
+        later, which is the drop this ticket closes rather than a separate one.
+
+        **Named limitation:** LangChain's ``on_tool_end`` callback contract
+        carries the run id but not the tool name, so a record arriving by that
+        route names the run and not the tool unless the caller supplies one. The
+        pre-execution check that path performs *does* have the tool name — it
+        comes in on ``on_tool_start`` — so this weakens the evidence, not the
+        enforcement.
+        """
+        return self.record_result(
+            tool_name=tool_name,
+            result=output,
+            agent_id=agent_id,
+            run_id=None if run_id is None else str(run_id),
+            denied=denied,
+        )
+
     def _on_query_failure(self, reason: str) -> dict[str, str]:
         """Map an unauthoritative query to deny (enforce) or allow (observe)."""
         if self._enforce:
@@ -422,12 +509,23 @@ class _FailClosedInterceptor:
     every tool rather than silently allow it (AAASM-3106). Non-check attributes
     delegate to the wrapped ``GatewayClient``, whose surface carries no audit hook
     — so a call denied here produces no audit record either (see
-    :attr:`audit_sink`, AAASM-5731).
+    :attr:`audit_sink`).
+
+    That gap is not an oversight left standing: this interceptor exists precisely
+    because the runtime is unreachable, and the runtime is the sink. There is no
+    channel for it to record on, which under ADR 0033 §6 is *Degraded* — the
+    control is configured and unavailable — rather than something AAASM-5750
+    could have wired.
     """
 
     @property
     def audit_sink(self) -> AuditSinkDisposition:
-        """See :attr:`RuntimeQueryInterceptor.audit_sink` — same delegation, same answer."""
+        """See :attr:`RuntimeQueryInterceptor.audit_sink` — same delegation, same answer.
+
+        There is deliberately no runtime branch here. This interceptor holds no
+        runtime client at all, so the forwarded branch is unreachable by
+        construction rather than by a check that could drift.
+        """
         return resolve_delegated_audit_sink(self._client)
 
     def __init__(self, client: Any, reason: str) -> None:
