@@ -73,16 +73,30 @@ import pytest
 # makes a rename a *collection* error, aborting before the assertion meant to
 # catch it can run.
 
-#: The ticket this module implements. An unproven claim may not name it — see
-#: test_an_unproven_reason_does_not_name_the_implementing_ticket.
-IMPLEMENTING_TICKET = "AAASM-5529"
+#: Tickets whose work lands in this module. An unproven claim may not name any of
+#: them — see test_an_unproven_reason_does_not_name_an_implementing_ticket.
+#:
+#: A tuple rather than one string (AAASM-5661). As a single value the rule caught
+#: only the module's original author: AAASM-5661 edited these bindings and pointed
+#: three unproven claims at *itself*, and the gate stayed green through the whole
+#: PR because the banned name was still 5529. Every ticket that edits this module
+#: appends itself here, because every one of them closes on merge and none may be
+#: a referent afterwards.
+IMPLEMENTING_TICKETS: tuple[str, ...] = ("AAASM-5529", "AAASM-5661")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _QUICK_START = _REPO_ROOT / "docs" / "quick-start.md"
 
 #: Modules a binding may name a control from.
+#:
+#: AAASM-5661 added the third. The first proves what a *reachable* runtime does
+#: and installs a fake native core to get one; the third proves what the
+#: documented configuration does, which is to have none. Keeping them in separate
+#: modules keeps that difference visible at the import line rather than buried in
+#: a fixture.
 _CONTROL_MODULES = (
     Path(__file__).with_name("test_quickstart_negative_control.py"),
+    Path(__file__).with_name("test_quickstart_documented_configuration.py"),
     Path(__file__).with_name("test_assembly.py"),
 )
 
@@ -169,7 +183,7 @@ class ClaimBinding:
     #: ``ClassName::test_name`` or ``test_name`` ids from _CONTROL_MODULES.
     controls: tuple[str, ...] = ()
     #: Set when no control proves the claim. Must name a ticket, and must not
-    #: name IMPLEMENTING_TICKET.
+    #: name any of IMPLEMENTING_TICKETS.
     unproven_reason: str = ""
     #: Backticked SDK identifiers the claim names -> the module they live in.
     symbols: dict[str, str] = field(default_factory=dict)
@@ -186,15 +200,40 @@ _ALLOW_AND_DENY_CONTROLS = (
 )
 
 #: AAASM-5661 measured the documented configuration: it reaches no gateway and
-#: installs a deny-all fail-closed interceptor. Every control here calls
-#: install_fake_core(), supplying an authoritative runtime the documented path
-#: does not have, so none of them exercises what these sentences describe.
-#: Binding one would launder that gap into evidence.
+#: installs a deny-all fail-closed interceptor. Every control in
+#: test_quickstart_negative_control.py calls install_fake_core(), supplying an
+#: authoritative runtime the documented path does not have, so none of them
+#: exercises what these sentences describe. Binding one would launder that gap
+#: into evidence.
+#:
+#: AAASM-5661 also closed the gap for the sentences it could: the ones about what
+#: happens *after* init now name controls in
+#: test_quickstart_documented_configuration.py, which runs the page's arguments
+#: with no fake core. What is left is what that module cannot reach — claims that
+#: need a runtime or a gateway actually standing up.
+#:
+#: The shared body carries NO ticket. It used to, and the ticket it carried was
+#: AAASM-5661 — the one that closes on this merge, which is precisely the
+#: stale-referent shape AAASM-5750 exists to eliminate: a pointer aimed at a
+#: ticket that finishes without delivering the capability, so a reader who
+#: follows it finds completed work that never intended to. Each claim below now
+#: names the ticket that will actually resolve *it*, prefixed to this body.
 _DOCUMENTED_PATH_UNMEASURED = (
-    "AAASM-5661: the documented configuration was measured and does not behave as this "
-    "sentence says. No control covers it — every control in "
-    "test_quickstart_negative_control.py installs a fake native core the documented "
-    "path does not have."
+    "the documented configuration was measured and does not behave as this sentence "
+    "says. No control covers it — every control in test_quickstart_negative_control.py "
+    "installs a fake native core the documented path does not have, and the "
+    "documented-configuration controls cannot stand up a live gateway to prove what one "
+    "would return."
+)
+
+#: The documented configuration, measured end to end through Agno's own tool
+#: path: a hook is installed, the body does not run, and the refusal names the
+#: absent authority rather than a policy rule.
+_DOCUMENTED_CONFIGURATION_CONTROLS = (
+    "TestTheConfigurationTheQuickStartHandsAReader::test_a_governance_hook_is_installed_on_agnos_own_tool_path",
+    "TestTheConfigurationTheQuickStartHandsAReader"
+    "::test_the_refusal_is_the_fail_closed_posture_rather_than_a_policy_decision",
+    "TestTheConfigurationTheQuickStartHandsAReader::test_falsification_the_same_agno_tool_ungoverned_writes_the_file",
 )
 
 BINDINGS: tuple[ClaimBinding, ...] = (
@@ -202,14 +241,22 @@ BINDINGS: tuple[ClaimBinding, ...] = (
         claim_id="tool-calls-pass-through-the-policy-gate",
         quote=(
             "By the end you'll have an agent — in whichever framework you already use — whose "
-            "tool calls pass through the Agent Assembly policy gate, and it runs **offline** "
+            "tool calls pass through an Agent Assembly adapter, and it runs **offline** "
             "against a local policy, so you need no API keys and no network access to the "
             "outside world."
         ),
         # Found by inverting the default. It states the page's central promise
         # and matches no enforcement keyword, so every earlier revision of this
         # gate was blind to it.
-        unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
+        #
+        # AAASM-5661 narrowed it from "the Agent Assembly policy gate" to "an
+        # Agent Assembly adapter", which is what the documented configuration
+        # actually puts on the tool path — measured through Agno's own
+        # FunctionCall.execute, so the adapter's presence is observed rather than
+        # inferred from init returning cleanly. The page's *policy gate* is the
+        # example's own LocalPolicyEngine, and the section added by that ticket
+        # says so.
+        controls=_DOCUMENTED_CONFIGURATION_CONTROLS,
     ),
     ClaimBinding(
         claim_id="governs-whichever-framework-you-use",
@@ -236,11 +283,17 @@ BINDINGS: tuple[ClaimBinding, ...] = (
         # on PATH, so find_aasm_binary() resolves the Python one, which has no
         # `start` subcommand. The documented auto-start therefore cannot work
         # from a clean install.
+        #
+        # Owned by AAASM-5760, whose description carries this exact measurement
+        # as its defect #1. It previously named AAASM-5661, which measured the
+        # defect but does not fix it — a packaging change, not a documentation
+        # one — so that pointer would have resolved to closed work.
         unproven_reason=(
-            "AAASM-5661: no control covers the documented auto-start path, and it was "
+            "AAASM-5760: no control covers the documented auto-start path, and it was "
             "measured not to work from a clean install — the [project.scripts] aasm "
             "console script shadows the bundled binary, and the shadowing one has no "
-            "'start' subcommand."
+            "'start' subcommand. AAASM-5760 owns resolving the binary or naming the "
+            "command that exists."
         ),
     ),
     ClaimBinding(
@@ -249,35 +302,77 @@ BINDINGS: tuple[ClaimBinding, ...] = (
             "You don't configure `:50051` yourself — registration dials it automatically — so a "
             "no-argument `init_assembly()` both connects and shows the agent in the dashboard."
         ),
-        unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
+        # Owned by AAASM-5760's defect #2, "a gateway-less call raises instead of
+        # degrading", whose AC is that the gateway-less path either degrades with
+        # a stated posture or the documentation says it raises. That is this
+        # sentence: measured, a no-argument init_assembly() with the native core
+        # present and no gateway raises ConfigurationError, and without the
+        # native core registration never runs, so the agent does not appear.
+        unproven_reason=(
+            f"AAASM-5760: {_DOCUMENTED_PATH_UNMEASURED} Neither half of 'connects and "
+            "shows the agent in the dashboard' holds on the documented path, and "
+            "AAASM-5760 owns making the gateway-less path degrade or saying that it "
+            "raises."
+        ),
     ),
     ClaimBinding(
         claim_id="gateway-returns-allow-deny-decisions",
         quote=("`init_assembly()` needs to reach a **gateway** — the policy brain that returns allow/deny decisions."),
-        unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
+        # What a *live gateway* returns cannot be shown by any unit control in
+        # this repo; it needs the documented path standing up end to end. That is
+        # AAASM-5758, which runs each documented quick-start from published
+        # artifacts only — and which lists AAASM-5661 among its blockers, so it
+        # cannot be the ticket that closes first.
+        unproven_reason=(
+            f"AAASM-5758: {_DOCUMENTED_PATH_UNMEASURED} AAASM-5758 owns running the "
+            "documented quick-start from published artifacts against a real gateway, "
+            "which is the only place this sentence can be shown true."
+        ),
     ),
     ClaimBinding(
         claim_id="init-routes-every-tool-call",
         quote=(
-            "It registered the agent with the gateway and auto-loaded the adapter for your "
-            "framework — every tool call from this point on is routed through the policy gate."
+            "It attempted to register the agent with the gateway and auto-loaded the adapter "
+            "for your framework, which patches that framework's tool-invocation path."
         ),
-        unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
+        # AAASM-5661. The previous wording — "every tool call from this point on
+        # is routed through the policy gate" — was measured false on the
+        # documented path (there is no policy gate to route to) and used a banned
+        # absolute besides. What survives is what the controls observe: the
+        # adapter patches the framework's tool path, and registration is
+        # *attempted*, which on this configuration does not succeed.
+        controls=(
+            *_DOCUMENTED_CONFIGURATION_CONTROLS,
+            "TestTheConfigurationTheQuickStartHandsAReader::test_the_agent_is_not_registered_in_this_configuration",
+        ),
     ),
     ClaimBinding(
         claim_id="sdk-only-enforces-on-tool-calls",
         quote=(
-            "The in-process adapter enforces on tool calls with no network sidecar, so the "
-            "example runs deterministically with no real LLM or gateway round-trip."
+            "No network sidecar starts in that mode, so the example runs deterministically "
+            "with no real LLM or gateway round-trip."
         ),
-        controls=_DENY_CONTROLS,
+        # AAASM-5661, second pass. This said "the in-process adapter enforces on
+        # tool calls with no network sidecar" — the same claim as the
+        # `mode="sdk-only"` section further down, which that pass qualified while
+        # leaving this one unconditional, and rested on _DENY_CONTROLS, both of
+        # which call install_fake_core(). Two sentences making one claim is one
+        # sentence too many; the enforcement half now lives only in the qualified
+        # one, and what is left here is what `sdk-only` actually buys the example.
+        # Bound to the control that runs the real _start_network_layer rather than
+        # monkeypatching it away.
+        controls=("TestTheConfigurationTheQuickStartHandsAReader::test_no_network_sidecar_starts_in_sdk_only_mode",),
     ),
     ClaimBinding(
         claim_id="verdict-precedes-execution",
         quote=(
-            "The adapter intercepts the framework's tool-invocation path and asks the policy "
-            "engine for an allow/deny verdict before the tool actually runs."
+            "The adapter intercepts the framework's tool-invocation path and, when a policy "
+            "authority is reachable, asks it for an allow/deny verdict before the tool "
+            "actually runs."
         ),
+        # AAASM-5661 added the condition. The controls below supply a reachable
+        # authority via install_fake_core(); unconditionally, the sentence
+        # described a configuration this page's own example does not produce.
         # Both halves. The negative controls prove the "before" by absence of
         # the side effect; the positive controls prove the probe would have seen
         # that effect had it happened. Either alone is vacuous.
@@ -286,15 +381,26 @@ BINDINGS: tuple[ClaimBinding, ...] = (
     ClaimBinding(
         claim_id="init-wired-in-governance-label",
         # Split out from the bullet it leads, once the splitter learned to keep
-        # closing markup with its sentence. Short, but still a claim: "wired in
-        # governance" asserts an outcome.
-        quote="**`init_assembly()` wired in governance.**",
-        unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
+        # closing markup with its sentence. Short, but still a claim: it asserts
+        # an outcome.
+        #
+        # AAASM-5661 replaced "wired in governance" — an undifferentiated verb of
+        # exactly the kind ADR 0033 §6 rules out — with the narrower outcome the
+        # controls observe: a hook on the framework's tool path.
+        quote="**`init_assembly()` installed the governance hook.**",
+        controls=_DOCUMENTED_CONFIGURATION_CONTROLS,
     ),
     ClaimBinding(
         claim_id="tool-calls-were-governed-label",
-        quote="**Tool calls were governed.**",
-        controls=_ALLOW_AND_DENY_CONTROLS,
+        quote="**Tool calls went through the adapter.**",
+        # AAASM-5661, second pass. Found by sweeping the page for the claim class
+        # rather than the sites review named — nobody flagged this one. "were
+        # governed" is a bare past-tense assertion about *this* example, in the
+        # undifferentiated register ADR 0033 §6 rules out, and it rested on
+        # controls that install a fake native core. On the configuration the page
+        # hands a reader the calls were refused without a policy governing them,
+        # so the label now says the part that held: they reached the adapter.
+        controls=_DOCUMENTED_CONFIGURATION_CONTROLS,
     ),
     ClaimBinding(
         claim_id="with-block-tears-everything-down",
@@ -308,20 +414,59 @@ BINDINGS: tuple[ClaimBinding, ...] = (
     ),
     ClaimBinding(
         claim_id="deny-surfaces-as-tool-execution-blocked",
-        quote=("If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — the policy denied the call."),
+        quote=(
+            "If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — something "
+            "refused the call before it ran."
+        ),
+        # AAASM-5661, second pass. This read "— the policy denied the call",
+        # which a reader meets at the moment their tool blocks. On the documented
+        # configuration every governed call raises this and no policy denied any
+        # of them. The tell was in the binding: it already named
+        # test_an_unavailable_native_runtime_denies_rather_than_silently_allowing,
+        # a control whose whole point is that there is no verdict source — the
+        # named evidence was the counter-example to the clause.
+        #
+        # "something refused" is the claim both halves support: a policy deny
+        # (the fake-core controls) and a no-authority refusal (the documented
+        # ones) each raise it.
         controls=(
             *_DENY_CONTROLS,
+            *_DOCUMENTED_CONFIGURATION_CONTROLS,
             "TestDegradedRuntimeCannotLookProtected"
             "::test_an_unavailable_native_runtime_denies_rather_than_silently_allowing",
         ),
         symbols={"ToolExecutionBlockedError": "agent_assembly.exceptions"},
     ),
     ClaimBinding(
+        claim_id="the-exception-reason-says-what-refused",
+        quote=(
+            "Read the exception's reason to see what refused it: a policy rule that denied the "
+            "call, or — as in this offline example — an SDK that had no authority to ask and "
+            "refused rather than run ungoverned."
+        ),
+        # AAASM-5661, second pass. The replacement for what "the policy denied the
+        # call" used to assert, and stronger than it: each disjunct has its own
+        # control reading the reason string. The deny controls assert the policy
+        # text reaches it ("policy forbids disk writes"); the documented-path
+        # control asserts the other branch names the absent extension. Binding
+        # only one of the two would leave the sentence half-evidenced in exactly
+        # the direction that misleads.
+        controls=(
+            *_DENY_CONTROLS,
+            "TestTheConfigurationTheQuickStartHandsAReader"
+            "::test_the_refusal_is_the_fail_closed_posture_rather_than_a_policy_decision",
+        ),
+    ),
+    ClaimBinding(
         claim_id="sdk-only-is-the-in-process-interception-layer",
         quote=(
             '`mode="sdk-only"` is the in-process-only interception layer: the framework adapter '
-            "enforces on tool calls, with no network sidecar to start."
+            "enforces on tool calls against a reachable policy authority, and starts no network "
+            "sidecar."
         ),
+        # AAASM-5661 named the precondition the deny controls actually satisfy.
+        # Without it the sentence read as unconditional and was falsified by the
+        # page's own example, which reaches no authority at all.
         controls=_DENY_CONTROLS,
     ),
     ClaimBinding(
@@ -340,6 +485,86 @@ BINDINGS: tuple[ClaimBinding, ...] = (
             "layer, so nothing here distinguishes 'the mode adds interception' from 'the "
             "mode is selected'. AAASM-5766 owns proving or qualifying it."
         ),
+    ),
+    # ---------------------------------------------------------------- AAASM-5661
+    # "What this offline example evaluates". The section exists because the
+    # sentences above it were measured false on the page's own configuration, so
+    # every sentence in it is bound to the module that made that measurement.
+    ClaimBinding(
+        claim_id="offline-example-has-no-native-extension",
+        quote=(
+            "A pure-Python `{{ aa.commands.install_pip }}` carries no native `agent_assembly._core` extension either."
+        ),
+        # The premise the rest of the section rests on, pinned by the control
+        # that refuses to run if the premise stops holding.
+        controls=(
+            "TestTheConfigurationTheQuickStartHandsAReader::test_the_environment_under_test_has_no_native_authority",
+        ),
+    ),
+    ClaimBinding(
+        claim_id="offline-example-evaluates-no-policy",
+        quote=(
+            "`init_assembly()` reaches no policy authority in that configuration, so it "
+            "evaluates no policy — under [ADR 0033 §6](https://github.com/ai-agent-assembly/"
+            "agent-assembly/blob/master/docs/src/adr/"
+            "0033-canonical-governance-and-enforcement-architecture.md) the term for that "
+            "state is **Degraded**, not *Evaluated*."
+        ),
+        # A negative capability claim, and the one that replaces the page's
+        # central over-claim. The control reads the refusal's reason: it names
+        # the absent extension, which a policy verdict could not.
+        controls=_DOCUMENTED_CONFIGURATION_CONTROLS,
+    ),
+    ClaimBinding(
+        claim_id="offline-example-denies-before-execution",
+        quote=(
+            "Under the default enforce posture the SDK takes its fail-closed branch instead: a "
+            "governed tool call is **denied before execution**, carrying a reason that names "
+            "the absent extension rather than a policy rule."
+        ),
+        controls=_DOCUMENTED_CONFIGURATION_CONTROLS,
+    ),
+    ClaimBinding(
+        claim_id="offline-example-warns-at-startup",
+        quote=(
+            "`init_assembly()` says as much at startup — it warns that the agent is "
+            "unregistered, and that no in-process policy decision can be made."
+        ),
+        controls=(
+            "TestTheConfigurationTheQuickStartHandsAReader"
+            "::test_startup_reports_both_the_registration_and_the_enforcement_gap",
+            "TestTheConfigurationTheQuickStartHandsAReader::test_the_agent_is_not_registered_in_this_configuration",
+        ),
+    ),
+    ClaimBinding(
+        claim_id="framework-tabs-revert-the-installed-hook",
+        quote=(
+            "That is why several framework tabs above revert the hook `init_assembly()` "
+            "installed and re-apply one wired to the example's own `LocalPolicyEngine`."
+        ),
+        # About the page's own generated tabs. Bound rather than allow-listed
+        # because the tabs are vendored from another repo: an upstream edit that
+        # drops the workaround would otherwise leave this sentence quietly false.
+        controls=(
+            "TestTheWorkaroundTheFrameworkTabsCarry::test_the_tabs_still_revert_the_hook_init_assembly_installed",
+        ),
+    ),
+    ClaimBinding(
+        claim_id="the-local-engine-decides-in-the-offline-demo",
+        quote="The local engine, not the SDK, is what returns allow and deny in the offline demo.",
+        controls=_DOCUMENTED_CONFIGURATION_CONTROLS,
+    ),
+    ClaimBinding(
+        claim_id="native-extension-is-required-for-an-sdk-decision",
+        quote=(
+            "Getting a decision from the SDK instead needs the native `agent_assembly._core` "
+            "extension this example lacks; install it with "
+            "`{{ aa.commands.install_pip_runtime }}`."
+        ),
+        # A necessity claim, and only that. The controls show the SDK returns no
+        # decision without the extension; nothing here shows that installing it
+        # is sufficient, and the sentence deliberately does not say so.
+        controls=_DOCUMENTED_CONFIGURATION_CONTROLS,
     ),
 )
 
@@ -538,6 +763,12 @@ _ALLOWED: dict[str, str] = {
     ),
     "**[Configuration](configuration.md)** — drop the hard-coded URL and key; let the resolver chain find them.": (
         "A Next-steps link item about configuration ergonomics: where the URL and key come from, not what governance does."
+    ),
+    "The example passes a `gateway_url`, and running it offline means nothing is listening there.": (
+        "AAASM-5661. Describes the example's own setup — an argument it passes and a listener the reader was told not to start. A premise for the bound sentences that follow, asserting nothing the SDK does with it."
+    ),
+    "[Point the SDK at a gateway](#2-point-the-sdk-at-a-gateway) above covers the other half of that setup.": (
+        "AAASM-5661. A cross-reference to §2 of this same page. It names where the gateway setup is written down and asserts nothing about what the SDK evaluates, denies or observes once one is running."
     ),
 }
 
@@ -854,18 +1085,23 @@ class TestEveryBindingNamesSomethingReal:
             )
 
     @pytest.mark.parametrize("binding", BINDINGS, ids=lambda b: b.claim_id)
-    def test_an_unproven_reason_does_not_name_the_implementing_ticket(self, binding: ClaimBinding) -> None:
-        """An unproven claim may not point at the ticket that closes it.
+    def test_an_unproven_reason_does_not_name_an_implementing_ticket(self, binding: ClaimBinding) -> None:
+        """An unproven claim may not point at a ticket that closes it.
 
-        A reason naming this module's own ticket resolves to a *closed* issue the
-        moment this work merges, and nothing would notice: the ticket-shaped
-        check above is satisfied by any AAASM-nnnn, open or not.
+        A reason naming one of this module's own tickets resolves to a *closed*
+        issue the moment that work merges, and nothing would notice: the
+        ticket-shaped check above is satisfied by any AAASM-nnnn, open or not.
+
+        Checked against every entry, not only the first (AAASM-5661). A
+        single-value rule bans the author who wrote the rule and nobody after
+        them, which is the one author who was never going to break it.
         """
-        assert IMPLEMENTING_TICKET not in binding.unproven_reason, (
-            f"Claim {binding.claim_id!r} is registered unproven against {IMPLEMENTING_TICKET}, "
-            "the ticket this module implements. On merge that pointer resolves to a closed "
-            "issue and the claim is silently orphaned. Name the ticket that will actually "
-            "resolve it, or file one."
+        named = [ticket for ticket in IMPLEMENTING_TICKETS if ticket in binding.unproven_reason]
+        assert not named, (
+            f"Claim {binding.claim_id!r} is registered unproven against {named}, which this "
+            "module implements. On merge that pointer resolves to a closed issue and the "
+            "claim is silently orphaned. Name the ticket that will actually resolve it, or "
+            "file one."
         )
 
     @pytest.mark.parametrize("binding", BINDINGS, ids=lambda b: b.claim_id)

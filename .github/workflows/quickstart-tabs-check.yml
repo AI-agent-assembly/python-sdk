@@ -19,6 +19,9 @@ on:
 #     these entries matter for the docs-only PR, which ci.yaml deliberately skips.
       - "test/unit/test_quickstart_claim_bindings.py"
       - "test/unit/test_quickstart_negative_control.py"
+#     AAASM-5661: the second control module the gate reads — the one that runs the
+#     documented configuration with no fake native core.
+      - "test/unit/test_quickstart_documented_configuration.py"
       - "agent_assembly/exceptions/**"
   push:
     branches:
@@ -79,5 +82,13 @@ jobs:
       - name: Install the SDK and its dev dependencies
         run: uv sync
 
+      # AAASM-5661: the controls run here too, not only the bindings. A binding
+      # names a control by node id, and the gate checks the id still exists — it
+      # cannot tell whether that control still passes. On a docs-only PR ci.yaml
+      # does not run, so without this the named evidence went unexecuted.
       - name: Every documented enforcement claim names the control that proves it
-        run: uv run pytest test/unit/test_quickstart_claim_bindings.py -q --no-cov
+        run: >-
+          uv run pytest
+          test/unit/test_quickstart_claim_bindings.py
+          test/unit/test_quickstart_documented_configuration.py
+          -q --no-cov

@@ -266,9 +266,18 @@ def test_default_mode_warns_when_native_core_missing(monkeypatch: pytest.MonkeyP
     assert result.check_tool_start(serialized={"name": "t"}, input_str="i")["status"] == "deny"
 
 
-def test_observe_mode_does_not_warn_when_native_core_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The warning is scoped to the enforce posture: an explicit ``observe`` dry-run
-    with no native extension legitimately fails open and must stay silent."""
+def test_observe_mode_reports_enforcement_is_not_applied_when_native_core_missing(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Two separate contracts, and the test name used to assert only the first.
+
+    The enforce-specific ``UserWarning`` stays scoped to the enforce posture — an
+    explicit ``observe`` dry-run legitimately fails open, and telling that caller
+    their tools are being denied would be false. But silence about *enforcement*
+    was the AAASM-5661 gap: this branch hands back the bare client, whose missing
+    ``check_tool_start`` makes the adapters allow, and the only loud signal the
+    caller got was about registration.
+    """
     monkeypatch.delitem(sys.modules, "agent_assembly._core", raising=False)
 
     import builtins
@@ -289,6 +298,11 @@ def test_observe_mode_does_not_warn_when_native_core_missing(monkeypatch: pytest
         result = build_governance_interceptor(client, "agent-001", "observe")
 
     assert result is client
+    stderr = capsys.readouterr().err
+    assert "SDK-layer enforcement is NOT applied" in stderr
+    # The remedy has to be in the same breath as the gap; a caller who reads only
+    # the registration warning has no reason to look for a second one.
+    assert "agent_assembly._core" in stderr
 
 
 def test_native_missing_deny_reason_is_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -424,6 +438,64 @@ def test_observe_unreachable_runtime_returns_bare_client(monkeypatch: pytest.Mon
     client = _FakeGatewayClient()
 
     assert build_governance_interceptor(client, "agent-001", "observe") is client
+
+
+def test_observe_unreachable_runtime_reports_enforcement_is_not_applied(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The second fail-open entry: native present, socket unreachable (AAASM-5661).
+
+    Distinct from the native-missing case above and previously the quieter of the
+    two — this branch never emitted anything at all, in either posture.
+    """
+
+    class _UnreachableRuntimeClient:
+        @staticmethod
+        def connect(_socket_path: str) -> Any:
+            raise OSError("no such socket")
+
+    fake_core = types.ModuleType("agent_assembly._core")
+    fake_core.RuntimeClient = _UnreachableRuntimeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "agent_assembly._core", fake_core)
+
+    client = _FakeGatewayClient()
+    build_governance_interceptor(client, "agent-001", "observe")
+
+    stderr = capsys.readouterr().err
+    assert "SDK-layer enforcement is NOT applied" in stderr
+    assert "runtime unreachable" in stderr
+
+
+def test_enforce_posture_does_not_report_enforcement_as_unapplied(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The notice is scoped to the fail-open branch — a positive control for it.
+
+    Without this, deleting the ``if not enforce`` guard and warning on every path
+    would leave the two controls above green while telling a fail-closed caller
+    that enforcement is not applied, which is the opposite of what happens.
+    """
+    monkeypatch.delitem(sys.modules, "agent_assembly._core", raising=False)
+
+    import builtins
+    import warnings
+
+    real_import = builtins.__import__
+
+    def _no_core_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "agent_assembly._core":
+            raise ImportError("native extension unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _no_core_import)
+
+    client = _FakeGatewayClient()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        result = build_governance_interceptor(client, "agent-001", "enforce")
+
+    assert isinstance(result, _FailClosedInterceptor)
+    assert "SDK-layer enforcement is NOT applied" not in capsys.readouterr().err
 
 
 def test_enforce_wraps_with_fail_closed_query_path(monkeypatch: pytest.MonkeyPatch) -> None:

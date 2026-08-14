@@ -1,7 +1,7 @@
 # Quick Start
 
 Govern your first agent in about five minutes. By the end you'll have an agent — in whichever
-framework you already use — whose tool calls pass through the Agent Assembly policy gate, and it
+framework you already use — whose tool calls pass through an Agent Assembly adapter, and it
 runs **offline** against a local policy, so you need no API keys and no network access to the
 outside world.
 
@@ -666,27 +666,54 @@ with no API keys and no outbound network.
 
 ## What just happened
 
-1. **`init_assembly()` wired in governance.** It registered the agent with the gateway and
-   auto-loaded the adapter for your framework — every tool call from this point on is routed
-   through the policy gate.
-2. **`mode="sdk-only"` kept it offline.** The in-process adapter enforces on tool calls with no
-   network sidecar, so the example runs deterministically with no real LLM or gateway
-   round-trip.
-3. **Tool calls were governed.** The adapter intercepts the framework's tool-invocation path and
-   asks the policy engine for an allow/deny verdict before the tool actually runs.
+1. **`init_assembly()` installed the governance hook.** It attempted to register the agent with
+   the gateway and auto-loaded the adapter for your framework, which patches that framework's
+   tool-invocation path.
+2. **`mode="sdk-only"` kept it offline.** No network sidecar starts in that mode, so the example
+   runs deterministically with no real LLM or gateway round-trip.
+3. **Tool calls went through the adapter.** The adapter intercepts the framework's
+   tool-invocation path and, when a policy authority is reachable, asks it for an allow/deny
+   verdict before the tool actually runs.
 4. **The `with` block tore everything down on exit** — adapter hooks were unwound and the
    gateway connection closed, leaving the process exactly as it was before.
 
-If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — the policy denied the
-call. That's the product working. See
+If a tool call raises a `ToolExecutionBlockedError`, that is not a bug — something refused the
+call before it ran. Read the exception's reason to see what refused it: a policy rule that denied
+the call, or — as in this offline example — an SDK that had no authority to ask and refused
+rather than run ungoverned. That's the product working. See
 [Handling allow/deny decisions](guides/handling-decisions.md) for how to catch and respond to
 those, and [Troubleshooting](troubleshooting.md) if `init_assembly()` itself raised.
+
+## What this offline example evaluates
+
+The example passes a `gateway_url`, and running it offline means nothing is listening there.
+A pure-Python `{{ aa.commands.install_pip }}` carries no native `agent_assembly._core`
+extension either.
+
+`init_assembly()` reaches no policy authority in that configuration, so it evaluates no policy —
+under
+[ADR 0033 §6](https://github.com/ai-agent-assembly/agent-assembly/blob/master/docs/src/adr/0033-canonical-governance-and-enforcement-architecture.md)
+the term for that state is **Degraded**, not *Evaluated*.
+Under the default enforce posture the SDK takes its fail-closed branch instead: a governed tool
+call is **denied before execution**, carrying a reason that names the absent extension rather
+than a policy rule.
+`init_assembly()` says as much at startup — it warns that the agent is unregistered, and that no
+in-process policy decision can be made.
+
+That is why several framework tabs above revert the hook `init_assembly()` installed and
+re-apply one wired to the example's own `LocalPolicyEngine`.
+The local engine, not the SDK, is what returns allow and deny in the offline demo.
+
+Getting a decision from the SDK instead needs the native `agent_assembly._core` extension this
+example lacks; install it with `{{ aa.commands.install_pip_runtime }}`.
+[Point the SDK at a gateway](#2-point-the-sdk-at-a-gateway) above covers the other half of that
+setup.
 
 ## `mode="sdk-only"` — why this example uses it
 
 `mode="sdk-only"` is the in-process-only interception layer: the framework adapter enforces on
-tool calls, with no network sidecar to start. It's the most portable mode and the best choice
-for deterministic, offline examples and tests. The other modes (`auto`, `proxy`, `ebpf`) add
+tool calls against a reachable policy authority, and starts no network sidecar. It's the most
+portable mode and the best choice for deterministic, offline examples and tests. The other modes (`auto`, `proxy`, `ebpf`) add
 network/kernel interception — see [Core Concepts → Modes](concepts/index.md#runtime-modes).
 
 ## Next steps
