@@ -38,6 +38,7 @@ allowed path twice.
 
 from __future__ import annotations
 
+import contextlib
 from test.unit.adapters import failopen_conformance as conf
 
 import pytest
@@ -100,3 +101,49 @@ async def test_a_deny_whose_audit_hook_raises_still_records_and_still_blocks(ada
 
     assert ran is False, f"{adapter_name}: a raising audit hook let the denied tool run"
     assert _denied_records(records), f"{adapter_name}: the deny record was not offered before the hook raised"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("adapter_name", sorted(conf.DRIVERS))
+async def test_a_hook_written_to_the_allowed_path_contract_still_gets_the_deny_record(
+    adapter_name: str,
+) -> None:
+    """The deny record must not require a wider signature than the allowed one.
+
+    Several adapters call the audit hook with just ``tool_name`` and ``result``
+    on the allowed path, so a caller-supplied handler is entitled to accept only
+    those. Offering the extra keywords unconditionally raised ``TypeError``,
+    which :mod:`agent_assembly.adapters._shared.audit_record` then suppressed —
+    the deny recorded nothing, silently, in exactly the population the
+    "eleven adapters record on deny" claim is about.
+
+    The handler here is deliberately narrow: no ``**kwargs``, no ``denied``. It
+    therefore also pins the other half — that a hook which cannot receive the
+    denial marker still receives the record.
+    """
+    records: list[tuple[str, str]] = []
+
+    class NarrowHandler:
+        _enforce = True
+
+        def check_tool_start(self, **_kwargs: object) -> dict[str, str]:
+            return {"status": "deny", "reason": "denied by policy"}
+
+        def wait_for_tool_approval(self, **_kwargs: object) -> dict[str, str]:
+            return {"status": "deny", "reason": "denied by policy"}
+
+        def record_result(self, *, tool_name: str, result: str) -> None:
+            records.append((tool_name, result))
+
+    from agent_assembly.exceptions import AssemblyError
+
+    ran = [False]
+    with contextlib.suppress(AssemblyError):
+        await conf.DRIVERS[adapter_name](NarrowHandler(), ran)
+
+    assert ran[0] is False, f"{adapter_name}: the tool ran under an authoritative deny"
+    assert records, (
+        f"{adapter_name}: a handler accepting only (tool_name, result) — the allowed-path "
+        f"contract — received no deny record; the wider call raised TypeError and it was "
+        f"suppressed (AAASM-5787)"
+    )
