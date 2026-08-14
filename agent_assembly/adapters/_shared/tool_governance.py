@@ -180,14 +180,17 @@ async def _record_async_tool_result(
 
     Whether anything is recorded depends entirely on the ``callback_handler``.
     Both hooks are duck-typed. Over a connected runtime
-    ``RuntimeQueryInterceptor.record_result`` resolves and ships the record
-    across the native event channel, so the event reaches the runtime's evidence
-    pipeline — ADR 0033 §6 *Observed* — for allowed calls as much as denied ones
-    (AAASM-5750). Without a runtime neither hook resolves and this function emits
-    nothing, measured against the native and HTTP boundaries; the control is
-    configured and its channel unavailable, which is §6 *Degraded* rather than
-    *Unmeasured* — §6 reserves ``Unmeasured`` for an action no control inspected,
-    and here exactly where the record stops has been measured.
+    ``RuntimeQueryInterceptor.record_result`` resolves and writes the record to
+    the native event channel (AAASM-5750). That is a handoff and **not** ADR 0033
+    §6 *Observed*: the send is unacknowledged, so nothing here establishes a
+    durable event attributed to the action. Without a runtime neither hook
+    resolves and this function emits nothing, measured against the native and
+    HTTP boundaries.
+
+    Note the scope of "allowed or denied" here: *this* shared flow calls the hook
+    on both paths, which is why ``google_adk`` and ``pydantic_ai`` cover denies.
+    Most adapters do not route through it and return or raise before their own
+    record helper, so their denied calls produce no record at all.
 
     Which of the two a run is in is declared in ``audit_sink`` (see
     :mod:`agent_assembly.core.audit_sink`) and warned about by ``init_assembly``;
