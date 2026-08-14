@@ -268,12 +268,27 @@ def test_every_shipped_governance_handler_declares_its_audit_sink() -> None:
     # `discarded` and `caller-supplied` are real and reachable; they are simply not
     # reachable from *this* matrix, so each has its own case below rather than a
     # standing waiver here (AAASM-5752).
-    observed = {getattr(handler, "audit_sink", None) for handler in handlers.values()}
-    assert observed == {AUDIT_SINK_FORWARDED, AUDIT_SINK_ABSENT}, (
-        f"the shipped handler matrix reported {sorted(map(str, observed))}; it is pinned to "
-        f"{sorted([AUDIT_SINK_ABSENT, AUDIT_SINK_FORWARDED])}. A new value here is either a "
-        "handler that stopped declaring what it does with the hook-layer audit record, or a "
-        "genuine new branch that needs its own case and its own reason (AAASM-5731, AAASM-5752)"
+    # Per LABEL, not as a union. Review measured why the union is not enough: it
+    # detects a NEW value but not a WRONG ASSIGNMENT within the set. Flipping
+    # `GatewayClient.audit_sink` from `absent` to `forwarded` — a false retention
+    # claim on two shipped configurations, the exact defect this type exists to
+    # prevent — left the whole suite green, because {absent, forwarded} was still
+    # the union. The mapping binds each branch to its own answer.
+    expected = {
+        "runtime reachable, enforce": AUDIT_SINK_FORWARDED,
+        "runtime reachable, observe": AUDIT_SINK_FORWARDED,
+        "runtime unreachable, enforce": AUDIT_SINK_ABSENT,
+        "runtime unreachable, observe": AUDIT_SINK_ABSENT,
+        "native missing, enforce": AUDIT_SINK_ABSENT,
+        "native missing, observe": AUDIT_SINK_ABSENT,
+        "langchain callback handler": AUDIT_SINK_FORWARDED,
+    }
+    observed = {label: getattr(handler, "audit_sink", None) for label, handler in handlers.items()}
+    assert observed == expected, (
+        f"the shipped handler matrix reported {observed}; it is pinned to {expected}. A changed "
+        "value is either a handler that stopped declaring what it does with the hook-layer audit "
+        "record, or a genuine new branch that needs its own case and its own reason "
+        "(AAASM-5731, AAASM-5752)"
     )
 
 
@@ -286,10 +301,20 @@ def test_the_langchain_handler_reports_discarded_when_what_it_wraps_records_noth
     `absent`: `absent` says nothing constructs the event, and here something does.
     """
 
-    class RecordsNothing:
-        audit_sink = AUDIT_SINK_ABSENT
-
-    assert AssemblyCallbackHandler(RecordsNothing()).audit_sink == AUDIT_SINK_DISCARDED
+    # Driven from the shipped factory, not from a stub. Review measured the
+    # difference: with a 3-line `class RecordsNothing: audit_sink = "absent"`
+    # this case still passed under a mutation setting `GatewayClient.audit_sink`
+    # to `forwarded`, which removes `discarded` from two of the four shipped
+    # configurations that produce it. The stub pinned the substitution rule
+    # inside `AssemblyCallbackHandler`; these labels pin that shipped code
+    # reaches the value at all.
+    handlers = _shipped_handler_matrix([])
+    for label in ("runtime unreachable, observe", "native missing, observe"):
+        wrapped = AssemblyCallbackHandler(handlers[label])
+        assert wrapped.audit_sink == AUDIT_SINK_DISCARDED, (
+            f"the LangChain handler wrapping the '{label}' interceptor reported "
+            f"{wrapped.audit_sink!r}; `_register_adapters` performs exactly this substitution"
+        )
 
 
 def test_a_handler_that_declares_nothing_is_reported_as_caller_supplied() -> None:
@@ -646,3 +671,34 @@ def test_init_assembly_stays_quiet_when_the_record_is_forwarded(
     finally:
         context.shutdown()
         core_assembly._ACTIVE_CONTEXT = None
+
+
+def test_building_an_interceptor_over_a_raising_client_reports_absent_rather_than_failing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reachable form of the AAASM-5752 symptom, at the shipped factory.
+
+    The ticket is explicit that this is "unreachable on the shipped path —
+    ``init_assembly`` builds its own ``GatewayClient`` — and reachable only by
+    calling ``build_governance_interceptor`` directly with such a client". That
+    is measured, not assumed: an ``init_assembly``-level version of this test was
+    written first and *passed with every guard reverted*, because a client that
+    raises degrades the connect itself, so init reports ``absent`` for an
+    unrelated reason. It was dropped rather than shipped as a tautology.
+
+    So the binding is made where the defect actually lives. Reverting any of the
+    three guards reddens this.
+    """
+
+    class RaisesOnEveryLookup:
+        def __getattr__(self, name: str) -> Any:
+            raise RuntimeError("client is not connected")
+
+    interceptor = build_governance_interceptor(
+        RaisesOnEveryLookup(),
+        _AGENT_ID,
+        None,
+        runtime_client=RaisesOnEveryLookup(),
+        native_available=True,
+    )
+    assert interceptor.audit_sink == AUDIT_SINK_ABSENT
