@@ -1007,6 +1007,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#what-this-offline-example-evaluates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this offline example evaluates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#modesdk-only-why-this-example-uses-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2539,6 +2550,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#what-this-offline-example-evaluates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this offline example evaluates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#modesdk-only-why-this-example-uses-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2595,7 +2617,7 @@
 
 <h1 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h1>
 <p>Govern your first agent in about five minutes. By the end you'll have an agent — in whichever
-framework you already use — whose tool calls pass through the Agent Assembly policy gate, and it
+framework you already use — whose tool calls pass through an Agent Assembly adapter, and it
 runs <strong>offline</strong> against a local policy, so you need no API keys and no network access to the
 outside world.</p>
 <h2 id="1-install">1. Install<a class="headerlink" href="#1-install" title="Permanent link">&para;</a></h2>
@@ -3222,25 +3244,47 @@ with no API keys and no outbound network.</p>
 
 <h2 id="what-just-happened">What just happened<a class="headerlink" href="#what-just-happened" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong><code>init_assembly()</code> wired in governance.</strong> It registered the agent with the gateway and
-   auto-loaded the adapter for your framework — every tool call from this point on is routed
-   through the policy gate.</li>
-<li><strong><code>mode="sdk-only"</code> kept it offline.</strong> The in-process adapter enforces on tool calls with no
-   network sidecar, so the example runs deterministically with no real LLM or gateway
-   round-trip.</li>
-<li><strong>Tool calls were governed.</strong> The adapter intercepts the framework's tool-invocation path and
-   asks the policy engine for an allow/deny verdict before the tool actually runs.</li>
+<li><strong><code>init_assembly()</code> installed the governance hook.</strong> It attempted to register the agent with
+   the gateway and auto-loaded the adapter for your framework, which patches that framework's
+   tool-invocation path.</li>
+<li><strong><code>mode="sdk-only"</code> kept it offline.</strong> No network sidecar starts in that mode, so the example
+   runs deterministically with no real LLM or gateway round-trip.</li>
+<li><strong>Tool calls went through the adapter.</strong> The adapter intercepts the framework's
+   tool-invocation path and, when a policy authority is reachable, asks it for an allow/deny
+   verdict before the tool actually runs.</li>
 <li><strong>The <code>with</code> block tore everything down on exit</strong> — adapter hooks were unwound and the
    gateway connection closed, leaving the process exactly as it was before.</li>
 </ol>
-<p>If a tool call raises a <code>ToolExecutionBlockedError</code>, that is not a bug — the policy denied the
-call. That's the product working. See
+<p>If a tool call raises a <code>ToolExecutionBlockedError</code>, that is not a bug — something refused the
+call before it ran. Read the exception's reason to see what refused it: a policy rule that denied
+the call, or — as in this offline example — an SDK that had no authority to ask and refused
+rather than run ungoverned. That's the product working. See
 <a href="../guides/handling-decisions/">Handling allow/deny decisions</a> for how to catch and respond to
 those, and <a href="../troubleshooting/">Troubleshooting</a> if <code>init_assembly()</code> itself raised.</p>
+<h2 id="what-this-offline-example-evaluates">What this offline example evaluates<a class="headerlink" href="#what-this-offline-example-evaluates" title="Permanent link">&para;</a></h2>
+<p>The example passes a <code>gateway_url</code>, and running it offline means nothing is listening there.
+A pure-Python <code>pip install --pre agent-assembly</code> carries no native <code>agent_assembly._core</code>
+extension either.</p>
+<p><code>init_assembly()</code> reaches no policy authority in that configuration, so it evaluates no policy —
+under
+<a href="https://github.com/ai-agent-assembly/agent-assembly/blob/master/docs/src/adr/0033-canonical-governance-and-enforcement-architecture.md">ADR 0033 §6</a>
+the term for that state is <strong>Degraded</strong>, not <em>Evaluated</em>.
+Under the default enforce posture the SDK takes its fail-closed branch instead: a governed tool
+call is <strong>denied before execution</strong>, carrying a reason that names the absent extension rather
+than a policy rule.
+<code>init_assembly()</code> says as much at startup — it warns that the agent is unregistered, and that no
+in-process policy decision can be made.</p>
+<p>That is why several framework tabs above revert the hook <code>init_assembly()</code> installed and
+re-apply one wired to the example's own <code>LocalPolicyEngine</code>.
+The local engine, not the SDK, is what returns allow and deny in the offline demo.</p>
+<p>Getting a decision from the SDK instead needs the native <code>agent_assembly._core</code> extension this
+example lacks; install it with <code>pip install --pre 'agent-assembly[runtime]'</code>.
+<a href="#2-point-the-sdk-at-a-gateway">Point the SDK at a gateway</a> above covers the other half of that
+setup.</p>
 <h2 id="modesdk-only-why-this-example-uses-it"><code>mode="sdk-only"</code> — why this example uses it<a class="headerlink" href="#modesdk-only-why-this-example-uses-it" title="Permanent link">&para;</a></h2>
 <p><code>mode="sdk-only"</code> is the in-process-only interception layer: the framework adapter enforces on
-tool calls, with no network sidecar to start. It's the most portable mode and the best choice
-for deterministic, offline examples and tests. The other modes (<code>auto</code>, <code>proxy</code>, <code>ebpf</code>) add
+tool calls against a reachable policy authority, and starts no network sidecar. It's the most
+portable mode and the best choice for deterministic, offline examples and tests. The other modes (<code>auto</code>, <code>proxy</code>, <code>ebpf</code>) add
 network/kernel interception — see <a href="../concepts/#runtime-modes">Core Concepts → Modes</a>.</p>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
@@ -3268,7 +3312,7 @@ network/kernel interception — see <a href="../concepts/#runtime-modes">Core Co
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="July 15, 2026 13:12:40 CST"><span class="timeago" datetime="2026-07-15T13:12:40+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="July 15, 2026 13:12:40 CST">2026-07-15</span> by Bryant</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 14, 2026 10:00:34 CST"><span class="timeago" datetime="2026-08-14T10:00:34+08:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 14, 2026 10:00:34 CST">2026-08-14</span> by Bryant</span>
 
     
     
