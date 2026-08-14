@@ -202,14 +202,21 @@ _ALLOW_AND_DENY_CONTROLS = (
 #: AAASM-5661 also closed the gap for the sentences it could: the ones about what
 #: happens *after* init now name controls in
 #: test_quickstart_documented_configuration.py, which runs the page's arguments
-#: with no fake core. What is left here is what that module still cannot reach —
-#: claims about a live gateway, which no unit control in this repo can stand up.
+#: with no fake core. What is left is what that module cannot reach — claims that
+#: need a runtime or a gateway actually standing up.
+#:
+#: The shared body carries NO ticket. It used to, and the ticket it carried was
+#: AAASM-5661 — the one that closes on this merge, which is precisely the
+#: stale-referent shape AAASM-5750 exists to eliminate: a pointer aimed at a
+#: ticket that finishes without delivering the capability, so a reader who
+#: follows it finds completed work that never intended to. Each claim below now
+#: names the ticket that will actually resolve *it*, prefixed to this body.
 _DOCUMENTED_PATH_UNMEASURED = (
-    "AAASM-5661: the documented configuration was measured and does not behave as this "
-    "sentence says. No control covers it — every control in "
-    "test_quickstart_negative_control.py installs a fake native core the documented "
-    "path does not have, and the documented-configuration controls cannot stand up a "
-    "live gateway to prove what one would return."
+    "the documented configuration was measured and does not behave as this sentence "
+    "says. No control covers it — every control in test_quickstart_negative_control.py "
+    "installs a fake native core the documented path does not have, and the "
+    "documented-configuration controls cannot stand up a live gateway to prove what one "
+    "would return."
 )
 
 #: The documented configuration, measured end to end through Agno's own tool
@@ -269,11 +276,17 @@ BINDINGS: tuple[ClaimBinding, ...] = (
         # on PATH, so find_aasm_binary() resolves the Python one, which has no
         # `start` subcommand. The documented auto-start therefore cannot work
         # from a clean install.
+        #
+        # Owned by AAASM-5760, whose description carries this exact measurement
+        # as its defect #1. It previously named AAASM-5661, which measured the
+        # defect but does not fix it — a packaging change, not a documentation
+        # one — so that pointer would have resolved to closed work.
         unproven_reason=(
-            "AAASM-5661: no control covers the documented auto-start path, and it was "
+            "AAASM-5760: no control covers the documented auto-start path, and it was "
             "measured not to work from a clean install — the [project.scripts] aasm "
             "console script shadows the bundled binary, and the shadowing one has no "
-            "'start' subcommand."
+            "'start' subcommand. AAASM-5760 owns resolving the binary or naming the "
+            "command that exists."
         ),
     ),
     ClaimBinding(
@@ -282,12 +295,32 @@ BINDINGS: tuple[ClaimBinding, ...] = (
             "You don't configure `:50051` yourself — registration dials it automatically — so a "
             "no-argument `init_assembly()` both connects and shows the agent in the dashboard."
         ),
-        unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
+        # Owned by AAASM-5760's defect #2, "a gateway-less call raises instead of
+        # degrading", whose AC is that the gateway-less path either degrades with
+        # a stated posture or the documentation says it raises. That is this
+        # sentence: measured, a no-argument init_assembly() with the native core
+        # present and no gateway raises ConfigurationError, and without the
+        # native core registration never runs, so the agent does not appear.
+        unproven_reason=(
+            f"AAASM-5760: {_DOCUMENTED_PATH_UNMEASURED} Neither half of 'connects and "
+            "shows the agent in the dashboard' holds on the documented path, and "
+            "AAASM-5760 owns making the gateway-less path degrade or saying that it "
+            "raises."
+        ),
     ),
     ClaimBinding(
         claim_id="gateway-returns-allow-deny-decisions",
         quote=("`init_assembly()` needs to reach a **gateway** — the policy brain that returns allow/deny decisions."),
-        unproven_reason=_DOCUMENTED_PATH_UNMEASURED,
+        # What a *live gateway* returns cannot be shown by any unit control in
+        # this repo; it needs the documented path standing up end to end. That is
+        # AAASM-5758, which runs each documented quick-start from published
+        # artifacts only — and which lists AAASM-5661 among its blockers, so it
+        # cannot be the ticket that closes first.
+        unproven_reason=(
+            f"AAASM-5758: {_DOCUMENTED_PATH_UNMEASURED} AAASM-5758 owns running the "
+            "documented quick-start from published artifacts against a real gateway, "
+            "which is the only place this sentence can be shown true."
+        ),
     ),
     ClaimBinding(
         claim_id="init-routes-every-tool-call",
