@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from functools import wraps
 from typing import Any, Literal
 
+from agent_assembly.adapters._shared.audit_record import accepts_keyword
 from agent_assembly.adapters.crewai.patch import (
     _get_pending_tool_approval_timeout_seconds as _resolve_pending_timeout_seconds,
 )
@@ -416,7 +417,13 @@ async def _record_async_tool_result(
     result: object,
     agent_id: str | None,
     ctx: Any,
+    denied: bool = False,
 ) -> None:
+    # AAASM-5787: this adapter was already one of the three that recorded on the
+    # denied path, but the record it built was indistinguishable from a tool that
+    # ran and returned the denial text. The flag is offered only to hooks that can
+    # receive it, for the reason ``accepts_keyword`` documents.
+    denial_flag = {"denied": denied} if denied else {}
     target = _resolve_governance_target(callback_handler)
 
     record_method = getattr(target, "record_result", None)
@@ -427,6 +434,7 @@ async def _record_async_tool_result(
             result=_truncate_result_for_audit(result),
             agent_id=agent_id,
             run_context=ctx,
+            **(denial_flag if accepts_keyword(record_method, "denied") else {}),
         )
         if inspect.isawaitable(recorded):
             await recorded
@@ -439,6 +447,7 @@ async def _record_async_tool_result(
             tool_name=tool_name,
             agent_id=agent_id,
             run_context=ctx,
+            **(denial_flag if accepts_keyword(tool_end_method, "denied") else {}),
         )
         if inspect.isawaitable(recorded):
             await recorded
@@ -465,6 +474,7 @@ async def _record_denied_tool_result(
     try:
         await _record_async_tool_result(
             callback_handler,
+            denied=True,
             tool_name=tool_name,
             tool_input=tool_input,
             result=result,
