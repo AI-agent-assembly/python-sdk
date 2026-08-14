@@ -175,6 +175,18 @@ class TestTheConfigurationTheQuickStartHandsAReader:
         """``registered`` is the programmatic counterpart of the stderr warning."""
         assert documented_context.registered is False
 
+    def test_no_network_sidecar_starts_in_sdk_only_mode(self, documented_context: Any) -> None:
+        """What `mode="sdk-only"` actually buys the example: determinism, not enforcement.
+
+        The AAASM-5529 controls monkeypatch ``_start_network_layer`` away, so they
+        cannot speak to this; here the real one runs. Asserting the shutdown hook
+        is the no-op — not merely that ``network_mode`` reads ``"sdk-only"`` —
+        because the mode string is what the caller asked for, and a started
+        sidecar would leave a real teardown behind.
+        """
+        assert documented_context.network_mode == "sdk-only"
+        assert documented_context._network_shutdown is core_assembly._noop_shutdown
+
     def test_startup_reports_both_the_registration_and_the_enforcement_gap(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
