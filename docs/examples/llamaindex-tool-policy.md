@@ -1,6 +1,6 @@
 # LlamaIndex
 
-Integrates Agent Assembly with [LlamaIndex](https://docs.llamaindex.ai/) using the **native `LlamaIndexAdapter`**, so every tool call a LlamaIndex agent makes is governed automatically — no per-tool wrapper.
+Integrates Agent Assembly with [LlamaIndex](https://docs.llamaindex.ai/) using the **native `LlamaIndexAdapter`**, so each tool call a LlamaIndex agent makes is governed automatically — no per-tool wrapper.
 
 ## What this example demonstrates
 

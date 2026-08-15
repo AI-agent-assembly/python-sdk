@@ -1,7 +1,7 @@
 # Agent Assembly Python SDK
 
 **In plain terms:** this SDK is how a Python agent asks for permission before it acts.
-You wrap your existing agent in one `init_assembly()` call, and from that point on every
+You wrap your existing agent in one `init_assembly()` call, and from that point on each
 tool call your agent makes is checked against a governance policy — allowed or denied —
 without you rewriting a single line of the agent itself. Over a connected runtime the
 outcome of each call is also handed to the runtime's event channel (see below).
