@@ -177,7 +177,7 @@ with init_assembly(
 
 What this does:
 
-1. `init_assembly()` registers the agent with the gateway and auto-loads the LangChain adapter — every tool call from now on goes through the policy gate.
+1. `init_assembly()` registers the agent with the gateway and auto-loads the LangChain adapter — each tool call the wrapped agent makes from now on goes through the policy gate.
 2. The `FakeListLLM` replays canned responses so the example runs **offline** with no real LLM.
 3. The `with` block tears down the gateway connection and unwinds adapter hooks on exit.
 

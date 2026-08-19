@@ -127,7 +127,7 @@ Two independent knobs control governance. It's worth keeping them straight:
 | --- | --- |
 | `auto` (default) | Picks the best available layer for the current platform (eBPF on Linux, else proxy). |
 | `sdk-only` | In-process only — framework adapters enforce on tool calls; no network sidecar. Most portable; best for tests. |
-| `proxy` | Routes outbound traffic through the `aasm` sidecar proxy — network-egress policy with no code changes. |
+| `proxy` | Routes outbound traffic through the `aasm` sidecar proxy — network-egress policy without modifying the agent's source. |
 | `ebpf` | Kernel-level interception via eBPF. **Linux only** — raises `ConfigurationError` elsewhere. |
 
 ### Enforcement modes
