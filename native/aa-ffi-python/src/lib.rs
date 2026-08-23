@@ -104,6 +104,10 @@ impl RuntimeClient {
             team_id: None,
             parent_agent_id: None,
             sdk_version,
+            // No explicit override surfaced through this shim yet; falls back to
+            // AASM_STATE_DIR / ~/.aasm/identity, matching this shim's pre-AAASM-5332
+            // ambient-resolution behavior (AAASM-5839).
+            identity_dir: None,
         };
         let handle = spawn_ipc_thread(
             config.resolve_socket_path(),
@@ -164,6 +168,8 @@ impl RuntimeClient {
             // The version is signed at IPC-handshake time (`connect`), not on the
             // gateway register, so it is not needed for this config.
             sdk_version: None,
+            // See the `connect` config above (AAASM-5839).
+            identity_dir: None,
         };
         // `register` is async (tonic). Release the GIL and drive the future on a
         // private current-thread runtime so the blocking gRPC round-trip never
