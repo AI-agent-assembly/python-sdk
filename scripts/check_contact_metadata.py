@@ -138,10 +138,7 @@ def _security_synced(text: str) -> str:
     b = text.find(_BEGIN)
     e = text.find(_END)
     if b < 0 or e < 0 or e < b:
-        raise ContactDriftError(
-            f"SECURITY.md: bounded region not found — expected {_BEGIN!r} ... "
-            f"{_END!r}"
-        )
+        raise ContactDriftError(f"SECURITY.md: bounded region not found — expected {_BEGIN!r} ... {_END!r}")
     before = text[: b + len(_BEGIN)]
     after = text[e:]
     return f"{before}\n{_security_block_body()}\n{after}"
@@ -176,9 +173,10 @@ def main(argv: list[str]) -> int:
         action="store_true",
         help="Exit non-zero if any consumer file drifts from the pinned registry.",
     )
+    parser.add_argument("--root", default=None, help="repository root")
     args = parser.parse_args(argv)
 
-    root = _repo_root()
+    root = Path(args.root).resolve() if args.root is not None else _repo_root()
     try:
         _consistency_guard()
         targets = _targets(root)
@@ -186,9 +184,7 @@ def main(argv: list[str]) -> int:
         print(f"ERROR: contact-metadata check failed — {exc}", file=sys.stderr)
         return 2
 
-    drifted = [
-        p for p, desired in targets.items() if p.read_text(encoding="utf-8") != desired
-    ]
+    drifted = [p for p, desired in targets.items() if p.read_text(encoding="utf-8") != desired]
     if not drifted:
         print("Contact metadata is in sync with the pinned registry.")
         return 0
