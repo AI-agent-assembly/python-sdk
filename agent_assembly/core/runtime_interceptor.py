@@ -516,9 +516,10 @@ class _FailClosedInterceptor:
 
     That gap is not an oversight left standing: this interceptor exists precisely
     because the runtime is unreachable, and the runtime is the sink. There is no
-    channel for it to record on, which under ADR 0033 §6 is *Degraded* — the
-    control is configured and unavailable — rather than something AAASM-5750
-    could have wired.
+    channel for it to record on — not something AAASM-5750 could have wired. Under
+    ADR 0033 §6 the denied call is *Unmeasured*: no durable event attributed to it
+    exists. Not *Degraded*, which §6 evidences with a LayerDegradation event or an
+    ADR 0030 Degraded state carrying both levels, neither of which this SDK emits.
     """
 
     @property

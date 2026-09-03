@@ -28,12 +28,20 @@ The ADR 0033 §6 term follows the disposition rather than the SDK as a whole:
   that gap is tracked as AAASM-5783 and is unfixed — until ``report_event``
   payloads reach the live stream and the durable entry, no SDK can claim
   *Observed*.
-* :data:`AUDIT_SINK_ABSENT` — the control is configured and its channel is
-  unavailable, which is *Degraded*; deliberately not *Unmeasured*, since §6
-  reserves that for an action no control inspected, and here exactly where the
-  record stops has been measured against the native boundary.
-* :data:`AUDIT_SINK_DISCARDED` — a hook resolves and drops the record, so no
-  evidence exists on that path either.
+* :data:`AUDIT_SINK_ABSENT` — no hook resolves, so nothing is even attempted. The
+  **action** is *Unmeasured*: no durable event attributed to it exists. This
+  docstring used to say the opposite — "deliberately not *Unmeasured*, since here
+  exactly where the record stops has been measured" — and that is **withdrawn**
+  (AAASM-5755). Measuring where the record stops is evidence about the observer,
+  not about the action: ADR 0033 §4 says so in terms, "an empty audit log is
+  evidence about the *observer*, not about the agent", so a precisely instrumented
+  drop is the condition *Unmeasured* names rather than a disqualification from it.
+  Nor is it *Degraded* — §6 evidences that term with a LayerDegradation event or an
+  ADR 0030 Degraded state carrying both the planned and the achieved level, and
+  this SDK emits neither.
+* :data:`AUDIT_SINK_DISCARDED` — a hook resolves and drops the record. Same action
+  term, *Unmeasured*, for the same reason. The disposition values differ because
+  the remedies differ, not because the action's §6 term does.
 """
 
 from __future__ import annotations
